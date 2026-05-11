@@ -3227,7 +3227,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
         <button class="btn ghost sm" id="btn-rerun-wizard">SETUP</button>
       </div>
       <div class="setting-row">
-        <div><div class="lbl">Start new exercise program</div><div class="meta">Replace current exercise plan only; keep logs, foods, custom exercises, and records</div></div>
+        <div><div class="lbl">Start new exercise program</div><div class="meta">Open the reassessment wizard; keep logs, foods, custom exercises, and records</div></div>
         <button class="btn ghost sm" id="btn-new-training-program">TRAINING</button>
       </div>
       <div class="setting-row">
@@ -4740,6 +4740,8 @@ function migrateState(s) {
   if (s.profile.sportsActivity === undefined)  s.profile.sportsActivity = "moderate";
   if (s.profile.recommendedSplit === undefined) s.profile.recommendedSplit = "PPAL";
   if (s.profile.programTemplate === undefined)  s.profile.programTemplate = "balanced_hypertrophy";
+  if (s.profile.trainingProgramStartedAt === undefined) s.profile.trainingProgramStartedAt = s.profile.programStart || todayISO();
+  if (s.profile.dietProgramStartedAt === undefined)     s.profile.dietProgramStartedAt = s.profile.programStart || todayISO();
   // Per-session new fields: durationSec (number|null), swappedExercises (object), notes (string)
   s.sessions = (s.sessions || []).map(sess => ({
     durationSec: null,
@@ -4933,6 +4935,71 @@ function recommendTrainingApproach(input = {}) {
   };
 }
 
+function estimateOneRmFromHistory(day, exIdx) {
+  const ex = STATE.exercises?.[day]?.[exIdx];
+  if (!ex) return null;
+  const sessions = (STATE.sessions || [])
+    .filter(s => s.day === day && s.sets?.[exIdx])
+    .sort((a, b) => b.date.localeCompare(a.date));
+  let best = null;
+  sessions.forEach(s => {
+    const set = s.sets[exIdx];
+    [[set.s1w, set.s1r], [set.s2w, set.s2r]].forEach(([w, r]) => {
+      if (!w || !r) return;
+      const oneRm = w * (1 + r / 30);
+      if (!best || oneRm > best.oneRm) best = { oneRm, date: s.date };
+    });
+  });
+  const wm = getWorkingMax?.(day, exIdx);
+  if (wm) {
+    const fromWm = wm / 0.9;
+    if (!best || fromWm > best.oneRm) best = { oneRm: fromWm, date: "training max" };
+  }
+  return best ? Math.round(best.oneRm / 2.5) * 2.5 : null;
+}
+
+function oneRmToTrainingMax(oneRm) {
+  if (!oneRm || oneRm <= 0) return null;
+  return Math.round((oneRm * 0.9) / 2.5) * 2.5;
+}
+
+function trainingHistoryInsights() {
+  const today = todayISO();
+  const recentSessions = (STATE.sessions || []).filter(s => daysBetween(s.date, today) <= 42);
+  const recentLogs = (STATE.dailyLogs || []).filter(d => daysBetween(d.date, today) <= 14);
+  const daysTrained = new Set(recentSessions.map(s => s.date)).size;
+  const sessionsPerWeek = recentSessions.length ? Math.round((recentSessions.length / 6) * 10) / 10 : 0;
+  const recoveryVals = recentLogs.map(d => d.recovery).filter(v => typeof v === "number");
+  const avgRecovery = recoveryVals.length
+    ? Math.round((recoveryVals.reduce((s, v) => s + v, 0) / recoveryVals.length) * 10) / 10
+    : null;
+  const rpes = [];
+  recentSessions.forEach(sess => (sess.rpe || []).forEach(row => {
+    if (row?.s1 != null) rpes.push(row.s1);
+    if (row?.s2 != null) rpes.push(row.s2);
+  }));
+  const avgRpe = rpes.length ? Math.round((rpes.reduce((s, v) => s + v, 0) / rpes.length) * 10) / 10 : null;
+  const suggestedDays = clamp(Math.round(sessionsPerWeek || STATE.profile.trainingDays || 4), 3, 5);
+  let suggestedStress = STATE.profile.lifestyleStress || "moderate";
+  if ((avgRecovery != null && avgRecovery < 5) || (avgRpe != null && avgRpe > 8.3)) suggestedStress = "high";
+  else if (avgRecovery != null && avgRecovery >= 7 && avgRpe != null && avgRpe <= 7.5) suggestedStress = "low";
+  const hasUsefulHistory = recentSessions.length >= 3 || recoveryVals.length >= 5;
+  const summary = hasUsefulHistory
+    ? `${recentSessions.length} sessions in 6 weeks, ${daysTrained} training days, recovery ${avgRecovery ?? "?"}/10, avg RPE ${avgRpe ?? "?"}.`
+    : "Not enough consistent recent logs, so Ascend will use your profile answers with conservative defaults.";
+  return {
+    hasUsefulHistory,
+    recentSessions: recentSessions.length,
+    daysTrained,
+    sessionsPerWeek,
+    avgRecovery,
+    avgRpe,
+    suggestedDays,
+    suggestedStress,
+    summary,
+  };
+}
+
 function buildTrainingProgram(input = {}, preserveStarts = true) {
   const rec = recommendTrainingApproach(input);
   const program = cloneDefaultExercises();
@@ -4953,6 +5020,7 @@ function applyNewTrainingProgram(input = {}) {
   const rec = recommendTrainingApproach(input);
   STATE.exercises = buildTrainingProgram(input, true);
   STATE.profile.programStart = todayISO();
+  STATE.profile.trainingProgramStartedAt = todayISO();
   STATE.profile.trainingGoal = input.trainingGoal || STATE.profile.trainingGoal || "hypertrophy";
   STATE.profile.experienceLevel = input.experienceLevel || STATE.profile.experienceLevel || "intermediate";
   STATE.profile.knowledgeLevel = input.knowledgeLevel || STATE.profile.knowledgeLevel || "intermediate";
@@ -4976,6 +5044,7 @@ function applyNewDietProgram(input = {}) {
   const tdee = computeTDEE(STATE.profile.sex, bw, STATE.profile.height, STATE.profile.age, STATE.profile.activityLevel);
   STATE.cut.mode = mode;
   STATE.profile.programStart = todayISO();
+  STATE.profile.dietProgramStartedAt = todayISO();
   STATE.profile.bodyweight = bw;
   const kcalBase = tdee || Math.round(bw * 33);
   STATE.cut.p1Kcal = Math.max(1200, Math.round((kcalBase + (mode === "cut" ? -450 : mode === "bulk" ? 250 : 0)) / 50) * 50);
@@ -5203,7 +5272,10 @@ function progressionFor(day, exIdx) {
 function nextSessionDay() {
   // Each session in chronological order rotates through PUSH PULL ARMS LEGS.
   // Use sessions sorted by date to count completed cycles and pick next.
-  const sorted = [...STATE.sessions].sort((a, b) => a.date.localeCompare(b.date));
+  const programStart = STATE.profile.trainingProgramStartedAt || STATE.profile.programStart;
+  const sorted = [...STATE.sessions]
+    .filter(s => !programStart || s.date >= programStart)
+    .sort((a, b) => a.date.localeCompare(b.date));
   if (sorted.length === 0) return "PUSH";
   const last = sorted[sorted.length - 1].day;
   const i = DAY_ORDER.indexOf(last);
@@ -5233,15 +5305,6 @@ function computeTDEE(sex, weightKg, heightCm, age, activityLevel) {
   if (!bmr) return null;
   const m = ACTIVITY_MULTIPLIERS[activityLevel || "moderate"];
   return Math.round(bmr * (m ? m.mult : 1.55));
-}
-
-// 5RM estimate → starting weight
-// Epley: estimated 1RM = weight × (1 + reps/30)
-// Working start = 80% of 1RM, rounded to nearest 2.5kg
-function fiveRMtoStart(weight5rm) {
-  if (!weight5rm || weight5rm <= 0) return null;
-  const orm = weight5rm * (1 + 5 / 30);
-  return Math.round(orm * 0.80 / 2.5) * 2.5;
 }
 
 // Resolve an exercise definition for a given session, taking session-level
@@ -5709,22 +5772,29 @@ function renderToday() {
   const macroMeta = document.getElementById("today-macro-meta");
   const kcalTarget    = phaseKcalAdjusted(phase);
   const proteinTarget = STATE.cut.proteinFloor || 160;
-  const fatTarget     = STATE.cut.p1Kcal ? Math.round(STATE.cut.p1Kcal * 0.28 / 9) : 65;
+  const targets       = nutritionTargetsForDate(today);
+  const carbTarget    = targets.carbs || (kcalTarget ? Math.round(kcalTarget * 0.37 / 4) : 190);
+  const fatTarget     = targets.fat || (STATE.cut.p1Kcal ? Math.round(STATE.cut.p1Kcal * 0.28 / 9) : 65);
   if (macroCard && (log.kcal || log.protein || (log.meals && log.meals.length > 0))) {
     macroCard.style.display = "block";
     // Use meal-derived totals if meals exist (live, no SAVE needed)
     const mealsList = log.meals || [];
     const mealsKcalLive    = mealsList.reduce((s,m) => s + (m.kcal    || 0), 0);
     const mealsProteinLive = mealsList.reduce((s,m) => s + (m.protein || 0), 0);
+    const mealsCarbsLive   = mealsList.reduce((s,m) => s + (m.carbs   || 0), 0);
     const mealsFatLive     = mealsList.reduce((s,m) => s + (m.fat     || 0), 0);
     const kcal    = mealsList.length > 0 ? mealsKcalLive             : (log.kcal    || 0);
     const protein = mealsList.length > 0 ? Math.round(mealsProteinLive) : (log.protein || 0);
+    const carbs   = mealsList.length > 0
+      ? Math.round(mealsCarbsLive)
+      : Math.max(0, Math.round(((kcal || 0) - (protein * 4) - (fatTarget * 9)) / 4));
     const fat     = mealsList.length > 0 ? Math.round(mealsFatLive)     : 0;
     const meals   = mealsList.length;
     macroMeta.textContent = meals > 0 ? `${meals} MEAL${meals !== 1 ? "S" : ""} LOGGED` : "MANUAL ENTRY";
     const bars = [
       { label: "Calories", val: kcal,    target: kcalTarget,    color: "var(--accent)", unit: "kcal" },
       { label: "Protein",  val: protein, target: proteinTarget, color: "var(--good)",   unit: "g" },
+      { label: "Carbs",    val: carbs,   target: carbTarget,    color: "var(--arms)",   unit: "g" },
       { label: "Fat",      val: fat,     target: fatTarget,     color: "#f4a261",       unit: "g" },
     ].map(b => {
       const pct = Math.min(100, b.target > 0 ? (b.val / b.target) * 100 : 0);
@@ -10032,22 +10102,7 @@ $("#set-rest-sound").addEventListener("change", (e) => {
 // Export / Import / Reset
 $("#btn-rerun-wizard").addEventListener("click", () => Wizard.open());
 $("#btn-new-training-program").addEventListener("click", () => {
-  if (!confirm("Start a new exercise program? This keeps logs, records, custom foods, and custom exercises.")) return;
-  applyNewTrainingProgram({
-    mode: STATE.cut.mode,
-    trainingGoal: STATE.profile.trainingGoal,
-    experienceLevel: STATE.profile.experienceLevel,
-    knowledgeLevel: STATE.profile.knowledgeLevel,
-    trainingDays: STATE.profile.trainingDays,
-    lifestyleStress: STATE.profile.lifestyleStress,
-    sleepHours: STATE.profile.sleepHours,
-    sportsActivity: STATE.profile.sportsActivity,
-    bodyFatPct: STATE.profile.bodyFatPct,
-  });
-  saveState();
-  renderSettings();
-  renderLift();
-  toast("NEW TRAINING PROGRAM STARTED");
+  Wizard.open({ restartTraining: true });
 });
 $("#btn-new-diet-program").addEventListener("click", () => {
   if (!confirm("Start a new diet program? This keeps weigh-ins, meals, custom foods, and records.")) return;
@@ -10058,7 +10113,7 @@ $("#btn-new-diet-program").addEventListener("click", () => {
   saveState();
   renderSettings();
   renderToday();
-  toast("NEW DIET PROGRAM STARTED");
+  toast(`NEW DIET PROGRAM · ${String(STATE.cut.mode || "cut").toUpperCase()}`);
 });
 
 $("#btn-add-measurement").addEventListener("click", () => openMeasurementSheet(null));
@@ -10443,8 +10498,13 @@ const Wizard = (() => {
   let stepIdx = 0;
   let totalSteps = 6;
 
-  function open() {
+  function open(options = {}) {
+    const insights = trainingHistoryInsights();
+    const suggestedDays = insights.hasUsefulHistory ? insights.suggestedDays : (STATE.profile.trainingDays || 4);
+    const suggestedStress = insights.hasUsefulHistory ? insights.suggestedStress : (STATE.profile.lifestyleStress || "moderate");
     draft = {
+      restartTraining: !!options.restartTraining,
+      _insights: insights,
       name:          STATE.profile.name || "",
       sex:           STATE.profile.sex || null,
       age:           STATE.profile.age || null,
@@ -10455,8 +10515,8 @@ const Wizard = (() => {
       trainingGoal:  STATE.profile.trainingGoal || "hypertrophy",
       experienceLevel: STATE.profile.experienceLevel || "intermediate",
       knowledgeLevel:  STATE.profile.knowledgeLevel || "intermediate",
-      trainingDays:    STATE.profile.trainingDays || 4,
-      lifestyleStress: STATE.profile.lifestyleStress || "moderate",
+      trainingDays:    suggestedDays,
+      lifestyleStress: suggestedStress,
       sleepHours:      STATE.profile.sleepHours || 7,
       sportsActivity:  STATE.profile.sportsActivity || "moderate",
       programStart:  STATE.profile.programStart || todayISO(),
@@ -10465,12 +10525,11 @@ const Wizard = (() => {
       p1Weeks:       STATE.cut.p1Weeks || 8,
       p1Kcal:        STATE.cut.p1Kcal || 2100,
       proteinFloor:  STATE.cut.proteinFloor || 160,
-      // 5RM assessment — keyed by lift name, mapped to PPAL slot on finish
       assessment: {
-        "BENCH": { fiveRM: null, start: STATE.exercises.PUSH[0].start }, // → PUSH:0
-        "SQUAT": { fiveRM: null, start: STATE.exercises.LEGS[0].start }, // → LEGS:0
-        "OHP":   { fiveRM: null, start: STATE.exercises.PUSH[1].start }, // → PUSH:1 (OHP)
-        "ROW":   { fiveRM: null, start: STATE.exercises.PULL[0].start }, // → PULL:0
+        "BENCH": { oneRM: estimateOneRmFromHistory("PUSH", 0), trainingMax: null },
+        "SQUAT": { oneRM: estimateOneRmFromHistory("LEGS", 0), trainingMax: null },
+        "OHP":   { oneRM: estimateOneRmFromHistory("PUSH", 1), trainingMax: null },
+        "ROW":   { oneRM: estimateOneRmFromHistory("PULL", 0), trainingMax: null },
       }
     };
     stepIdx = 0;
@@ -10543,14 +10602,14 @@ const Wizard = (() => {
       draft.p1Kcal = k; draft.proteinFloor = pv;
     }
     if (step === "assessment") {
-      // Read 5RM inputs and compute starting weights
+      // Read 1RM inputs and compute 90% training maxes.
       ["BENCH","SQUAT","OHP","ROW"].forEach(k => {
-        const el = document.getElementById("wz-5rm-" + k);
+        const el = document.getElementById("wz-1rm-" + k);
         if (!el || el.value === "") return;
-        const fiveRM = parseFloat(el.value);
-        if (!isNaN(fiveRM) && fiveRM > 0) {
-          draft.assessment[k].fiveRM = fiveRM;
-          draft.assessment[k].start  = fiveRMtoStart(fiveRM) || draft.assessment[k].start;
+        const oneRM = parseFloat(el.value);
+        if (!isNaN(oneRM) && oneRM > 0) {
+          draft.assessment[k].oneRM = oneRM;
+          draft.assessment[k].trainingMax = oneRmToTrainingMax(oneRM);
         }
       });
     }
@@ -10590,14 +10649,16 @@ const Wizard = (() => {
     const assessmentMap = { BENCH: ["PUSH",0], OHP: ["PUSH",1], ROW: ["PULL",0], SQUAT: ["LEGS",0] };
     Object.entries(draft.assessment).forEach(([k, v]) => {
       const slot = assessmentMap[k];
-      if (slot && v.start && STATE.exercises[slot[0]]?.[slot[1]]) {
-        STATE.exercises[slot[0]][slot[1]].start = v.start;
+      const tm = v.trainingMax || oneRmToTrainingMax(v.oneRM);
+      if (slot && tm && STATE.exercises[slot[0]]?.[slot[1]]) {
+        STATE.exercises[slot[0]][slot[1]].start = tm;
+        setWorkingMax(slot[0], slot[1], tm);
       }
     });
     STATE.onboarded = true;
     saveState();
     close();
-    toast("YOU'RE SET");
+    toast(draft.restartTraining ? "NEW TRAINING PROGRAM SET" : "YOU'RE SET");
     goTab("today");
   }
 
@@ -10755,6 +10816,7 @@ const Wizard = (() => {
       id: "training",
       render: () => {
         const rec = recommendTrainingApproach(draft);
+        const insight = draft._insights || trainingHistoryInsights();
         return `
           <div class="eyebrow">STEP 3 · TRAINING CONTEXT</div>
           <h1>BUILD THE<br>PROGRAM<span class="accent">.</span></h1>
@@ -10819,6 +10881,8 @@ const Wizard = (() => {
               </select>
             </div>
             <div id="wz-program-preview" style="padding:12px;background:var(--bg-elev-2);border-radius:10px;border:1px solid var(--line);font-size:12px;line-height:1.5;">
+              <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:6px;">READ FROM YOUR LOGS</div>
+              <span class="muted">${escapeHtml(insight.summary)}</span><br><br>
               <strong style="color:var(--accent);">${rec.split}</strong><br>
               ${rec.volumeNote}<br>
               <span class="muted">${rec.rationale}</span>
@@ -10838,8 +10902,9 @@ const Wizard = (() => {
           const bf = parseFloat(document.getElementById("wz-bodyfat")?.value);
           draft.bodyFatPct = isNaN(bf) ? null : bf;
           const rec = recommendTrainingApproach(draft);
+          const insight = draft._insights || trainingHistoryInsights();
           const el = document.getElementById("wz-program-preview");
-          if (el) el.innerHTML = `<strong style="color:var(--accent);">${rec.split}</strong><br>${rec.volumeNote}<br><span class="muted">${rec.rationale}</span>`;
+          if (el) el.innerHTML = `<div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:6px;">READ FROM YOUR LOGS</div><span class="muted">${escapeHtml(insight.summary)}</span><br><br><strong style="color:var(--accent);">${rec.split}</strong><br>${rec.volumeNote}<br><span class="muted">${rec.rationale}</span>`;
         };
         ["wz-training-goal","wz-experience","wz-knowledge","wz-training-days","wz-bodyfat","wz-stress","wz-sleep","wz-sports"].forEach(id => {
           document.getElementById(id)?.addEventListener("input", sync);
@@ -10920,29 +10985,28 @@ const Wizard = (() => {
           <div class="eyebrow">STEP 5 · STRENGTH CHECK</div>
           <h1>WHAT CAN<br>YOU LIFT<span class="accent">?</span></h1>
           <p class="lede">
-            Enter the most weight you could do for <strong>5 clean reps</strong> on each lift.
-            We'll calculate a smart starting weight automatically.
-            Leave any blank if unsure — you can always adjust in the app.
+            Enter your current estimated <strong>1RM</strong>. Ascend uses 90% of that as your training max.
+            Then the program progression handles the rest. Leave any blank to use history or current settings.
           </p>
           <div class="form-area">
             ${lifts.map(l => {
               const saved = draft.assessment[l.key];
-              const fiveRM = saved?.fiveRM ?? "";
-              const calcStart = fiveRM ? fiveRMtoStart(parseFloat(fiveRM)) : null;
+              const oneRM = saved?.oneRM ?? "";
+              const trainingMax = oneRM ? oneRmToTrainingMax(parseFloat(oneRM)) : null;
               return `
                 <div class="input">
                   <label>
                     <span class="day-chip ${l.day.toLowerCase()}" style="font-size:9px;padding:2px 8px;margin-right:6px;">${l.day}</span>
-                    ${l.label} — 5RM (kg)
+                    ${l.label} - estimated 1RM (kg)
                   </label>
                   <input type="number" inputmode="decimal" step="2.5"
-                    id="wz-5rm-${l.key}"
-                    value="${fiveRM}"
-                    placeholder="—"
+                    id="wz-1rm-${l.key}"
+                    value="${oneRM}"
+                    placeholder="-"
                     data-lift="${l.key}"
                   />
                   <div class="field-help" id="wz-start-${l.key}">
-                    ${calcStart ? `→ Starting weight: <strong>${calcStart}kg</strong>` : l.hint}
+                    ${trainingMax ? `Training max: <strong>${trainingMax}kg</strong> (90% of 1RM)` : l.hint}
                   </div>
                 </div>
               `;
@@ -10961,9 +11025,10 @@ const Wizard = (() => {
               helpEl.innerHTML = "Leave blank to use default starting weight.";
               return;
             }
-            const start = fiveRMtoStart(val);
-            const orm   = Math.round(val * (1 + 5/30));
-            helpEl.innerHTML = `Est. 1RM: <strong>${orm}kg</strong> → Starting weight: <strong class="hl">${start}kg</strong>`;
+            const trainingMax = oneRmToTrainingMax(val);
+            draft.assessment[key].oneRM = val;
+            draft.assessment[key].trainingMax = trainingMax;
+            helpEl.innerHTML = `Training max: <strong class="hl">${trainingMax}kg</strong> (90% of ${val}kg 1RM)`;
           });
         });
       }
