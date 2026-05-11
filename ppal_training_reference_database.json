@@ -1,0 +1,430 @@
+{
+  "database_name": "PPAL Training Reference Database",
+  "version": "0.1.0",
+  "created": "2026-05-11",
+  "purpose": "Reference dataset for PPAL adaptive hypertrophy, autoregulation, readiness, nutrition, and volume logic. This is a design reference, not medical advice or controlled scientific evidence.",
+  "confidence_scale": {
+    "high": "Official product documentation, official app listing, or strongly supported design principle.",
+    "medium": "Consistent user report pattern or credible secondary programming summary.",
+    "low": "Single-user anecdote or noisy forum report."
+  },
+  "source_classes": {
+    "official_vendor": "Product store listings, official websites, help centers, release notes.",
+    "community_field_report": "Reddit or user-generated experience report.",
+    "secondary_programming_summary": "Third-party programming guide summarizing known systems.",
+    "app_store_review": "Platform listing/review data; useful for UX and feature perception, weaker for outcomes."
+  },
+  "sources": [
+    {
+      "id": "juggernaut_ai_app_store_2025",
+      "source_class": "official_vendor",
+      "title": "JuggernautAI App Store Listing",
+      "url": "https://apps.apple.com/us/app/juggernautai/id1515756471",
+      "key_points": [
+        "Individualized volume landmarks.",
+        "Optimized training frequency.",
+        "Personalized periodization strategy.",
+        "Exercise selection for weak points.",
+        "Updated volume calculation algorithms.",
+        "Readiness-driven accessory adjustments.",
+        "Weekly check-ins can drop sets when readiness score falls below 3.",
+        "On-demand volume profile recalculation without restarting program."
+      ],
+      "usable_for_ppal": [
+        "Implement visible volume profile recalculation.",
+        "Scale accessory volume before primary compound volume when readiness is poor.",
+        "Separate set-to-set, day-to-day, week-to-week, block-to-block, and long-term adaptation."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "juggernaut_ai_official_site",
+      "source_class": "official_vendor",
+      "title": "JuggernautAI Official Site",
+      "url": "https://www.juggernautai.app/",
+      "key_points": [
+        "Feedback-driven individual programming.",
+        "Adjustments happen across multiple time horizons.",
+        "Uses profile data such as goals, size, strength, experience, and recovery.",
+        "Includes exercise database, history, tools, and community support."
+      ],
+      "usable_for_ppal": [
+        "Use onboarding and profile answers to seed MEV/MRV and readiness defaults.",
+        "Use history as a coaching input rather than passive logging.",
+        "Build adaptation horizons: session, day, week, block, and athlete memory."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "reddit_juggernaut_ai_powerbuilding_14_week_review",
+      "source_class": "community_field_report",
+      "title": "Reddit Program Review: Juggernaut AI Powerbuilding 14-week cycle",
+      "url": "https://www.reddit.com/r/powerlifting/comments/z5o87x",
+      "reported_outcomes": [
+        "Hypertrophy block produced a 10RM bench PR for the user.",
+        "Peaking outcome went poorly for the user.",
+        "User reported very high hypertrophy volume after easy end-of-week feedback.",
+        "Interface clarity may have contributed to excessive volume escalation.",
+        "High accessory volume late in strength block contributed to acute overreaching."
+      ],
+      "usable_for_ppal": [
+        "Do not let repeated easy ratings escalate volume without objective guardrails.",
+        "Separate hypertrophy/powerbuilding logic from peaking logic.",
+        "Warn users when attempting to peak from hypertrophy-biased training.",
+        "Cap weekly volume increases per muscle and movement pattern.",
+        "Monitor weak-point emphasis to prevent localized overreaching."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "reddit_juggernaut_ai_powerlifting_powerbuilding_2_review",
+      "source_class": "community_field_report",
+      "title": "Reddit Program Review: Juggernaut AI Powerlifting and Powerbuilding 2.0",
+      "url": "https://www.reddit.com/r/powerlifting/comments/k596ro",
+      "reported_outcomes": [
+        "Repeated easy ratings may drive harder volume progressions.",
+        "One user reported hypertrophy volume became extremely hard after easy ratings.",
+        "Peak blocks may feel like a large volume drop for some users."
+      ],
+      "usable_for_ppal": [
+        "Tie volume progression to objective performance and readiness, not only subjective difficulty.",
+        "Explain that easy ratings can increase future volume.",
+        "Use conservative volume ramps for users cutting, under-recovered, or showing low readiness.",
+        "Protect against sudden week-to-week volume jumps."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "reddit_juggernaut_method_2_review_aug_2024",
+      "source_class": "community_field_report",
+      "title": "Reddit Program Review: Juggernaut 2.0",
+      "url": "https://www.reddit.com/r/fitness30plus/comments/1ejaei7",
+      "reported_outcomes": [
+        "User maintained bodyweight while front squat rose 90 to 97.5 kg, bench 100 to 110 kg, deadlift 140 to 165 kg, and behind-the-neck press 60 to 72 kg.",
+        "User reported finishing workouts in about an hour.",
+        "Four-day flexibility, deload weeks, submaximal work, and training around judo were valued.",
+        "Abs-first warm-up improved adherence.",
+        "Sprints before lower body may have reduced realization performance."
+      ],
+      "usable_for_ppal": [
+        "Submaximal volume waves work well around other sports and life stress.",
+        "Four-day flexible programming can improve adherence.",
+        "Deload weeks should remain structured when fatigue accumulates.",
+        "Conditioning placement can interfere with lower-body performance; track sequencing effects."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "reddit_juggernaut_method_2_review_nov_2024",
+      "source_class": "community_field_report",
+      "title": "Reddit Program Review: Juggernaut 2.0 second run",
+      "url": "https://www.reddit.com/r/fitness30plus/comments/1gy8fkl",
+      "reported_outcomes": [
+        "User lost 2 kg while lower-body lifts remained close to or above previous maxes for reps.",
+        "Submaximal work helped preserve sport performance.",
+        "User recommended the program for all-around athleticism and training around another sport.",
+        "Bench lagged relative to lower body, showing lift-specific response differences."
+      ],
+      "usable_for_ppal": [
+        "During weight loss, strength maintenance or rep PRs can count as success.",
+        "Track per-lift response separately.",
+        "Submaximal work and deloads are useful for concurrent activity users."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "liftosaur_juggernaut_method_2_summary",
+      "source_class": "secondary_programming_summary",
+      "title": "Liftosaur Juggernaut Method 2.0 Guide",
+      "url": "https://www.liftosaur.com/programs/juggernaut-method",
+      "key_points": [
+        "Juggernaut Method 2.0 uses 10s, 8s, 5s, and 3s waves over 16 weeks.",
+        "Each wave contains accumulation, intensification, realization, and deload.",
+        "Progression is driven by AMRAP realization sets.",
+        "Submaximal loading is central.",
+        "Accessories can use double progression."
+      ],
+      "usable_for_ppal": [
+        "Use wave/block structure for long-term progression modes.",
+        "Use periodic rep PR tests rather than constant max testing.",
+        "Use deloads after major waves or fatigue accumulation."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "rp_diet_google_play",
+      "source_class": "official_vendor",
+      "title": "RP Diet Coach Google Play Listing",
+      "url": "https://play.google.com/store/apps/details?id=com.rp.rpdiet",
+      "key_points": [
+        "Personalized calories and macros based on body and goals.",
+        "Meal timing guidance.",
+        "Raw vs cooked food tracking.",
+        "Weekly reviews update calories and macros based on progress.",
+        "Reminders, barcode scanning, large food database, and AI nutrition label scanning.",
+        "Reviews include praise for results and criticism of UX/technical friction."
+      ],
+      "usable_for_ppal": [
+        "Weekly nutrition review should adjust calories/macros based on weight trend.",
+        "Meal logging UX quality is critical.",
+        "PPAL should remain nutrition source of truth and export outward if needed."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "rp_diet_app_store",
+      "source_class": "official_vendor",
+      "title": "RP Diet Coach App Store Listing",
+      "url": "https://apps.apple.com/us/app/rp-diet-coach-planner/id1330041267",
+      "key_points": [
+        "Personalized calories/macros, meal timing guidance, weekly reviews, reminders, barcode scanner, AI label scanning, flexible scheduling, and HealthKit integration.",
+        "Weekly plan updates based on progress.",
+        "User reviews describe accountability and autonomy to accept or reject recommendations."
+      ],
+      "usable_for_ppal": [
+        "Give recommendations but allow user override.",
+        "Use weekly check-ins as accountability rather than rigid prescription.",
+        "Health data integration should support weigh-ins and trend analysis, not replace PPAL nutrition tracking."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "rp_diet_help_update_1_5",
+      "source_class": "official_vendor",
+      "title": "RP Diet App Update 1.5 Help Center",
+      "url": "https://help.rpstrength.com/hc/en-us/articles/35041947892631-Diet-App-Update-1-5",
+      "key_points": [
+        "Calories are now more visible because calories are the main driver of bodyweight change.",
+        "Update aimed to increase flexibility while keeping users on track."
+      ],
+      "usable_for_ppal": [
+        "Keep calories visible as the main bodyweight lever.",
+        "Treat macros as execution targets while using calorie trend as the primary weight-change signal.",
+        "Avoid hiding important drivers from the user."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "rp_diet_reddit_crossfit_2019",
+      "source_class": "community_field_report",
+      "title": "Reddit RP Diet App Discussion",
+      "url": "https://www.reddit.com/r/crossfit/comments/c1n0qq",
+      "reported_outcomes": [
+        "Users said early cut phases can feel like a lot of food because the app starts close to maintenance.",
+        "One user reported losing 10 lb on a first cut.",
+        "Another user reported losing 10 lb in four weeks while matching PRs.",
+        "Commenters emphasized weekly macro adjustment from weigh-ins."
+      ],
+      "usable_for_ppal": [
+        "Avoid aggressive initial calorie cuts.",
+        "Start near estimated maintenance and adjust from actual weight trend.",
+        "Use weekly weight trend rather than daily noise.",
+        "During a cut, preserving performance is a success metric."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "rp_diet_reddit_issue_2019",
+      "source_class": "community_field_report",
+      "title": "Reddit RP Diet App Issue Discussion",
+      "url": "https://www.reddit.com/r/crossfit/comments/bv9ipm",
+      "reported_outcomes": [
+        "User reported an extreme macro adjustment after three weeks.",
+        "Reported targets became very low carb and calorie.",
+        "Commenters suggested the adjustment seemed incorrect."
+      ],
+      "usable_for_ppal": [
+        "Add minimum calorie and macro floors.",
+        "Never make extreme weekly macro cuts from one weigh-in event.",
+        "Require confirmation for aggressive calorie/macro changes.",
+        "Use rolling averages and adherence checks before changing targets."
+      ],
+      "confidence": "low"
+    },
+    {
+      "id": "volume_landmarks_arvo",
+      "source_class": "secondary_programming_summary",
+      "title": "Volume Landmarks MEV/MAV/MRV Explained",
+      "url": "https://arvo.guru/resources/volume-landmarks",
+      "key_points": [
+        "MEV is described as minimum effective volume, roughly 6-8 sets/week for many muscles.",
+        "MAV is described as a productive range, roughly 12-18 sets/week.",
+        "MRV is described as a ceiling, roughly 20-25 sets/week, with individual variation.",
+        "Landmarks vary by muscle group and personal recovery."
+      ],
+      "usable_for_ppal": [
+        "Use default volume landmarks only as starting estimates.",
+        "Personalize landmarks based on response, recovery, and nutrition.",
+        "Treat MRV as a warning ceiling, not a target."
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "rp_principles_bodyspec",
+      "source_class": "secondary_programming_summary",
+      "title": "Renaissance Periodization Principles Guide",
+      "url": "https://www.bodyspec.com/blog/post/renaissance_periodization_principles_and_guide",
+      "key_points": [
+        "Summarizes specificity, overload, fatigue management, stimulus-recovery-adaptation, variation, phase potentiation, and individual differences.",
+        "Frames programming through macrocycle, mesocycle, and microcycle structure."
+      ],
+      "usable_for_ppal": [
+        "Encode fatigue management and individual differences as app logic.",
+        "Use mesocycle-level planning, not only session-level adjustments.",
+        "Rotate exercise variation when progression stalls or adaptive resistance appears."
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "app_heuristics": [
+    {
+      "id": "h_volume_guardrails_easy_feedback",
+      "domain": "training_autoregulation",
+      "rule": "Do not increase weekly volume only because a user rates training as easy.",
+      "implementation_hint": "Require at least two confirming signals: easy RPE/readiness plus stable or improving performance plus no joint/fatigue warning.",
+      "source_ids": [
+        "reddit_juggernaut_ai_powerbuilding_14_week_review",
+        "reddit_juggernaut_ai_powerlifting_powerbuilding_2_review"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "h_accessory_first_reduction",
+      "domain": "training_autoregulation",
+      "rule": "When readiness is low or fatigue is high, reduce accessory sets before reducing primary compound exposure.",
+      "implementation_hint": "Accessory volume reduction should be 1-3 sets per target region before compound removal, unless pain risk is tied to the compound.",
+      "source_ids": [
+        "juggernaut_ai_app_store_2025"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "h_weekly_nutrition_adjustment",
+      "domain": "nutrition",
+      "rule": "Adjust calorie/macros primarily from weekly weight trend, not single daily weigh-ins.",
+      "implementation_hint": "Use 7-day rolling average bodyweight and adherence score; adjust only when trend deviates from target range for 1-2 weeks.",
+      "source_ids": [
+        "rp_diet_google_play",
+        "rp_diet_reddit_crossfit_2019"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "h_macro_floor_safety",
+      "domain": "nutrition",
+      "rule": "Prevent extreme calorie/macro reductions from a single check-in.",
+      "implementation_hint": "Set minimum calorie floor, protein floor, fat floor, and max weekly calorie decrease. Require user confirmation for aggressive cuts.",
+      "source_ids": [
+        "rp_diet_reddit_issue_2019"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "h_submaximal_strength_wave",
+      "domain": "periodization",
+      "rule": "Use submaximal wave progression for users training around sport, high life stress, or concurrent conditioning.",
+      "implementation_hint": "Use 10s/8s/5s/3s-inspired wave logic, periodic AMRAPs, and deload weeks rather than frequent max testing.",
+      "source_ids": [
+        "reddit_juggernaut_method_2_review_aug_2024",
+        "reddit_juggernaut_method_2_review_nov_2024",
+        "liftosaur_juggernaut_method_2_summary"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "h_mrv_ceiling_not_target",
+      "domain": "hypertrophy_volume",
+      "rule": "Treat MRV as a ceiling warning, not a target to chase.",
+      "implementation_hint": "Optimal training should usually live around personalized MAV; MRV proximity should trigger fatigue watch and possible deload planning.",
+      "source_ids": [
+        "volume_landmarks_arvo"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "h_per_lift_response_tracking",
+      "domain": "athlete_memory",
+      "rule": "Track adaptation separately for each lift, muscle, and movement pattern.",
+      "implementation_hint": "Bench, squat, deadlift, pressing, rows, and isolations should maintain separate progression and fatigue histories.",
+      "source_ids": [
+        "reddit_juggernaut_method_2_review_nov_2024"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "h_user_override_with_logging",
+      "domain": "ux",
+      "rule": "Allow users to override adaptive nutrition/training recommendations, but log the override and outcome.",
+      "implementation_hint": "Store accepted/dismissed/modified recommendations in coach memory for future calibration.",
+      "source_ids": [
+        "rp_diet_app_store"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "h_explain_feedback_effects",
+      "domain": "ux",
+      "rule": "Tell users what their feedback will change.",
+      "implementation_hint": "When asking whether a week was easy/hard, explain whether that affects future load, sets, or exercise selection.",
+      "source_ids": [
+        "reddit_juggernaut_ai_powerbuilding_14_week_review"
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "reference_models": {
+    "adaptive_decision": {
+      "fields": [
+        "timestamp",
+        "decision_type",
+        "trigger",
+        "affected_domain",
+        "previous_value",
+        "new_value",
+        "data_used",
+        "reason",
+        "confidence",
+        "user_action",
+        "source_heuristics"
+      ]
+    },
+    "weekly_nutrition_review": {
+      "inputs": [
+        "seven_day_weight_average",
+        "target_rate_of_change",
+        "adherence_score",
+        "calorie_average",
+        "protein_average",
+        "training_performance_trend"
+      ],
+      "outputs": [
+        "calorie_adjustment",
+        "macro_adjustment",
+        "reason",
+        "safety_flags"
+      ]
+    },
+    "weekly_training_review": {
+      "inputs": [
+        "sets_per_muscle_weighted",
+        "mrv_proximity",
+        "performance_trend",
+        "readiness_average",
+        "joint_pain_flags",
+        "session_completion_rate"
+      ],
+      "outputs": [
+        "set_adjustment",
+        "exercise_swap_candidate",
+        "deload_probability",
+        "reason"
+      ]
+    }
+  },
+  "do_not_overinterpret": [
+    "Reddit reports are individual anecdotes, not controlled evidence.",
+    "Official app listings are marketing/product descriptions, not proof of efficacy.",
+    "Third-party program summaries may simplify original programming details.",
+    "Use this database as a design reference and guardrail source, not as a scientific training prescription."
+  ]
+}
