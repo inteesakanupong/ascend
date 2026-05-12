@@ -2784,6 +2784,10 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
           <input type="number" inputmode="decimal" step="0.1" id="weigh-weight" placeholder="—" />
         </div>
         <div class="input">
+          <label>Body fat % <span class="muted" style="text-transform:none; letter-spacing:0;">Â· trend only</span></label>
+          <input type="number" inputmode="decimal" step="0.1" id="weigh-bodyfat" placeholder="optional" />
+        </div>
+        <div class="input">
           <label>Calories</label>
           <input type="number" inputmode="numeric" id="weigh-kcal" placeholder="—" />
         </div>
@@ -2964,6 +2968,14 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-head">
+        <div class="card-label">Program Calibration</div>
+        <div class="card-meta" id="stats-calibration-meta">DETERMINISTIC</div>
+      </div>
+      <div id="stats-lifter-analysis"></div>
+    </div>
+
     <!-- Habit consistency -->
     <div class="card">
       <div class="card-head">
@@ -3076,6 +3088,10 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
       <div class="setting-row">
         <div><div class="lbl">Body weight (kg)</div><div class="meta">Latest weight</div></div>
         <div><input type="number" step="0.1" id="set-bodyweight" /></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">Body fat %</div><div class="meta">Trend input, not exact daily truth</div></div>
+        <div><input type="number" step="0.1" id="set-bodyfat" /></div>
       </div>
       <div class="setting-row">
         <div><div class="lbl">Height (cm)</div><div class="meta">Used for BMR</div></div>
@@ -3222,6 +3238,10 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
     <!-- Data -->
     <div class="card">
       <div class="card-head"><div class="card-label">Data</div></div>
+      <div class="setting-row">
+        <div><div class="lbl">Program Calibration</div><div class="meta">Body, diet, benchmarks, exercises, and recovery in one flow</div></div>
+        <button class="btn primary sm" id="btn-program-calibration">CALIBRATE</button>
+      </div>
       <div class="setting-row">
         <div><div class="lbl">Re-run setup</div><div class="meta">Walk through the onboarding wizard again</div></div>
         <button class="btn ghost sm" id="btn-rerun-wizard">SETUP</button>
@@ -3490,9 +3510,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-11.2";
+const APP_VERSION = "2026-05-12.1";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-12.1",
+    title: "Program Calibration v1",
+    items: [
+      "Settings now has a unified Program Calibration flow for body, diet, strength baseline, exercise context, and recovery profile.",
+      "Body-fat percentage can be saved from calibration or daily body logs, with lean-mass and fat-mass trend estimates shown on Stats.",
+      "Ascend now stores normalized athlete, diet, health-signal, and deterministic lifter-analysis objects without replacing existing data.",
+      "Benchmark lifts inform lifter profile and MRV modifiers, but recovery, diet phase, body fat, and fatigue keep control of programming changes.",
+      "Diet and load progression now use safer floors and trend-based guardrails instead of reacting aggressively to one entry.",
+    ]
+  },
   {
     version: "2026-05-11.2",
     title: "Ascend Program Builder",
@@ -3773,6 +3804,50 @@ const DEFAULT_STATE = {
     "proteinFloor": 175,
     "fastThreshold": 1.2,
     "slowThreshold": 0.7
+  },
+  "athleteProfile": {
+    "bodyweightKg": 87.5,
+    "bodyFatPercent": null,
+    "leanMassKg": null,
+    "goal": "cut",
+    "trainingExperience": "unknown",
+    "recoveryProfile": "unknown",
+    "benchmarkLifts": {
+      "benchPress": { "weightKg": null, "reps": null, "estimatedOneRm": null },
+      "squat": { "weightKg": null, "reps": null, "estimatedOneRm": null },
+      "bentOverRow": { "weightKg": null, "reps": null, "estimatedOneRm": null },
+      "deadlift": { "weightKg": null, "reps": null, "estimatedOneRm": null },
+      "overheadPress": { "weightKg": null, "reps": null, "estimatedOneRm": null },
+      "barbellCurl": { "weightKg": null, "reps": null, "estimatedOneRm": null }
+    }
+  },
+  "dietProfile": {
+    "calorieTarget": null,
+    "proteinTarget": null,
+    "carbTarget": null,
+    "fatTarget": null,
+    "weeklyWeightChangeTarget": null,
+    "source": "ascend"
+  },
+  "healthSignals": {
+    "source": "manual",
+    "date": null,
+    "sleepHours": null,
+    "sleepScore": null,
+    "restingHR": null,
+    "steps": null,
+    "activeCalories": null,
+    "bodyweightKg": null,
+    "bodyFatPercent": null,
+    "leanMassKg": null
+  },
+  "lifterAnalysis": {
+    "strengthBalance": {},
+    "bodyTrend": {},
+    "dietOutcome": {},
+    "fatigueRisks": [],
+    "progressionDrivers": [],
+    "recommendations": []
   },
   "exercises": {
     "PUSH": [
@@ -4717,6 +4792,141 @@ let STATE = loadState();
 })().catch(() => {});
 
 // Add any missing fields from older saved states (forward-compatible migration)
+function defaultBenchmarkLifts() {
+  return {
+    benchPress: { weightKg: null, reps: null, estimatedOneRm: null },
+    squat: { weightKg: null, reps: null, estimatedOneRm: null },
+    bentOverRow: { weightKg: null, reps: null, estimatedOneRm: null },
+    deadlift: { weightKg: null, reps: null, estimatedOneRm: null },
+    overheadPress: { weightKg: null, reps: null, estimatedOneRm: null },
+    barbellCurl: { weightKg: null, reps: null, estimatedOneRm: null },
+  };
+}
+
+function defaultAthleteProfile() {
+  const bw = STATE?.profile?.bodyweight ?? DEFAULT_STATE.profile.bodyweight ?? null;
+  const bf = STATE?.profile?.bodyFatPct ?? null;
+  return {
+    bodyweightKg: bw,
+    bodyFatPercent: bf,
+    leanMassKg: leanMassKg(bw, bf),
+    goal: normalizeGoal(STATE?.cut?.mode || "cut"),
+    trainingExperience: mapExperience(STATE?.profile?.experienceLevel),
+    recoveryProfile: recoveryProfileFromInputs(STATE?.profile || {}),
+    benchmarkLifts: defaultBenchmarkLifts(),
+  };
+}
+
+function defaultDietProfile() {
+  const kcal = STATE?.cut?.p1Kcal ?? null;
+  const protein = STATE?.cut?.proteinFloor ?? null;
+  return {
+    calorieTarget: kcal,
+    proteinTarget: protein,
+    carbTarget: kcal ? Math.round(kcal * 0.37 / 4) : null,
+    fatTarget: kcal ? Math.round(kcal * 0.28 / 9) : null,
+    weeklyWeightChangeTarget: null,
+    source: "ascend",
+  };
+}
+
+function defaultHealthSignals() {
+  return {
+    source: "manual",
+    date: null,
+    sleepHours: null,
+    sleepScore: null,
+    restingHR: null,
+    steps: null,
+    activeCalories: null,
+    bodyweightKg: null,
+    bodyFatPercent: null,
+    leanMassKg: null,
+  };
+}
+
+function normalizeGoal(goal) {
+  if (goal === "bulk") return "lean_gain";
+  if (goal === "maintain") return "maintain";
+  if (goal === "hypertrophy") return "hypertrophy";
+  return "cut";
+}
+
+function mapExperience(exp) {
+  if (exp === "beginner") return "novice";
+  if (exp === "intermediate" || exp === "advanced") return exp;
+  if (exp === "novice") return "novice";
+  return "unknown";
+}
+
+function recoveryProfileFromInputs(profile = {}) {
+  if (profile.recoveryProfile && profile.recoveryProfile !== "unknown") return profile.recoveryProfile;
+  const sleep = Number(profile.sleepHours);
+  const stress = profile.lifestyleStress || "moderate";
+  if (sleep >= 7.5 && stress === "low") return "high";
+  if (sleep < 6 || stress === "high") return "low";
+  if (sleep || stress) return "moderate";
+  return "unknown";
+}
+
+function normalizeBenchmarkLift(v) {
+  if (v == null || v === "") return { weightKg: null, reps: null, estimatedOneRm: null };
+  if (typeof v === "number") return { weightKg: null, reps: null, estimatedOneRm: v };
+  const weightKg = v.weightKg ?? v.weight ?? null;
+  const reps = v.reps ?? null;
+  const estimatedOneRm = v.estimatedOneRm ?? v.oneRM ?? estimateOneRm(weightKg, reps);
+  return {
+    weightKg: weightKg == null ? null : Number(weightKg),
+    reps: reps == null ? null : Number(reps),
+    estimatedOneRm: estimatedOneRm == null ? null : Number(estimatedOneRm),
+  };
+}
+
+function normalizeProgramCalibrationState(s) {
+  const oldAthlete = s.athleteProfile || {};
+  const oldBenchmarks = oldAthlete.benchmarkLifts || {};
+  const benchmarks = defaultBenchmarkLifts();
+  Object.keys(benchmarks).forEach(k => {
+    benchmarks[k] = normalizeBenchmarkLift(oldBenchmarks[k]);
+  });
+
+  const bw = oldAthlete.bodyweightKg ?? s.profile?.bodyweight ?? null;
+  const bf = oldAthlete.bodyFatPercent ?? s.profile?.bodyFatPct ?? null;
+  s.athleteProfile = {
+    ...defaultAthleteProfile(),
+    ...oldAthlete,
+    bodyweightKg: bw,
+    bodyFatPercent: bf,
+    leanMassKg: oldAthlete.leanMassKg ?? leanMassKg(bw, bf),
+    goal: normalizeGoal(oldAthlete.goal || s.cut?.mode || "cut"),
+    trainingExperience: mapExperience(oldAthlete.trainingExperience || s.profile?.experienceLevel),
+    recoveryProfile: oldAthlete.recoveryProfile || recoveryProfileFromInputs(s.profile || {}),
+    benchmarkLifts: benchmarks,
+  };
+  const kcal = s.cut?.p1Kcal ?? null;
+  const protein = s.cut?.proteinFloor ?? null;
+  s.dietProfile = {
+    calorieTarget: kcal,
+    proteinTarget: protein,
+    carbTarget: kcal ? Math.round(kcal * 0.37 / 4) : null,
+    fatTarget: kcal ? Math.round(kcal * 0.28 / 9) : null,
+    weeklyWeightChangeTarget: null,
+    source: "ascend",
+    ...(s.dietProfile || {}),
+  };
+  s.healthSignals = { ...defaultHealthSignals(), ...(s.healthSignals || {}) };
+  s.lifterAnalysis = {
+    strengthBalance: {},
+    bodyTrend: {},
+    dietOutcome: {},
+    fatigueRisks: [],
+    progressionDrivers: [],
+    recommendations: [],
+    ...(s.lifterAnalysis || {}),
+  };
+  return s;
+}
+
 function migrateState(s) {
   if (!s) return s;
   if (!s.timer)        s.timer        = { compoundSec: 180, midSec: 120, isolationSec: 90, sound: true };
@@ -4763,6 +4973,8 @@ function migrateState(s) {
     delete migrated.runKm;
     if (!Array.isArray(migrated.meals)) migrated.meals = [];
     if (migrated.waterMl === undefined) migrated.waterMl = null;
+    if (migrated.bodyFatPercent === undefined) migrated.bodyFatPercent = migrated.bodyFatPct ?? null;
+    if (migrated.leanMassKg === undefined) migrated.leanMassKg = leanMassKg(migrated.weight, migrated.bodyFatPercent);
     return migrated;
   });
   if (!s.repRangeCounters)        s.repRangeCounters = {};
@@ -4776,6 +4988,7 @@ function migrateState(s) {
   if (!s.adaptive_state.fatigue)        s.adaptive_state.fatigue = {};
   if (!Array.isArray(s.adaptive_state.decisions)) s.adaptive_state.decisions = [];
   s.adaptive_state.version = 1;
+  s = normalizeProgramCalibrationState(s);
 
   // Backfill working maxes for REALIZATION sessions that were saved before setWorkingMax existed.
   // For each day, find REALIZATION sessions (waveWeek = ((sessionIndex) % 4) === 2, 0-indexed)
@@ -4862,6 +5075,47 @@ function fmtWeight(w) {
   return Number(w).toFixed(Number.isInteger(Number(w)) ? 0 : 1);
 }
 function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+function estimateOneRm(weightKg, reps) {
+  const w = Number(weightKg), r = Number(reps);
+  if (!w || !r) return null;
+  return Math.round((w * (1 + r / 30)) * 10) / 10;
+}
+function leanMassKg(bodyweightKg, bodyFatPercent) {
+  if (bodyFatPercent === null || bodyFatPercent === undefined || bodyFatPercent === "") return null;
+  const bw = Number(bodyweightKg), bf = Number(bodyFatPercent);
+  if (!bw || !isFinite(bf)) return null;
+  return Math.round((bw * (1 - bf / 100)) * 10) / 10;
+}
+function fatMassKg(bodyweightKg, bodyFatPercent) {
+  if (bodyFatPercent === null || bodyFatPercent === undefined || bodyFatPercent === "") return null;
+  const bw = Number(bodyweightKg), bf = Number(bodyFatPercent);
+  if (!bw || !isFinite(bf)) return null;
+  return Math.round((bw * (bf / 100)) * 10) / 10;
+}
+function syncCalibrationProfiles() {
+  if (!STATE.athleteProfile) STATE.athleteProfile = defaultAthleteProfile();
+  if (!STATE.dietProfile) STATE.dietProfile = defaultDietProfile();
+  if (!STATE.healthSignals) STATE.healthSignals = defaultHealthSignals();
+  const latest = latestWeighIn();
+  const bw = latest?.weight ?? STATE.profile.bodyweight ?? STATE.athleteProfile.bodyweightKg ?? null;
+  const bf = latest?.bodyFatPercent ?? latest?.bodyFatPct ?? STATE.profile.bodyFatPct ?? STATE.athleteProfile.bodyFatPercent ?? null;
+  STATE.athleteProfile.bodyweightKg = bw;
+  STATE.athleteProfile.bodyFatPercent = bf;
+  STATE.athleteProfile.leanMassKg = leanMassKg(bw, bf);
+  STATE.athleteProfile.goal = normalizeGoal(STATE.cut?.mode || STATE.athleteProfile.goal);
+  STATE.athleteProfile.trainingExperience = mapExperience(STATE.athleteProfile.trainingExperience || STATE.profile.experienceLevel);
+  STATE.athleteProfile.recoveryProfile = STATE.athleteProfile.recoveryProfile || recoveryProfileFromInputs(STATE.profile);
+  const targets = nutritionTargetsForDate(todayISO());
+  STATE.dietProfile.calorieTarget = targets.kcal ?? STATE.dietProfile.calorieTarget;
+  STATE.dietProfile.proteinTarget = targets.protein ?? STATE.dietProfile.proteinTarget;
+  STATE.dietProfile.carbTarget = targets.carbs ?? STATE.dietProfile.carbTarget;
+  STATE.dietProfile.fatTarget = targets.fat ?? STATE.dietProfile.fatTarget;
+  STATE.dietProfile.weeklyWeightChangeTarget = STATE.cut.mode === "cut"
+    ? -(Math.round(((STATE.cut.fastThreshold || 1.0) + (STATE.cut.slowThreshold || 0.5)) / 2 * 10) / 10)
+    : STATE.cut.mode === "bulk" ? 0.25 : 0;
+  return targets;
+}
 
 function cloneDefaultExercises() {
   return JSON.parse(JSON.stringify(DEFAULT_STATE.exercises));
@@ -5047,10 +5301,11 @@ function applyNewDietProgram(input = {}) {
   STATE.profile.dietProgramStartedAt = todayISO();
   STATE.profile.bodyweight = bw;
   const kcalBase = tdee || Math.round(bw * 33);
-  STATE.cut.p1Kcal = Math.max(1200, Math.round((kcalBase + (mode === "cut" ? -450 : mode === "bulk" ? 250 : 0)) / 50) * 50);
+  const calorieFloor = Math.max(STATE.profile.sex === "female" ? 1200 : 1500, Math.round(bw * 22));
+  STATE.cut.p1Kcal = Math.max(calorieFloor, Math.round((kcalBase + (mode === "cut" ? -450 : mode === "bulk" ? 250 : 0)) / 50) * 50);
   STATE.cut.dbKcal = Math.round(kcalBase / 50) * 50;
-  STATE.cut.p2Kcal = Math.max(1200, STATE.cut.p1Kcal - (mode === "cut" ? 150 : 0));
-  STATE.cut.proteinFloor = Math.round(bw * 2);
+  STATE.cut.p2Kcal = Math.max(calorieFloor, STATE.cut.p1Kcal - (mode === "cut" ? 150 : 0));
+  STATE.cut.proteinFloor = Math.max(Math.round(bw * 1.8), Math.round((STATE.athleteProfile?.leanMassKg || bw) * 2));
   if (mode === "cut") {
     STATE.cut.p1Target = Number(input.p1Target || Math.max(bw * 0.92, bw - 8).toFixed(1));
     STATE.cut.p1Weeks = Number(input.p1Weeks || 8);
@@ -5139,7 +5394,10 @@ function phaseKcalAdjusted(p) {
   const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, todayISO()) + 1);
   const wave = juggernautWave(dayNum, nextSessionDay ? nextSessionDay() : "PUSH");
   const deloadBonus = wave.name === "DELOAD" ? 150 : 0;
-  return Math.max(1200, Math.round(base - tdeeAdj + deloadBonus));
+  const bw = currentBW || STATE.profile.bodyweight || 80;
+  const sexFloor = STATE.profile.sex === "female" ? 1200 : 1500;
+  const leanFloor = Math.round(bw * 22);
+  return Math.max(sexFloor, leanFloor, Math.round(base - Math.min(tdeeAdj, 350) + deloadBonus));
 }
 
 function nutritionTargetsForDate(date) {
@@ -5149,9 +5407,9 @@ function nutritionTargetsForDate(date) {
   return {
     phase,
     kcal,
-    protein: STATE.cut.proteinFloor || 160,
+    protein: Math.max(STATE.cut.proteinFloor || 160, Math.round((STATE.athleteProfile?.leanMassKg || STATE.profile.bodyweight || 80) * 1.8)),
     carbs: kcal ? Math.round(kcal * 0.37 / 4) : 190,
-    fat: kcal ? Math.round(kcal * 0.28 / 9) : 65,
+    fat: kcal ? Math.max(Math.round((STATE.profile.bodyweight || 80) * 0.6), Math.round(kcal * 0.22 / 9)) : 65,
   };
 }
 
@@ -5188,6 +5446,18 @@ function progressionFor(day, exIdx) {
   const s2w = _s2w ?? 0;
   const lastStr = `${fmtWeight(s1w)}kg × ${s1r}, ${s2r}`;
   const workingWeight = s1w; // last session's weight is the baseline
+  const lastSession = sessions[sessions.length - 1];
+  const lastRpeVals = [lastSession.rpe?.[exIdx]?.s1, lastSession.rpe?.[exIdx]?.s2].filter(v => v != null);
+  const avgLastRpe = lastRpeVals.length ? lastRpeVals.reduce((a, b) => a + b, 0) / lastRpeVals.length : null;
+  const readiness = calculateReadiness(todayISO());
+  const profile = exerciseFatigueProfile(ex.name);
+  const isIsolation = profile.pattern === "isolation" || profile.systemicFatigue <= 3;
+  const poorReadiness = readiness.score != null && readiness.score <= 2.5;
+  const recentSameMisses = sessions.slice(-2).filter(s => {
+    const st = s.sets?.[exIdx];
+    return st && (st.s1r < ex.repMin || st.s2r < ex.repMin);
+  }).length;
+  const shouldHoldLoad = poorReadiness || (avgLastRpe != null && avgLastRpe > (isIsolation ? 8 : 8.5));
 
   // ── Juggernaut wave phase for this day
   const wave = juggernautWave(0, day);
@@ -5225,11 +5495,19 @@ function progressionFor(day, exIdx) {
 
     // Accessories follow normal performance-based progression
     if (s1r < ex.repMin || s2r < ex.repMin) {
+      if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+        return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
+                 note: "One low-rep session is not enough to cut load. Hold weight and rebuild reps unless fatigue or pain persists.", wavePhase: "REALIZATION" };
+      }
       const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
       return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
                note: "Below rep range — drop weight.", wavePhase: "REALIZATION" };
     }
     if (s1r >= ex.repMax && s2r >= ex.repMax) {
+      if (shouldHoldLoad || isIsolation) {
+        return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
+                 note: isIsolation ? "Isolation lift: own the top reps before adding load." : "Top reps hit, but readiness/RPE says hold load this time.", wavePhase: "REALIZATION" };
+      }
       return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
                note: `Both sets hit ${ex.repMax} — add ${inc}kg.`, wavePhase: "REALIZATION" };
     }
@@ -5241,11 +5519,19 @@ function progressionFor(day, exIdx) {
   // Bromley: progress only when reps clearly earned, leave reps in tank
   if (wave.name === "ACCUMULATION") {
     if (s1r < ex.repMin || s2r < ex.repMin) {
+      if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+        return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
+                 note: "Hold after one miss; reduce only after repeated misses, high RPE, pain, or poor readiness.", wavePhase: "ACCUMULATION" };
+      }
       const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
       return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
                note: "Below rep range — drop weight, rebuild. Stay submaximal this week.", wavePhase: "ACCUMULATION" };
     }
     if (s1r >= ex.repMax && s2r >= ex.repMax) {
+      if (shouldHoldLoad || isIsolation) {
+        return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
+                 note: isIsolation ? "Isolation lift: prioritize clean high reps before load jumps." : "Top reps hit, but readiness/RPE guardrail says hold load.", wavePhase: "ACCUMULATION" };
+      }
       return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
                note: `Both sets hit ${ex.repMax} reps — add ${inc}kg. Target RPE 6-7 accumulation week.`, wavePhase: "ACCUMULATION" };
     }
@@ -5257,11 +5543,19 @@ function progressionFor(day, exIdx) {
   // ── INTENSIFICATION WEEK — push harder, heavier (RPE 7-8)
   // Bromley: earn the weight progression, performance-based
   if (s1r < ex.repMin || s2r < ex.repMin) {
+    if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+      return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
+               note: "Single-session miss: hold weight and rebuild before reducing load.", wavePhase: "INTENSIFICATION" };
+    }
     const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
     return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
              note: "Below rep range — drop weight and rebuild.", wavePhase: "INTENSIFICATION" };
   }
   if (s1r >= ex.repMax && s2r >= ex.repMax) {
+    if (shouldHoldLoad || isIsolation) {
+      return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
+               note: isIsolation ? "Isolation lift: keep load and progress reps/quality first." : "Top reps hit, but high RPE/readiness prevents an automatic jump.", wavePhase: "INTENSIFICATION" };
+    }
     return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
              note: `Both sets hit ${ex.repMax} — add ${inc}kg. Leave 1-2 reps in tank.`, wavePhase: "INTENSIFICATION" };
   }
@@ -7456,6 +7750,7 @@ function renderLiftExercises() {
       <div class="extra-set-suggestion" data-extra-sugg="${idx}">
         <div class="es-label">➕ ADD ${toAdd} SET${toAdd > 1 ? "S" : ""}?</div>
         <div class="es-text">${escapeHtml(sugg.reason)}</div>
+        <div class="es-text" style="margin-top:6px;"><strong>Recommended Change:</strong> Add ${toAdd} set${toAdd > 1 ? "s" : ""}.<br><strong>Expected Benefit:</strong> More stimulus while RPE and remaining-session fatigue are low.<br><strong>Risk:</strong> Extra volume can exceed recovery if joints or readiness feel poor.</div>
         <div class="es-actions">
           <button class="btn-add-set" data-ex="${idx}" data-addsets="${toAdd}" data-weight="${sugg.weight ?? ''}">+ ADD SET${toAdd > 1 ? "S" : ""}</button>
           <button class="btn-skip-set" data-ex="${idx}">SKIP</button>
@@ -9042,6 +9337,8 @@ function renderWeigh() {
   const log = getDailyLog(today) || { date: today, habits: {} };
   $("#weigh-date").value = today;
   $("#weigh-weight").value  = log.weight ?? "";
+  const weighBfEl = document.getElementById("weigh-bodyfat");
+  if (weighBfEl) weighBfEl.value = log.bodyFatPercent ?? log.bodyFatPct ?? "";
   // Show meal-derived totals if meals exist, otherwise show manually saved values
   const meals = log.meals || [];
   const mealsKcal    = meals.reduce((s, m) => s + (m.kcal    || 0), 0);
@@ -9151,6 +9448,8 @@ document.getElementById("weigh-date").addEventListener("change", (e) => {
   const log = getDailyLog(date) || { date, habits: {} };
   // Repopulate all fields without full re-render (avoids resetting the date input itself)
   $("#weigh-weight").value  = log.weight ?? "";
+  const bfEl = document.getElementById("weigh-bodyfat");
+  if (bfEl) bfEl.value = log.bodyFatPercent ?? log.bodyFatPct ?? "";
   $("#weigh-kcal").value    = log.kcal ?? "";
   $("#weigh-protein").value = log.protein ?? "";
   $("#weigh-steps").value   = log.steps ?? "";
@@ -9207,6 +9506,7 @@ function renderRecentWeighIns() {
           <div>
             <div style="font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:0.04em;">${formatDate(d.date)}</div>
             <div class="muted" style="font-size:11px;margin-top:2px;">
+              ${d.bodyFatPercent != null ? `<span class="hl">${Number(d.bodyFatPercent).toFixed(1)}% BF</span> Â· ` : ""}
               ${d.weight != null ? `<span class="hl">${fmtWeight(d.weight)}kg</span>` : "—"}
               ${d.kcal != null ? ` · ${d.kcal} kcal` : ""}
               ${d.protein != null ? ` · ${d.protein}g P` : ""}
@@ -9259,6 +9559,7 @@ function renderRecentWeighIns() {
 $("#btn-save-weigh").addEventListener("click", () => {
   const date = $("#weigh-date").value;
   const weight = $("#weigh-weight").value === "" ? null : parseFloat($("#weigh-weight").value);
+  const bodyFatPercent = document.getElementById("weigh-bodyfat")?.value === "" ? null : parseFloat(document.getElementById("weigh-bodyfat")?.value);
   const kcal    = $("#weigh-kcal").value === "" ? null : parseInt($("#weigh-kcal").value);
   const protein = $("#weigh-protein").value === "" ? null : parseInt($("#weigh-protein").value);
   const steps   = $("#weigh-steps").value === "" ? null : parseInt($("#weigh-steps").value);
@@ -9288,18 +9589,205 @@ $("#btn-save-weigh").addEventListener("click", () => {
   const finalKcal    = existingMeals.length > 0 ? mealsKcal    : kcal;
   const finalProtein = existingMeals.length > 0 ? Math.round(mealsProtein) : protein;
 
-  upsertDailyLog({ date, weight, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, habits, notes, meals: existingMeals });
+  const lean = leanMassKg(weight, bodyFatPercent);
+  upsertDailyLog({ date, weight, bodyFatPercent, leanMassKg: lean, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, habits, notes, meals: existingMeals });
+  if (weight != null) STATE.profile.bodyweight = weight;
+  if (bodyFatPercent != null) STATE.profile.bodyFatPct = bodyFatPercent;
+  STATE.healthSignals = {
+    ...(STATE.healthSignals || defaultHealthSignals()),
+    source: "manual",
+    date,
+    steps,
+    bodyweightKg: weight,
+    bodyFatPercent,
+    leanMassKg: lean,
+  };
+  syncCalibrationProfiles();
   saveState();
   toast("LOGGED");
   renderRecentWeighIns();
 });
 
 // ───────── 9. STATS PAGE ─────────
+function rollingAverageEntries(entries, key, days, endDate = todayISO()) {
+  const start = new Date(isoToDate(endDate).getTime() - (days - 1) * 86400000).toISOString().slice(0, 10);
+  const vals = entries.filter(d => d.date >= start && d.date <= endDate && typeof d[key] === "number").map(d => d[key]);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function trendRateKgPerWeek(days = 28) {
+  const logs = [...STATE.dailyLogs].filter(d => typeof d.weight === "number").sort((a, b) => a.date.localeCompare(b.date));
+  const recent = logs.slice(-days);
+  if (recent.length < 2) return null;
+  const first = rollingAverageEntries(logs, "weight", 7, recent[0].date) ?? recent[0].weight;
+  const last = rollingAverageEntries(logs, "weight", 7, recent[recent.length - 1].date) ?? recent[recent.length - 1].weight;
+  return ((last - first) / Math.max(1, daysBetween(recent[0].date, recent[recent.length - 1].date))) * 7;
+}
+
+function classifyRelativeStrength(oneRm, bw, lift) {
+  if (!oneRm || !bw) return "unknown";
+  const ratio = oneRm / bw;
+  const cuts = ({ benchPress:[0.75,1.15,1.55], squat:[1,1.5,2], deadlift:[1.2,1.8,2.4], bentOverRow:[0.65,1,1.35], overheadPress:[0.45,0.7,0.95], barbellCurl:[0.25,0.4,0.6] })[lift] || [0.6,1,1.4];
+  if (ratio < cuts[0]) return "novice";
+  if (ratio < cuts[1]) return "novice-intermediate";
+  if (ratio < cuts[2]) return "intermediate";
+  return "advanced";
+}
+
+function liftOneRm(key) {
+  const lift = normalizeBenchmarkLift(STATE.athleteProfile?.benchmarkLifts?.[key]);
+  return lift.estimatedOneRm ?? estimateOneRm(lift.weightKg, lift.reps);
+}
+
+function strengthLevelModifierForMuscle(muscle, strengthBalance) {
+  const relevant = {
+    chest: strengthBalance.pressing,
+    triceps: strengthBalance.pressing,
+    shoulders: strengthBalance.verticalPress,
+    back: strengthBalance.pulling,
+    biceps: strengthBalance.pulling,
+    forearms: strengthBalance.armIsolation,
+    quads: strengthBalance.squatting,
+    glutes: strengthBalance.squatting,
+    hamstrings: strengthBalance.hinge,
+  }[muscle] || "unknown";
+  return relevant === "advanced" ? 1 : relevant === "intermediate" ? 0.5 : 0;
+}
+
+function mrvEstimateForMuscle(muscle, strengthBalance, fatigue) {
+  const lm = VOLUME_LANDMARKS[muscle];
+  if (!lm) return null;
+  const recovery = STATE.athleteProfile?.recoveryProfile || "unknown";
+  const goal = STATE.athleteProfile?.goal || "cut";
+  const bf = STATE.athleteProfile?.bodyFatPercent;
+  const baseMuscleMRV = lm.mrv;
+  const trainingAgeModifier = ({ novice: -1, intermediate: 0.5, advanced: 1.5 })[STATE.athleteProfile?.trainingExperience] || 0;
+  const strengthLevelModifier = strengthLevelModifierForMuscle(muscle, strengthBalance);
+  const recoveryModifier = recovery === "high" ? 1.5 : recovery === "low" ? -2 : 0;
+  const calorieStatusModifier = goal === "lean_gain" ? 1 : goal === "maintain" || goal === "hypertrophy" ? 0 : -1.5;
+  const bodyFatModifier = bf == null ? 0 : bf > 30 && goal === "hypertrophy" ? -1 : bf < 10 && goal === "cut" ? -1.5 : 0;
+  const jointStressPenalty = fatigue?.elbowStress > 14 || fatigue?.shoulderStress > 18 || fatigue?.kneeStress > 18 ? 1.5 : 0;
+  const recentFatiguePenalty = (fatigue?.local?.[muscle] || 0) > 35 ? 2 : (fatigue?.recoveryCost || 0) > 120 ? 1 : 0;
+  const estimate = baseMuscleMRV + trainingAgeModifier + strengthLevelModifier + recoveryModifier + calorieStatusModifier + bodyFatModifier - jointStressPenalty - recentFatiguePenalty;
+  return Math.round(clamp(estimate, lm.mev, lm.mrv + 3) * 10) / 10;
+}
+
+function bestAndStalledLifts() {
+  const rows = [];
+  DAY_ORDER.forEach(day => STATE.exercises[day]?.forEach((ex, idx) => {
+    const sessions = STATE.sessions.filter(s => s.day === day && s.sets?.[idx]?.s1w != null).sort((a, b) => a.date.localeCompare(b.date));
+    if (sessions.length < 2) return;
+    const first = sessions[0].sets[idx], last = sessions[sessions.length - 1].sets[idx];
+    const firstScore = (first.s1w || 0) * (first.s1r || 0);
+    const lastScore = (last.s1w || 0) * (last.s1r || 0);
+    const recent = sessions.slice(-3);
+    const stalled = recent.length >= 3 && recent.every(s => (s.sets[idx]?.s1w || 0) <= (recent[0].sets[idx]?.s1w || 0) && (s.sets[idx]?.s1r || 0) <= (recent[0].sets[idx]?.s1r || 0));
+    rows.push({ name: ex.name, day, delta: lastScore - firstScore, stalled, fatigue: exerciseFatigueProfile(ex.name).recoveryCost });
+  }));
+  rows.sort((a, b) => b.delta - a.delta);
+  return {
+    best: rows.filter(r => r.delta > 0).slice(0, 3),
+    stalled: rows.filter(r => r.stalled).slice(0, 3),
+    highFatigue: rows.filter(r => r.fatigue >= 7).sort((a, b) => b.fatigue - a.fatigue).slice(0, 3),
+  };
+}
+
+function buildLifterAnalysis() {
+  syncCalibrationProfiles();
+  const logs = [...STATE.dailyLogs].sort((a, b) => a.date.localeCompare(b.date));
+  const latest = latestWeighIn();
+  const bw = STATE.athleteProfile?.bodyweightKg ?? latest?.weight ?? STATE.profile.bodyweight;
+  const bf = STATE.athleteProfile?.bodyFatPercent ?? latest?.bodyFatPercent ?? STATE.profile.bodyFatPct;
+  const currentWeight = latest?.weight ?? bw ?? null;
+  const bfTrend = rollingAverageEntries(logs, "bodyFatPercent", 14);
+  const targets = nutritionTargetsForDate(todayISO());
+  const recent14 = logs.slice(-14);
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  const kcalAvg = avg(recent14.filter(d => typeof d.kcal === "number").map(d => d.kcal));
+  const proteinAvg = avg(recent14.filter(d => typeof d.protein === "number").map(d => d.protein));
+  const adherence = kcalAvg && targets.kcal ? Math.max(0, 100 - Math.round(Math.abs(kcalAvg - targets.kcal) / targets.kcal * 100)) : null;
+  const strengthBalance = {
+    pressing: classifyRelativeStrength(liftOneRm("benchPress"), bw, "benchPress"),
+    squatting: classifyRelativeStrength(liftOneRm("squat"), bw, "squat"),
+    hinge: classifyRelativeStrength(liftOneRm("deadlift"), bw, "deadlift"),
+    pulling: classifyRelativeStrength(liftOneRm("bentOverRow"), bw, "bentOverRow"),
+    verticalPress: classifyRelativeStrength(liftOneRm("overheadPress"), bw, "overheadPress"),
+    armIsolation: classifyRelativeStrength(liftOneRm("barbellCurl"), bw, "barbellCurl"),
+  };
+  const fatigue = computeFatigueSummary(7);
+  const vol = weeklyVolumeByMuscle(7);
+  const mrvEstimates = Object.fromEntries(Object.keys(VOLUME_LANDMARKS).map(m => [m, mrvEstimateForMuscle(m, strengthBalance, fatigue)]));
+  const nearMrv = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > lm.mav).map(([m]) => m);
+  const belowMev = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > 0 && (vol[m] || 0) < lm.mev).map(([m]) => m);
+  const trend28 = trendRateKgPerWeek(28);
+  const fatigueRisks = [];
+  if (fatigue.spinal >= 20) fatigueRisks.push("High hinge/spinal fatigue exposure this week.");
+  if (nearMrv.length) fatigueRisks.push(`${nearMrv.map(m => MUSCLE_LABELS[m] || m).join(", ")} near or above recoverable volume.`);
+  if (trend28 != null && trend28 < -1.0 && STATE.cut.mode === "cut") fatigueRisks.push("Weight loss is fast enough to threaten recovery if performance declines.");
+  const recommendations = [];
+  if (STATE.cut.mode === "cut" && trend28 != null && trend28 < -1.2) recommendations.push("Reduce deficit aggressiveness only if the 7-14 day trend stays fast or performance drops.");
+  else if (STATE.cut.mode === "cut" && trend28 != null && trend28 > -0.2) recommendations.push("Check adherence before lowering calories; rolling cut trend is slow.");
+  else recommendations.push("Keep targets stable until the rolling trend changes.");
+  if (nearMrv.length) recommendations.push(`Hold or reduce added sets for ${nearMrv[0]} this week.`);
+  if (belowMev.length) recommendations.push(`${belowMev[0]} is below MEV; add work only if recovery is acceptable.`);
+  const liftResponse = bestAndStalledLifts();
+  const mode = STATE.cut.mode === "bulk" ? "lean gaining" : STATE.cut.mode === "maintain" ? "maintaining/recomping" : "cutting";
+  const trendText = trend28 == null ? "insufficient weight trend data" : `${Math.abs(trend28).toFixed(2)} kg/week ${trend28 < 0 ? "loss" : "gain"}`;
+  const coachingVerdict = `${mode[0].toUpperCase() + mode.slice(1)} with ${trendText}. ${fatigueRisks[0] || "No major fatigue risk is dominant."} ${recommendations[0]}`;
+  return {
+    strengthBalance,
+    bodyTrend: { currentWeight, avg7: rollingAverageEntries(logs, "weight", 7), trend28, bfTrend, leanMassKg: leanMassKg(currentWeight, bfTrend ?? bf), fatMassKg: fatMassKg(currentWeight, bfTrend ?? bf) },
+    dietOutcome: { kcalAvg, proteinAvg, adherence, targetKcal: targets.kcal, targetProtein: targets.protein, recommendation: recommendations[0] },
+    fatigueRisks,
+    progressionDrivers: liftResponse.best.map(x => x.name),
+    recommendations,
+    mrvEstimates,
+    trainingResponse: { ...liftResponse, nearMrv, belowMev },
+    coachingVerdict,
+  };
+}
+
+function renderLifterAnalysis() {
+  const wrap = document.getElementById("stats-lifter-analysis");
+  const meta = document.getElementById("stats-calibration-meta");
+  if (!wrap) return;
+  const analysis = buildLifterAnalysis();
+  STATE.lifterAnalysis = analysis;
+  if (meta) meta.textContent = `${String(STATE.athleteProfile?.goal || "cut").toUpperCase()} · MANUAL SIGNALS`;
+  const row = (label, value) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);"><span class="muted" style="font-size:11px;">${label}</span><span style="font-family:var(--f-mono);font-size:11px;font-weight:700;text-align:right;">${value}</span></div>`;
+  const bt = analysis.bodyTrend, diet = analysis.dietOutcome, sb = analysis.strengthBalance, tr = analysis.trainingResponse;
+  wrap.innerHTML = `<div style="padding:12px 14px;">
+    <div class="card-label" style="margin-bottom:7px;">Body Trend</div>
+    ${row("Current weight", bt.currentWeight != null ? `${fmtWeight(bt.currentWeight)}kg` : "—")}
+    ${row("7-day average", bt.avg7 != null ? `${bt.avg7.toFixed(1)}kg` : "—")}
+    ${row("28-day trend", bt.trend28 != null ? `${bt.trend28 > 0 ? "+" : ""}${bt.trend28.toFixed(2)}kg/week` : "—")}
+    ${row("Body fat trend", bt.bfTrend != null ? `${bt.bfTrend.toFixed(1)}%` : "—")}
+    ${row("Lean / fat mass", bt.leanMassKg != null ? `${bt.leanMassKg}kg / ${bt.fatMassKg}kg` : "—")}
+    <div class="card-label" style="margin:14px 0 7px;">Diet Outcome</div>
+    ${row("Calories", diet.kcalAvg != null ? `${diet.kcalAvg} avg / ${diet.targetKcal} target` : "—")}
+    ${row("Protein", diet.proteinAvg != null ? `${diet.proteinAvg}g avg / ${diet.targetProtein}g floor` : "—")}
+    ${row("Adherence", diet.adherence != null ? `${diet.adherence}%` : "—")}
+    <div class="card-label" style="margin:14px 0 7px;">Lifter Profile</div>
+    ${row("Press / pull", `${sb.pressing} / ${sb.pulling}`)}
+    ${row("Squat / hinge", `${sb.squatting} / ${sb.hinge}`)}
+    ${row("OHP / curl", `${sb.verticalPress} / ${sb.armIsolation}`)}
+    <div class="card-label" style="margin:14px 0 7px;">Training Response</div>
+    ${row("Best response", tr.best.length ? tr.best.map(x => escapeHtml(x.name)).join(", ") : "—")}
+    ${row("Stalled", tr.stalled.length ? tr.stalled.map(x => escapeHtml(x.name)).join(", ") : "—")}
+    ${row("High fatigue", tr.highFatigue.length ? tr.highFatigue.map(x => escapeHtml(x.name)).join(", ") : "—")}
+    ${row("Near MRV", tr.nearMrv.length ? tr.nearMrv.join(", ") : "—")}
+    ${row("Below MEV", tr.belowMev.length ? tr.belowMev.join(", ") : "—")}
+    ${row("MRV estimate", analysis.mrvEstimates?.chest != null ? `Chest ${analysis.mrvEstimates.chest} · Back ${analysis.mrvEstimates.back} · Quads ${analysis.mrvEstimates.quads}` : "—")}
+    <div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.55;"><strong style="color:var(--ink);">Coaching verdict:</strong> ${escapeHtml(analysis.coachingVerdict)}</div>
+  </div>`;
+}
+
 function renderStats() {
   // Calendar + Lift Graph
   Calendar.render();
   LiftGraph.renderExercisePills();
   LiftGraph.drawGraph();
+  renderLifterAnalysis();
 
   // Weight chart
   const logs = STATE.dailyLogs.filter(d => typeof d.weight === "number")
@@ -9760,6 +10248,7 @@ function renderWeightChart(logs) {
 // ───────── 10. SETTINGS ─────────
 function renderSettings() {
   $("#set-bodyweight").value   = STATE.profile.bodyweight;
+  $("#set-bodyfat").value      = STATE.profile.bodyFatPct ?? STATE.athleteProfile?.bodyFatPercent ?? "";
   $("#set-start").value        = STATE.profile.programStart;
   $("#set-name").value         = STATE.profile.name ?? "";
   $("#set-height").value       = STATE.profile.height ?? "";
@@ -10039,6 +10528,7 @@ function setByPath(obj, path, val) {
   o[keys[keys.length - 1]] = val;
 }
 bindSettingInput("#set-bodyweight", "profile.bodyweight");
+bindSettingInput("#set-bodyfat",    "profile.bodyFatPct");
 bindSettingInput("#set-start",      "profile.programStart");
 bindSettingInput("#set-name",       "profile.name");
 bindSettingInput("#set-height",     "profile.height");
@@ -10081,6 +10571,13 @@ function updateTDEEDisplay() {
   const el = $(id);
   if (el) el.addEventListener("change", updateTDEEDisplay);
 });
+["#set-bodyweight","#set-bodyfat"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("change", () => {
+    syncCalibrationProfiles();
+    saveState();
+  });
+});
 bindSettingInput("#set-p1-target",  "cut.p1Target");
 bindSettingInput("#set-p1-weeks",   "cut.p1Weeks");
 bindSettingInput("#set-db-weeks",   "cut.dbWeeks");
@@ -10100,6 +10597,7 @@ $("#set-rest-sound").addEventListener("change", (e) => {
 });
 
 // Export / Import / Reset
+$("#btn-program-calibration").addEventListener("click", openProgramCalibrationSheet);
 $("#btn-rerun-wizard").addEventListener("click", () => Wizard.open());
 $("#btn-new-training-program").addEventListener("click", () => {
   Wizard.open({ restartTraining: true });
@@ -10140,6 +10638,183 @@ function renderCustomFoodsList() {
   `).join("");
   list.querySelectorAll("[data-food-id]").forEach(el => {
     el.addEventListener("click", () => openCustomFoodSheet(el.dataset.foodId));
+  });
+}
+
+const BENCHMARK_LIFT_META = [
+  ["benchPress", "Bench Press"],
+  ["squat", "Squat"],
+  ["bentOverRow", "Bent-Over Row"],
+  ["deadlift", "Deadlift"],
+  ["overheadPress", "Overhead Press"],
+  ["barbellCurl", "Barbell Curl"],
+];
+
+function openProgramCalibrationSheet() {
+  syncCalibrationProfiles();
+  const ap = STATE.athleteProfile;
+  const dp = STATE.dietProfile;
+  const lm = leanMassKg(ap.bodyweightKg, ap.bodyFatPercent);
+  const fm = fatMassKg(ap.bodyweightKg, ap.bodyFatPercent);
+  const liftRows = BENCHMARK_LIFT_META.map(([key, label]) => {
+    const lift = normalizeBenchmarkLift(ap.benchmarkLifts?.[key]);
+    return `
+      <div class="setting-row" style="align-items:flex-start;">
+        <div>
+          <div class="lbl">${label}</div>
+          <div class="meta">Best recent set; Ascend estimates 1RM and uses it as a modifier.</div>
+        </div>
+        <div style="display:flex;gap:6px;max-width:160px;">
+          <input type="number" step="0.5" id="cal-${key}-w" value="${lift.weightKg ?? ""}" placeholder="kg" style="width:72px;" />
+          <input type="number" step="1" id="cal-${key}-r" value="${lift.reps ?? ""}" placeholder="reps" style="width:72px;" />
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $("#sheet-body").innerHTML = `
+    <h3>Program Calibration</h3>
+    <div class="muted" style="font-size:11px;margin-bottom:14px;line-height:1.5;">Unified setup for body, diet, benchmark lifts, exercise context, and recovery. Existing logs stay untouched.</div>
+
+    <div class="card-label" style="margin:10px 0 8px;">Body & Goal</div>
+    <div class="input-grid">
+      <div class="input"><label>Body weight (kg)</label><input type="number" step="0.1" id="cal-bw" value="${ap.bodyweightKg ?? ""}" /></div>
+      <div class="input"><label>Body fat %</label><input type="number" step="0.1" id="cal-bf" value="${ap.bodyFatPercent ?? ""}" /></div>
+    </div>
+    <div class="input" style="margin-top:10px;">
+      <label>Goal</label>
+      <select id="cal-goal" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);">
+        <option value="cut" ${ap.goal === "cut" ? "selected" : ""}>Cut</option>
+        <option value="maintain" ${ap.goal === "maintain" ? "selected" : ""}>Maintain / Recomp</option>
+        <option value="lean_gain" ${ap.goal === "lean_gain" ? "selected" : ""}>Lean gain</option>
+        <option value="hypertrophy" ${ap.goal === "hypertrophy" ? "selected" : ""}>Hypertrophy focus</option>
+      </select>
+    </div>
+    <div id="cal-body-preview" style="margin-top:10px;padding:10px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.5;">
+      Lean mass ${lm ?? "—"}kg · Fat mass ${fm ?? "—"}kg. Body-fat readings are interpreted as trend data.
+    </div>
+
+    <div class="card-label" style="margin:18px 0 8px;">Diet Targets</div>
+    <div class="input-grid">
+      <div class="input"><label>Calories</label><input type="number" id="cal-kcal" value="${dp.calorieTarget ?? STATE.cut.p1Kcal ?? ""}" /></div>
+      <div class="input"><label>Protein (g)</label><input type="number" id="cal-protein" value="${dp.proteinTarget ?? STATE.cut.proteinFloor ?? ""}" /></div>
+    </div>
+    <div class="input-grid" style="margin-top:10px;">
+      <div class="input"><label>Carbs (g)</label><input type="number" id="cal-carbs" value="${dp.carbTarget ?? ""}" /></div>
+      <div class="input"><label>Fat (g)</label><input type="number" id="cal-fat" value="${dp.fatTarget ?? ""}" /></div>
+    </div>
+
+    <div class="card-label" style="margin:18px 0 8px;">Strength Baseline</div>
+    ${liftRows}
+
+    <div class="card-label" style="margin:18px 0 8px;">Exercise Preferences</div>
+    <div class="input-grid">
+      <div class="input"><label>Training experience</label>
+        <select id="cal-exp" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);">
+          <option value="unknown" ${ap.trainingExperience === "unknown" ? "selected" : ""}>Unknown</option>
+          <option value="novice" ${ap.trainingExperience === "novice" ? "selected" : ""}>Novice</option>
+          <option value="intermediate" ${ap.trainingExperience === "intermediate" ? "selected" : ""}>Intermediate</option>
+          <option value="advanced" ${ap.trainingExperience === "advanced" ? "selected" : ""}>Advanced</option>
+        </select>
+      </div>
+      <div class="input"><label>Training days</label><input type="number" min="2" max="7" id="cal-days" value="${STATE.profile.trainingDays ?? 4}" /></div>
+    </div>
+
+    <div class="card-label" style="margin:18px 0 8px;">Recovery Profile</div>
+    <div class="input-grid">
+      <div class="input"><label>Recovery profile</label>
+        <select id="cal-recovery" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);">
+          <option value="unknown" ${ap.recoveryProfile === "unknown" ? "selected" : ""}>Unknown</option>
+          <option value="low" ${ap.recoveryProfile === "low" ? "selected" : ""}>Low</option>
+          <option value="moderate" ${ap.recoveryProfile === "moderate" ? "selected" : ""}>Moderate</option>
+          <option value="high" ${ap.recoveryProfile === "high" ? "selected" : ""}>High</option>
+        </select>
+      </div>
+      <div class="input"><label>Sleep hours</label><input type="number" step="0.5" id="cal-sleep" value="${STATE.profile.sleepHours ?? ""}" /></div>
+    </div>
+
+    <div class="card-label" style="margin:18px 0 8px;">Review & Apply</div>
+    <div style="padding:10px 12px;background:var(--bg-elev-2);border-left:3px solid var(--accent);border-radius:9px;font-size:12px;line-height:1.55;color:var(--ink-mid);">
+      Calibration updates coaching assumptions and targets. It does not delete logs, reset meals, or silently rewrite the exercise program.
+    </div>
+    <button class="btn primary full" style="margin-top:14px;" id="btn-cal-save">APPLY CALIBRATION</button>
+  `;
+  openSheet();
+
+  const updatePreview = () => {
+    const bw = parseFloat(document.getElementById("cal-bw")?.value);
+    const bf = parseFloat(document.getElementById("cal-bf")?.value);
+    const lean = leanMassKg(bw, bf);
+    const fat = fatMassKg(bw, bf);
+    const el = document.getElementById("cal-body-preview");
+    if (el) el.textContent = `Lean mass ${lean ?? "—"}kg · Fat mass ${fat ?? "—"}kg. Body-fat readings are interpreted as trend data.`;
+  };
+  ["cal-bw", "cal-bf"].forEach(id => document.getElementById(id)?.addEventListener("input", updatePreview));
+
+  document.getElementById("btn-cal-save").addEventListener("click", () => {
+    const bw = parseFloat(document.getElementById("cal-bw").value) || null;
+    const bfRaw = document.getElementById("cal-bf").value;
+    const bf = bfRaw === "" ? null : parseFloat(bfRaw);
+    const goal = document.getElementById("cal-goal").value;
+    const kcal = parseInt(document.getElementById("cal-kcal").value) || null;
+    const protein = parseInt(document.getElementById("cal-protein").value) || null;
+    const carbs = parseInt(document.getElementById("cal-carbs").value) || null;
+    const fat = parseInt(document.getElementById("cal-fat").value) || null;
+    const floorKcal = Math.max(STATE.profile.sex === "female" ? 1200 : 1500, Math.round((bw || STATE.profile.bodyweight || 80) * 22));
+    if (kcal != null && kcal < floorKcal && !confirm(`This calorie target is below Ascend's safety floor (${floorKcal} kcal). Apply anyway?`)) return;
+
+    STATE.profile.bodyweight = bw ?? STATE.profile.bodyweight;
+    STATE.profile.bodyFatPct = bf;
+    STATE.profile.trainingDays = parseInt(document.getElementById("cal-days").value) || STATE.profile.trainingDays || 4;
+    STATE.profile.sleepHours = parseFloat(document.getElementById("cal-sleep").value) || STATE.profile.sleepHours || null;
+    STATE.cut.mode = goal === "lean_gain" ? "bulk" : goal === "maintain" ? "maintain" : "cut";
+    if (kcal != null) STATE.cut.p1Kcal = Math.max(floorKcal, kcal);
+    if (protein != null) STATE.cut.proteinFloor = Math.max(protein, Math.round((leanMassKg(bw, bf) || bw || 80) * 1.8));
+
+    const benchmarkLifts = {};
+    BENCHMARK_LIFT_META.forEach(([key]) => {
+      const weightKg = parseFloat(document.getElementById(`cal-${key}-w`)?.value);
+      const reps = parseInt(document.getElementById(`cal-${key}-r`)?.value);
+      benchmarkLifts[key] = normalizeBenchmarkLift({
+        weightKg: isNaN(weightKg) ? null : weightKg,
+        reps: isNaN(reps) ? null : reps,
+      });
+    });
+
+    STATE.athleteProfile = {
+      ...(STATE.athleteProfile || defaultAthleteProfile()),
+      bodyweightKg: bw,
+      bodyFatPercent: bf,
+      leanMassKg: leanMassKg(bw, bf),
+      goal,
+      trainingExperience: document.getElementById("cal-exp").value,
+      recoveryProfile: document.getElementById("cal-recovery").value,
+      benchmarkLifts,
+    };
+    STATE.dietProfile = {
+      calorieTarget: kcal,
+      proteinTarget: protein,
+      carbTarget: carbs,
+      fatTarget: fat,
+      weeklyWeightChangeTarget: goal === "cut" ? -0.8 : goal === "lean_gain" ? 0.25 : 0,
+      source: "ascend",
+    };
+    STATE.healthSignals = {
+      ...(STATE.healthSignals || defaultHealthSignals()),
+      source: "manual",
+      date: todayISO(),
+      sleepHours: STATE.profile.sleepHours,
+      bodyweightKg: bw,
+      bodyFatPercent: bf,
+      leanMassKg: leanMassKg(bw, bf),
+    };
+    STATE.lifterAnalysis = buildLifterAnalysis();
+    saveState();
+    closeSheet();
+    renderSettings();
+    renderStats();
+    renderToday();
+    toast("CALIBRATION SAVED");
   });
 }
 
@@ -11767,6 +12442,38 @@ function renderMrvDecisionDetail(rec) {
   `;
 }
 
+function renderAdaptiveExplanation(rec) {
+  const change = rec.action === "swap"
+    ? `Swap ${rec.fromExercise || "source exercise"} for ${rec.toExercise || "replacement"}`
+    : rec.action === "reduce"
+    ? `Reduce ${rec.muscle || "target"} volume`
+    : rec.action === "add"
+    ? `Add ${rec.muscle || "target"} volume`
+    : `Hold ${rec.muscle || "target"} volume`;
+  const benefit = rec.action === "swap"
+    ? "Better weekly muscle coverage with a controlled fatigue tradeoff."
+    : rec.action === "reduce"
+    ? "Lower recovery cost while keeping productive work in the program."
+    : rec.action === "add"
+    ? "Bring the muscle closer to minimum effective volume."
+    : "Avoid unnecessary fatigue while the current signal is borderline.";
+  const risk = rec.action === "add"
+    ? "Extra work can exceed recovery if readiness or joints are poor."
+    : rec.action === "reduce"
+    ? "Direct volume may temporarily fall below specialization range."
+    : rec.action === "swap"
+    ? "The replacement may feel less specific than the current exercise."
+    : "Progress may be slower if the signal was just normal variation.";
+  return `
+    <div style="margin-top:8px;padding:9px 10px;background:var(--bg-elev-2);border-radius:8px;border:1px solid var(--line);font-size:11px;line-height:1.55;">
+      <div><strong style="color:var(--ink);">Recommended Change:</strong> ${escapeHtml(change)}</div>
+      <div><strong style="color:var(--ink);">Reason:</strong> ${escapeHtml(rec.reason || rec.body || "Volume and fatigue signals moved outside the target range.")}</div>
+      <div><strong style="color:var(--ink);">Expected Benefit:</strong> ${escapeHtml(benefit)}</div>
+      <div><strong style="color:var(--ink);">Risk:</strong> ${escapeHtml(risk)}</div>
+    </div>
+  `;
+}
+
 function renderMrvRecommendations() {
   const wrap = document.getElementById("stats-mrv-rec");
   const meta = document.getElementById("stats-mrv-rec-meta");
@@ -11815,6 +12522,7 @@ function renderMrvRecommendations() {
       <div style="font-size:11px; color:var(--ink-mid); line-height:1.55;">${escapeHtml(r.body)}</div>
       ${r.action === "swap" ? `<div style="margin-top:5px;font-family:var(--f-mono);font-size:9px;color:var(--ink-dim);letter-spacing:0.08em;">CONFIDENCE: ${Math.round((r.confidence || 0.7) * 100)}% | PATTERN: ${escapeHtml((r.movementPattern || "general").replace(/_/g, " ").toUpperCase())}</div>` : ""}
       ${r.day ? `<div style="margin-top:5px; font-family:var(--f-mono); font-size:9px; color:var(--ink-dim); letter-spacing:0.08em;">AFFECTS: ${r.day} DAY</div>` : ""}
+      ${renderAdaptiveExplanation(r)}
       ${renderMrvDecisionDetail(r)}
       ${r.action === "swap" ? `<button class="btn sm primary mrv-apply-btn" data-mrv-idx="${i}" style="margin-top:8px;width:100%;">APPLY SWAP</button>` : ""}
     </div>
