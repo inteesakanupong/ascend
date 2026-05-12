@@ -2784,8 +2784,8 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
           <input type="number" inputmode="decimal" step="0.1" id="weigh-weight" placeholder="—" />
         </div>
         <div class="input">
-          <label>Body fat % <span class="muted" style="text-transform:none; letter-spacing:0;">Â· trend only</span></label>
-          <input type="number" inputmode="decimal" step="0.1" id="weigh-bodyfat" placeholder="optional" />
+          <label>Body fat % <span class="muted" style="text-transform:none; letter-spacing:0;">- trend only</span></label>
+          <input type="number" inputmode="decimal" step="0.1" id="weigh-bodyfat" placeholder="-" />
         </div>
         <div class="input">
           <label>Calories</label>
@@ -9636,7 +9636,24 @@ function classifyRelativeStrength(oneRm, bw, lift) {
 
 function liftOneRm(key) {
   const lift = normalizeBenchmarkLift(STATE.athleteProfile?.benchmarkLifts?.[key]);
-  return lift.estimatedOneRm ?? estimateOneRm(lift.weightKg, lift.reps);
+  const explicit = lift.estimatedOneRm ?? estimateOneRm(lift.weightKg, lift.reps);
+  if (explicit) return explicit;
+  const fallbackMap = {
+    benchPress: ["PUSH", 0],
+    squat: ["LEGS", 0],
+    bentOverRow: ["PULL", 0],
+    deadlift: ["LEGS", 1],
+    overheadPress: ["PUSH", 1],
+    barbellCurl: ["ARMS", 0],
+  };
+  const slot = fallbackMap[key];
+  if (!slot) return null;
+  const fromHistory = estimateOneRmFromHistory(slot[0], slot[1]);
+  if (fromHistory) return fromHistory;
+  const ex = STATE.exercises?.[slot[0]]?.[slot[1]];
+  if (!ex?.start) return null;
+  const basisReps = Math.max(ex.repMin || 6, Math.min(ex.repMax || 10, 8));
+  return estimateOneRm(ex.start, basisReps);
 }
 
 function strengthLevelModifierForMuscle(muscle, strengthBalance) {
