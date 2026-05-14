@@ -3797,6 +3797,7 @@ const DEFAULT_STATE = {
     "bodyFatPercent": null,
     "leanMassKg": null,
     "goal": "cut",
+    "programMode": "hypertrophy",
     "trainingExperience": "unknown",
     "recoveryProfile": "unknown",
     "benchmarkLifts": {
@@ -4798,6 +4799,7 @@ function defaultAthleteProfile() {
     bodyFatPercent: bf,
     leanMassKg: leanMassKg(bw, bf),
     goal: normalizeGoal(STATE?.cut?.mode || "cut"),
+    programMode: "hypertrophy",
     trainingExperience: mapExperience(STATE?.profile?.experienceLevel),
     recoveryProfile: recoveryProfileFromInputs(STATE?.profile || {}),
     benchmarkLifts: defaultBenchmarkLifts(),
@@ -6300,10 +6302,22 @@ function activateLiftSession() {
 // Week 4: Deload        — reduce vol/intensity, recover
 
 const JUG_WAVES = [
-  { name: "ACCUMULATION",    week: 1, rpeTarget: [6, 7], volumeMultiplier: 1.0,  intensityNote: "High volume, stay RPE 6-7. Leave 3+ reps in tank.", deload: false },
-  { name: "INTENSIFICATION", week: 2, rpeTarget: [7, 8], volumeMultiplier: 0.85, intensityNote: "Moderate volume, push to RPE 7-8. Leave 1-2 reps in tank.", deload: false },
-  { name: "REALIZATION",     week: 3, rpeTarget: [8, 9], volumeMultiplier: 0.6,  intensityNote: "AMRAP week — test your true capacity on lead exercise. Cap at 20 reps.", deload: false },
-  { name: "DELOAD",          week: 4, rpeTarget: [5, 6], volumeMultiplier: 0.5,  intensityNote: "Recovery week — 60% weights, 50% volume. Feeling fresh is the goal.", deload: true  },
+  { name: "ACCUMULATION",    week: 1, rpeTarget: [6, 7], volumeMultiplier: 1.0,  deload: false,
+    intensityNote: "High volume, stay RPE 6-7. Leave 3+ reps in tank.",
+    hypertrophyNote: "Volume introduction week. Sets should feel manageable — technique and consistency are the goal. Stay between MEV and lower MAV. A session that felt easy is a good session this week.",
+  },
+  { name: "INTENSIFICATION", week: 2, rpeTarget: [7, 8], volumeMultiplier: 0.85, deload: false,
+    intensityNote: "Moderate volume, push to RPE 7-8. Leave 1-2 reps in tank.",
+    hypertrophyNote: "Volume climbs this week. Sets should feel genuinely challenging — RPE 7-8. This is where most of the growth stimulus comes from. Quality reps near failure, not failure itself.",
+  },
+  { name: "REALIZATION",     week: 3, rpeTarget: [8, 9], volumeMultiplier: 0.6,  deload: false,
+    intensityNote: "AMRAP week — test your true capacity on lead exercise. Cap at 20 reps.",
+    hypertrophyNote: "Near-MRV week. Volume is at its highest — push hard, but stay technically clean. AMRAP on lead lift to gauge strength progress. The deload is coming — earn it this week.",
+  },
+  { name: "DELOAD",          week: 4, rpeTarget: [5, 6], volumeMultiplier: 0.5,  deload: true,
+    intensityNote: "Recovery week — 60% weights, 50% volume. Feeling fresh is the goal.",
+    hypertrophyNote: "Recovery week. Drop to ~60% of normal weight and ~50% volume. The adaptation from the last 3 weeks happens now — don't sabotage it by training hard. Feeling fresh by the end of the week is the only goal.",
+  },
 ];
 
 function juggernautWave(dayNum, day) {
@@ -6789,8 +6803,9 @@ function selectLiftDay(day) {
       waveLabel.style.color = colors[wave.name] || "var(--accent)";
       waveLabel.textContent = `WEEK ${wave.waveWeek}/4 · ${wave.name}`;
       if (waveCycle) waveCycle.textContent = `CYCLE ${wave.cycleNum} · WEEK ${wave.weekNum}`;
-      waveNote.textContent = wave.intensityNote;
-      if (waveRpe) waveRpe.textContent = `Target RPE: ${wave.rpeTarget[0]}–${wave.rpeTarget[1]}`;
+      const mode = STATE.athleteProfile?.programMode || "hypertrophy";
+      waveNote.textContent = (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
+      if (waveRpe) waveRpe.textContent = `Target RPE: ${wave.rpeTarget[0]}–${wave.rpeTarget[1]} · ${mode.toUpperCase()} MODE`;
     }
 
     // MRV warning
@@ -9834,10 +9849,32 @@ function buildLifterAnalysis() {
   const nearMrv = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > lm.mav).map(([m]) => m);
   const belowMev = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > 0 && (vol[m] || 0) < lm.mev).map(([m]) => m);
   const trend28 = trendRateKgPerWeek(28);
+  // Frequency check — muscles trained but hit less than 2x/week (hypertrophy ideal)
+  const cutoff7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+  const muscleDayHits = {};
+  STATE.sessions.filter(s => s.date >= cutoff7).forEach(s => {
+    (s.sets || []).forEach((_, i) => {
+      const name = sessionExerciseName(s, i);
+      if (!name) return;
+      const weights = exerciseWeightedMuscles(name);
+      Object.keys(weights).forEach(m => {
+        if (!muscleDayHits[m]) muscleDayHits[m] = new Set();
+        muscleDayHits[m].add(s.date);
+      });
+    });
+  });
+  const programMode = STATE.athleteProfile?.programMode || "hypertrophy";
+  const lowFreqMuscles = programMode === "hypertrophy"
+    ? Object.entries(muscleDayHits)
+        .filter(([m, days]) => days.size < 2 && (vol[m] || 0) > 0 && VOLUME_LANDMARKS[m])
+        .map(([m]) => MUSCLE_LABELS[m] || m)
+    : [];
+
   const fatigueRisks = [];
   if (fatigue.spinal >= 20) fatigueRisks.push("High hinge/spinal fatigue exposure this week.");
   if (nearMrv.length) fatigueRisks.push(`${nearMrv.map(m => MUSCLE_LABELS[m] || m).join(", ")} near or above recoverable volume.`);
   if (trend28 != null && trend28 < -1.0 && STATE.cut.mode === "cut") fatigueRisks.push("Weight loss is fast enough to threaten recovery if performance declines.");
+  if (lowFreqMuscles.length) fatigueRisks.push(`${lowFreqMuscles.slice(0,3).join(", ")} trained less than 2×/week — hypertrophy responds best to higher frequency.`);
   // Performance decline signal — check if recent sessions show load regression
   const recentSessions = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 6);
   let performanceDeclining = false;
@@ -9963,35 +10000,85 @@ function renderStats() {
   $("#stats-weight-meta").textContent = logs.length === 0 ? "NO DATA" : `${logs.length} WEIGH-INS`;
   $("#stats-chart").innerHTML = renderWeightChart(logs);
 
-  // Volume Landmarks (weighted sets per muscle group, last 7 days)
+  // Volume Landmarks — per muscle group with frequency warnings
   const vol = weeklyVolumeByMuscle(7);
   const orderedMuscles = ["chest","back","shoulders","biceps","triceps","quads","hamstrings","glutes","calves","forearms","abs"];
   const volWrap = document.getElementById("stats-vol-landmarks");
+
+  // Compute per-muscle training frequency (how many distinct days hit each muscle in last 7 days)
+  const cutoff7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+  const muscleDayHits = {};
+  STATE.sessions.filter(s => s.date >= cutoff7).forEach(s => {
+    (s.sets || []).forEach((_, i) => {
+      const name = sessionExerciseName(s, i);
+      if (!name) return;
+      const weights = exerciseWeightedMuscles(name);
+      Object.keys(weights).forEach(m => {
+        if (!muscleDayHits[m]) muscleDayHits[m] = new Set();
+        muscleDayHits[m].add(s.date);
+      });
+    });
+  });
+
+  const programMode = STATE.athleteProfile?.programMode || "hypertrophy";
+
   if (volWrap) {
-    volWrap.innerHTML = orderedMuscles.map(m => {
-      const sets = vol[m] || 0;
-      const lm = VOLUME_LANDMARKS[m];
-      const max = lm.mrv * 1.2;
-      const pct = Math.min(100, (sets / max) * 100);
-      const mevPct = (lm.mev / max) * 100;
-      const mavPct = (lm.mav / max) * 100;
-      let status = "under", label = "BELOW MEV";
-      if (sets >= lm.mev && sets <= lm.mav) { status = "optimal"; label = "OPTIMAL"; }
-      else if (sets > lm.mav && sets <= lm.mrv) { status = "high"; label = "HIGH"; }
-      else if (sets > lm.mrv) { status = "over"; label = "OVER MRV"; }
-      else if (sets >= lm.mv && sets < lm.mev) { status = "under"; label = "MAINTENANCE"; }
+    // Group muscles for display
+    const muscleGroups = [
+      { label: "UPPER PUSH", muscles: ["chest","shoulders","triceps"] },
+      { label: "UPPER PULL", muscles: ["back","biceps","forearms"] },
+      { label: "LOWER", muscles: ["quads","hamstrings","glutes","calves"] },
+      { label: "CORE", muscles: ["abs"] },
+    ];
+
+    volWrap.innerHTML = muscleGroups.map(group => {
+      const rows = group.muscles.map(m => {
+        const sets = vol[m] || 0;
+        const lm = VOLUME_LANDMARKS[m];
+        if (!lm) return "";
+        const max = lm.mrv * 1.2;
+        const pct = Math.min(100, (sets / max) * 100);
+        const mevPct = (lm.mev / max) * 100;
+        const mavPct = (lm.mav / max) * 100;
+        let status = "under", label = "BELOW MEV";
+        if (sets === 0) { status = "under"; label = "NOT TRAINED"; }
+        else if (sets >= lm.mv && sets < lm.mev) { status = "under"; label = "MAINTENANCE"; }
+        else if (sets >= lm.mev && sets <= lm.mav) { status = "optimal"; label = "IN RANGE"; }
+        else if (sets > lm.mav && sets <= lm.mrv) { status = "high"; label = "NEAR MRV"; }
+        else if (sets > lm.mrv) { status = "over"; label = "OVER MRV"; }
+
+        const freq = muscleDayHits[m]?.size || 0;
+        // For hypertrophy: 2x/week per muscle is ideal per Israetel
+        const freqWarn = programMode === "hypertrophy" && sets > 0 && freq < 2;
+        const freqNote = freqWarn
+          ? `<span style="font-family:var(--f-mono);font-size:9px;color:#d4a017;letter-spacing:0.06em;">⚠ ${freq}×/WK — aim for 2×</span>`
+          : `<span style="font-family:var(--f-mono);font-size:9px;color:var(--ink-faint);letter-spacing:0.06em;">${freq}×/wk</span>`;
+
+        return `
+          <div class="vol-row" style="padding:8px 0;">
+            <div class="vol-row-head" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <span class="vol-muscle" style="font-size:12px;font-weight:600;">${MUSCLE_LABELS[m] || m}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                ${freqNote}
+                <span class="vol-sets" style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">${sets} sets · MEV ${lm.mev} MAV ${lm.mav}</span>
+              </div>
+            </div>
+            <div class="vol-bar-wrap" style="position:relative;height:6px;background:var(--bg-elev-3);border-radius:3px;overflow:visible;">
+              <div class="vol-bar-fill ${status}" style="width:${pct}%;height:100%;border-radius:3px;"></div>
+              <div class="vol-mev-mark" style="left:${mevPct}%;"></div>
+              <div class="vol-mav-mark" style="left:${mavPct}%;"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:3px;">
+              <span class="vol-status ${status}" style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.08em;">${label}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
       return `
-        <div class="vol-row">
-          <div class="vol-row-head">
-            <span class="vol-muscle">${m}</span>
-            <span class="vol-sets">${sets} / ${lm.mev}–${lm.mav} weighted</span>
-          </div>
-          <div class="vol-bar-wrap">
-            <div class="vol-bar-fill ${status}" style="width:${pct}%;"></div>
-            <div class="vol-mev-mark" style="left:${mevPct}%;"></div>
-            <div class="vol-mav-mark" style="left:${mavPct}%;"></div>
-          </div>
-          <div class="vol-status ${status}">${label}</div>
+        <div style="margin-bottom:12px;">
+          <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.14em;color:var(--ink-dim);padding:6px 0 2px;border-bottom:1px solid var(--line);margin-bottom:4px;">${group.label}</div>
+          ${rows}
         </div>
       `;
     }).join("");
@@ -10923,6 +11010,16 @@ function openProgramCalibrationSheet() {
         <option value="hypertrophy" ${ap.goal === "hypertrophy" ? "selected" : ""}>Hypertrophy focus</option>
       </select>
     </div>
+    <div class="input" style="margin-top:10px;">
+      <label>Program mode</label>
+      <select id="cal-program-mode" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);">
+        <option value="hypertrophy" ${(ap.programMode||"hypertrophy") === "hypertrophy" ? "selected" : ""}>Hypertrophy — volume-driven, muscle growth focus</option>
+        <option value="powerbuilding" ${ap.programMode === "powerbuilding" ? "selected" : ""}>Powerbuilding — strength + size (coming soon)</option>
+        <option value="powerlifting" ${ap.programMode === "powerlifting" ? "selected" : ""}>Powerlifting — competition strength (coming soon)</option>
+        <option value="strongman" ${ap.programMode === "strongman" ? "selected" : ""}>Strongman — event-based (coming soon)</option>
+      </select>
+      <div class="meta" style="margin-top:4px;font-size:10px;color:var(--ink-dim);">Only Hypertrophy is fully implemented. Other modes are placeholders for future updates.</div>
+    </div>
     <div id="cal-body-preview" style="margin-top:10px;padding:10px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.5;">
       Lean mass ${lm ?? "—"}kg · Fat mass ${fm ?? "—"}kg. Body-fat readings are interpreted as trend data.
     </div>
@@ -11147,6 +11244,7 @@ function openProgramCalibrationSheet() {
       bodyFatPercent: bf,
       leanMassKg: leanMassKg(bw, bf),
       goal,
+      programMode: document.getElementById("cal-program-mode")?.value || "hypertrophy",
       trainingExperience: document.getElementById("cal-exp").value,
       recoveryProfile: document.getElementById("cal-recovery").value,
       benchmarkLifts,
