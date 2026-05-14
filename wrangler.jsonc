@@ -6,16 +6,7 @@
     "enabled": true
   },
   "assets": {
-    "directory": ".",
-    "exclude": [
-      ".git/**",
-      ".wrangler/**",
-      "Ascend/**",
-      "docs/**",
-      "node_modules/**",
-      "ppal_training_reference_database.json",
-      "ppal_training_reference_notes.md"
-    ]
+    "directory": "."
   },
   "compatibility_flags": [
     "nodejs_compat"
