@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-11.2";
+const CACHE = "ascend-2026-05-15.1";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -2444,6 +2444,10 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   flex-shrink: 0; opacity: 0.5;
 }
 .prog-del-btn:active { color: var(--bad); opacity: 1; }
+.prog-day-label { cursor: pointer; user-select: none; }
+.prog-day-label .prog-day-arrow { font-size: 10px; transition: transform 150ms; margin-right: 4px; }
+.prog-day-label.collapsed .prog-day-arrow { transform: rotate(-90deg); }
+.prog-ex-list.collapsed { display: none; }
 .lsg-energy-btn {
   width: 44px; height: 44px; font-size: 22px; background: var(--bg-elev-2);
   border: 2px solid var(--line); border-radius: 12px; cursor: pointer;
@@ -10439,9 +10443,10 @@ function renderSettings() {
 
   // Exercise program editor
   const wrap = $("#set-exercises");
+  const _progCollapsed = new Set();
   wrap.innerHTML = DAY_ORDER.map(day => `
-    <div class="prog-day-label">
-      <span>${day}</span>
+    <div class="prog-day-label" data-prog-day="${day}">
+      <span><span class="prog-day-arrow">▾</span>${day} <span style="color:var(--ink-faint);font-weight:400;">(${STATE.exercises[day].length})</span></span>
       <button class="prog-add-btn" data-add-day="${day}">+ ADD</button>
     </div>
     <div class="prog-ex-list" data-day="${day}">
@@ -10458,6 +10463,18 @@ function renderSettings() {
       `).join("")}
     </div>
   `).join("");
+
+  // Collapsible day headers
+  wrap.querySelectorAll(".prog-day-label").forEach(hdr => {
+    hdr.addEventListener("click", (e) => {
+      if (e.target.closest(".prog-add-btn")) return; // don't collapse on ADD click
+      const day = hdr.dataset.progDay;
+      const list = wrap.querySelector(`.prog-ex-list[data-day="${day}"]`);
+      const collapsed = hdr.classList.toggle("collapsed");
+      if (list) list.classList.toggle("collapsed", collapsed);
+      if (collapsed) _progCollapsed.add(day); else _progCollapsed.delete(day);
+    });
+  });
 
   // Wire edit taps
   wrap.querySelectorAll(".prog-ex-info").forEach(el => {
@@ -10805,25 +10822,88 @@ function openProgramCalibrationSheet() {
   const dp = STATE.dietProfile;
   const lm = leanMassKg(ap.bodyweightKg, ap.bodyFatPercent);
   const fm = fatMassKg(ap.bodyweightKg, ap.bodyFatPercent);
-  const liftRows = BENCHMARK_LIFT_META.map(([key, label]) => {
+  // Tier 1: primary indicator lifts — anchor the entire strength profile
+  const TIER1_LIFTS = ["benchPress", "squat", "deadlift", "overheadPress"];
+  // Tier 2: movement pattern indicators — estimated from Tier 1 if not entered directly
+  const TIER2_LIFTS = ["bentOverRow", "rdl"];
+
+  const LIFT_ALTERNATIVES = {
+    squat: [
+      { label: "Front Squat", factor: 1.20 },
+      { label: "Hack Squat", factor: 1.10 },
+      { label: "Leg Press", factor: 2.30, note: "rough estimate only" },
+    ],
+    benchPress: [
+      { label: "DB Bench Press", factor: 1.15 },
+      { label: "Machine Chest Press", factor: 1.20 },
+    ],
+    deadlift: [
+      { label: "Trap Bar Deadlift", factor: 1.00 },
+      { label: "Romanian Deadlift", factor: 1.18 },
+    ],
+    overheadPress: [
+      { label: "DB Shoulder Press", factor: 1.15 },
+      { label: "Seated Barbell Press", factor: 1.00 },
+    ],
+    bentOverRow: [],
+    rdl: [],
+  };
+
+  const LIFT_ALT_SAVED = ap.liftAlternatives || {};
+
+  const buildLiftRow = (key, label, tier2Note) => {
     const lift = normalizeBenchmarkLift(ap.benchmarkLifts?.[key]);
     const historyRm = liftOneRm(key);
     const historyTm = liftTrainingMax(key, historyRm);
-    const historyNote = historyRm ? `Auto from history: 1RM ≈ ${historyRm}kg, TM ≈ ${historyTm}kg` : (key === "rdl" ? "Will estimate from deadlift if entered." : "No history found — enter below.");
+    const alts = LIFT_ALTERNATIVES[key] || [];
+    const savedAlt = LIFT_ALT_SAVED[key] || "barbell";
+    const historyNote = historyRm
+      ? `Auto from history: 1RM ≈ ${historyRm}kg, TM ≈ ${historyTm}kg`
+      : tier2Note || "No history — enter below.";
+    const altDropdown = alts.length ? `
+      <div style="margin-top:4px;">
+        <label style="font-size:10px;color:var(--ink-dim);">LIFT USED</label>
+        <select id="cal-${key}-alt" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--ink);margin-top:2px;">
+          <option value="barbell" ${savedAlt === "barbell" ? "selected" : ""}>Barbell (standard)</option>
+          ${alts.map(a => `<option value="${a.label}" ${savedAlt === a.label ? "selected" : ""}>${a.label}${a.note ? ` — ${a.note}` : ""}</option>`).join("")}
+        </select>
+      </div>` : "";
     return `
-      <div class="setting-row" style="align-items:flex-start;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line);">
-        <div>
-          <div class="lbl">${label}</div>
-          <div class="meta" id="cal-${key}-note" style="color:var(--ink-mid);">${historyNote}</div>
-        </div>
+      <div style="padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:4px;">
+        <div class="lbl" style="margin-bottom:2px;">${label}</div>
+        <div class="meta" id="cal-${key}-note" style="color:var(--ink-mid);font-size:11px;margin-bottom:6px;">${historyNote}</div>
         <div style="display:flex;gap:6px;width:100%;">
-          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">WEIGHT (kg)</label><input type="number" step="0.5" id="cal-${key}-w" value="${lift.weightKg ?? ""}" placeholder="e.g. 80" style="width:100%;" /></div>
-          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">REPS</label><input type="number" step="1" id="cal-${key}-r" value="${lift.reps ?? ""}" placeholder="e.g. 5" style="width:100%;" /></div>
+          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">WEIGHT (kg)</label><input type="number" step="0.5" id="cal-${key}-w" value="${lift.weightKg ?? ""}" placeholder="e.g. 80" style="width:100%;margin-top:2px;" /></div>
+          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">REPS</label><input type="number" step="1" id="cal-${key}-r" value="${lift.reps ?? ""}" placeholder="e.g. 5" style="width:100%;margin-top:2px;" /></div>
         </div>
-        <div id="cal-${key}-rm-preview" style="font-family:var(--f-mono);font-size:11px;color:var(--ink-mid);padding:4px 0;"></div>
+        ${altDropdown}
+        <div id="cal-${key}-rm-preview" style="font-family:var(--f-mono);font-size:11px;color:var(--accent);padding:4px 0 0;min-height:18px;"></div>
       </div>
     `;
+  };
+
+  const tier1Rows = TIER1_LIFTS.map(key => {
+    const label = BENCHMARK_LIFT_META.find(([k]) => k === key)?.[1] || key;
+    return buildLiftRow(key, label);
   }).join("");
+
+  const tier2Rows = TIER2_LIFTS.map(key => {
+    const label = BENCHMARK_LIFT_META.find(([k]) => k === key)?.[1] || key;
+    const notes = {
+      bentOverRow: "Estimated auto at ~70% of bench if not entered. Indicates horizontal pull balance.",
+      rdl: "Estimated auto at ~85% of deadlift if not entered. Indicates hip hinge accessory capacity.",
+    };
+    return buildLiftRow(key, label, notes[key]);
+  }).join("");
+
+  const liftRows = `
+    <div class="card-label" style="margin:4px 0 10px;font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);">PRIMARY INDICATORS</div>
+    <div class="muted" style="font-size:11px;margin-bottom:10px;">These are the anchor lifts. Use the dropdown if you train a variation instead of the standard barbell version.</div>
+    ${tier1Rows}
+    <div class="card-label" style="margin:14px 0 10px;font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);">MOVEMENT PATTERN INDICATORS</div>
+    <div class="muted" style="font-size:11px;margin-bottom:10px;">Used to assess push/pull and squat/hinge balance. Auto-estimated from primary lifts if left blank.</div>
+    ${tier2Rows}
+  `;
 
   $("#sheet-body").innerHTML = `
     <h3>Program Calibration</h3>
@@ -10920,19 +11000,25 @@ function openProgramCalibrationSheet() {
   };
   ["cal-bw", "cal-bf"].forEach(id => document.getElementById(id)?.addEventListener("input", updatePreview));
 
-  // Live 1RM calculator for each lift
+  // Live 1RM calculator for each lift — applies alternative lift conversion factor
   const updateLiftPreview = (key) => {
     const wEl = document.getElementById(`cal-${key}-w`);
     const rEl = document.getElementById(`cal-${key}-r`);
+    const altEl = document.getElementById(`cal-${key}-alt`);
     const previewEl = document.getElementById(`cal-${key}-rm-preview`);
     if (!previewEl) return;
     const w = parseFloat(wEl?.value);
     const r = parseInt(rEl?.value);
     if (w && r && r > 0 && r <= 30) {
-      const oneRm = estimateOneRm(w, r);
+      const rawOneRm = estimateOneRm(w, r);
+      // Apply conversion factor if an alternative lift is selected
+      const altVal = altEl?.value;
+      const altDef = (LIFT_ALTERNATIVES[key] || []).find(a => a.label === altVal);
+      const factor = (altDef && altVal !== "barbell") ? altDef.factor : 1.0;
+      const oneRm = factor !== 1.0 ? Math.round(rawOneRm * factor * 10) / 10 : rawOneRm;
       const tm = liftTrainingMax(key, oneRm);
-      previewEl.textContent = `Est. 1RM: ${oneRm}kg · Training max: ${tm}kg`;
-      previewEl.style.color = "var(--accent)";
+      const factorNote = factor !== 1.0 ? ` (×${factor} conversion)` : "";
+      previewEl.textContent = `Est. 1RM: ${oneRm}kg · TM: ${tm}kg${factorNote}`;
     } else {
       previewEl.textContent = "";
     }
@@ -10942,8 +11028,10 @@ function openProgramCalibrationSheet() {
   BENCHMARK_LIFT_META.forEach(([key]) => {
     const wEl = document.getElementById(`cal-${key}-w`);
     const rEl = document.getElementById(`cal-${key}-r`);
+    const altEl = document.getElementById(`cal-${key}-alt`);
     if (wEl) wEl.addEventListener("input", () => updateLiftPreview(key));
     if (rEl) rEl.addEventListener("input", () => updateLiftPreview(key));
+    if (altEl) altEl.addEventListener("change", () => updateLiftPreview(key));
     // Trigger preview for any pre-filled values
     updateLiftPreview(key);
   });
@@ -11033,13 +11121,22 @@ function openProgramCalibrationSheet() {
     if (protein != null) STATE.cut.proteinFloor = Math.max(protein, Math.round((leanMassKg(bw, bf) || bw || 80) * 1.8));
 
     const benchmarkLifts = {};
+    const liftAlternatives = {};
     BENCHMARK_LIFT_META.forEach(([key]) => {
       const weightKg = parseFloat(document.getElementById(`cal-${key}-w`)?.value);
       const reps = parseInt(document.getElementById(`cal-${key}-r`)?.value);
+      const altEl = document.getElementById(`cal-${key}-alt`);
+      const altVal = altEl?.value || "barbell";
+      const altDef = (LIFT_ALTERNATIVES[key] || []).find(a => a.label === altVal);
+      const factor = (altDef && altVal !== "barbell") ? altDef.factor : 1.0;
+      const rawOneRm = (!isNaN(weightKg) && !isNaN(reps)) ? estimateOneRm(weightKg, reps) : null;
+      const adjOneRm = rawOneRm && factor !== 1.0 ? Math.round(rawOneRm * factor * 10) / 10 : rawOneRm;
       benchmarkLifts[key] = normalizeBenchmarkLift({
         weightKg: isNaN(weightKg) ? null : weightKg,
         reps: isNaN(reps) ? null : reps,
+        estimatedOneRm: adjOneRm,
       });
+      if (altVal !== "barbell") liftAlternatives[key] = altVal;
     });
 
     const waveOverride = document.getElementById("cal-wave")?.value;
@@ -11053,6 +11150,7 @@ function openProgramCalibrationSheet() {
       trainingExperience: document.getElementById("cal-exp").value,
       recoveryProfile: document.getElementById("cal-recovery").value,
       benchmarkLifts,
+      liftAlternatives,
       waveOverride: waveOverride !== "auto" ? parseInt(waveOverride) : null,
       blockWeek,
     };
