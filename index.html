@@ -4921,6 +4921,12 @@ function normalizeProgramCalibrationState(s) {
 
 function migrateState(s) {
   if (!s) return s;
+  // Guard top-level objects that older backups may be missing entirely
+  if (!s.cut)     s.cut     = {};
+  if (!s.profile) s.profile = {};
+  if (!s.exercises) s.exercises = { PUSH: [], PULL: [], ARMS: [], LEGS: [] };
+  if (!s.sessions)  s.sessions  = [];
+  if (!s.dailyLogs) s.dailyLogs = [];
   if (!s.timer)        s.timer        = { compoundSec: 180, midSec: 120, isolationSec: 90, sound: true };
   if (!s.measurements)  s.measurements  = [];
   if (!s.customFoods)   s.customFoods   = [];
@@ -11353,16 +11359,46 @@ $("#file-import").addEventListener("change", async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
     const text = await f.text();
-    const incoming = JSON.parse(text);
-    if (!incoming.v || !incoming.exercises || !incoming.sessions) throw new Error("bad format");
-    if (!confirm("Replace ALL current data with imported backup?")) return;
-    STATE = migrateState(incoming);
-    updateAdaptiveStateSnapshot("import");
+    let incoming;
+    try {
+      incoming = JSON.parse(text);
+    } catch (parseErr) {
+      toast("IMPORT FAILED — file is not valid JSON");
+      e.target.value = "";
+      return;
+    }
+    // Loose validation: only require sessions array; v and exercises may be missing in old backups
+    if (!Array.isArray(incoming.sessions)) {
+      toast("IMPORT FAILED — missing sessions data");
+      e.target.value = "";
+      return;
+    }
+    if (!confirm(`Import backup? This will replace all current data.\n\nBackup contains: ${incoming.sessions.length} sessions, ${incoming.dailyLogs?.length ?? 0} daily logs.`)) {
+      e.target.value = "";
+      return;
+    }
+    try {
+      STATE = migrateState(incoming);
+    } catch (migrateErr) {
+      console.error("migrateState failed:", migrateErr);
+      toast("IMPORT FAILED — data migration error (see console)");
+      e.target.value = "";
+      return;
+    }
+    try {
+      STATE.lifterAnalysis = buildLifterAnalysis();
+    } catch (_) {}
+    try {
+      updateAdaptiveStateSnapshot("import");
+    } catch (_) {}
     saveState();
     renderToday();
-    toast("IMPORTED");
+    try { renderSettings(); } catch (_) {}
+    try { renderStats(); } catch (_) {}
+    toast(`IMPORTED — ${STATE.sessions.length} sessions loaded`);
   } catch (err) {
-    toast("IMPORT FAILED");
+    console.error("Import error:", err);
+    toast("IMPORT FAILED — " + (err.message || "unknown error"));
   }
   e.target.value = "";
 });
@@ -15721,6 +15757,43 @@ let _lastRenderedDate = todayISO();
 function checkDateFreshness() {
   const today = todayISO();
   if (today !== _lastRenderedDate) {
+    _lastRenderedDate = today;
+    const activeTab = document.querySelector(".tab.active");
+    if (activeTab) goTab(activeTab.dataset.tab);
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) checkDateFreshness();
+});
+window.addEventListener("pageshow", checkDateFreshness);
+// Also poll every minute as a safety net for browsers that don't fire the above
+setInterval(checkDateFreshness, 60000);
+
+// Catch unhandled promise rejections so toast surfaces issues
+window.addEventListener("unhandledrejection", (e) => {
+  console.error(e);
+  toast("ERROR · CHECK CONSOLE");
+});
+
+// ── Start the app ──────────────────────────────────────────────────────────
+// Set dynamic version in footer
+const footerVersion = document.getElementById("footer-version");
+if (footerVersion) footerVersion.textContent = "Ascend " + APP_VERSION;
+
+// "What's New" button in Profile footer
+document.getElementById("btn-whats-new").addEventListener("click", showChangelog);
+try {
+  updateAdaptiveStateSnapshot("app_start");
+  saveState();
+} catch (e) {
+  console.warn("Adaptive state refresh failed", e);
+}
+appInit();
+</script>
+
+</body>
+</html>
+Date) {
     _lastRenderedDate = today;
     const activeTab = document.querySelector(".tab.active");
     if (activeTab) goTab(activeTab.dataset.tab);
