@@ -3801,7 +3801,7 @@ const DEFAULT_STATE = {
       "bentOverRow": { "weightKg": null, "reps": null, "estimatedOneRm": null },
       "deadlift": { "weightKg": null, "reps": null, "estimatedOneRm": null },
       "overheadPress": { "weightKg": null, "reps": null, "estimatedOneRm": null },
-      "barbellCurl": { "weightKg": null, "reps": null, "estimatedOneRm": null }
+      "rdl": { "weightKg": null, "reps": null, "estimatedOneRm": null }
     }
   },
   "dietProfile": {
@@ -4782,7 +4782,7 @@ function defaultBenchmarkLifts() {
     bentOverRow: { weightKg: null, reps: null, estimatedOneRm: null },
     deadlift: { weightKg: null, reps: null, estimatedOneRm: null },
     overheadPress: { weightKg: null, reps: null, estimatedOneRm: null },
-    barbellCurl: { weightKg: null, reps: null, estimatedOneRm: null },
+    rdl: { weightKg: null, reps: null, estimatedOneRm: null },
   };
 }
 
@@ -4872,6 +4872,9 @@ function normalizeProgramCalibrationState(s) {
   Object.keys(benchmarks).forEach(k => {
     benchmarks[k] = normalizeBenchmarkLift(oldBenchmarks[k]);
   });
+  // Migrate legacy barbellCurl key → rdl
+  if (oldBenchmarks.barbellCurl && !oldBenchmarks.rdl) benchmarks.rdl = normalizeBenchmarkLift(oldBenchmarks.barbellCurl);
+  delete benchmarks.barbellCurl;
 
   const bw = oldAthlete.bodyweightKg ?? s.profile?.bodyweight ?? null;
   const bf = oldAthlete.bodyFatPercent ?? s.profile?.bodyFatPct ?? null;
@@ -5062,7 +5065,31 @@ function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 function estimateOneRm(weightKg, reps) {
   const w = Number(weightKg), r = Number(reps);
   if (!w || !r) return null;
+  // Epley formula (good for 1-15 rep range)
   return Math.round((w * (1 + r / 30)) * 10) / 10;
+}
+
+// Training max factors: how much of a lift's 1RM is typically used as training max.
+// Lower for high-fatigue/leveraged lifts, higher for isolation or controlled lifts.
+const LIFT_TRAINING_MAX_FACTORS = {
+  benchPress:   0.90,  // standard 90% TM
+  squat:        0.90,  // standard 90% TM
+  deadlift:     0.90,  // standard 90% TM
+  bentOverRow:  0.90,  // standard
+  overheadPress:0.90,  // standard
+  rdl:          0.85,  // 80-90% of deadlift 1RM; use 85% of its own estimated 1RM
+};
+
+// For RDL: also estimate 1RM from deadlift if RDL has no direct history
+function rdlOneRmFromDeadlift(deadliftOneRm) {
+  if (!deadliftOneRm) return null;
+  return Math.round(deadliftOneRm * 0.85 * 10) / 10; // RDL ~85% of deadlift
+}
+
+function liftTrainingMax(key, oneRm) {
+  if (!oneRm) return null;
+  const factor = LIFT_TRAINING_MAX_FACTORS[key] ?? 0.90;
+  return Math.round((oneRm * factor) / 2.5) * 2.5;
 }
 function leanMassKg(bodyweightKg, bodyFatPercent) {
   if (bodyFatPercent === null || bodyFatPercent === undefined || bodyFatPercent === "") return null;
@@ -9688,7 +9715,7 @@ function trendRateKgPerWeek(days = 28) {
 function classifyRelativeStrength(oneRm, bw, lift) {
   if (!oneRm || !bw) return "unknown";
   const ratio = oneRm / bw;
-  const cuts = ({ benchPress:[0.75,1.15,1.55], squat:[1,1.5,2], deadlift:[1.2,1.8,2.4], bentOverRow:[0.65,1,1.35], overheadPress:[0.45,0.7,0.95], barbellCurl:[0.25,0.4,0.6] })[lift] || [0.6,1,1.4];
+  const cuts = ({ benchPress:[0.75,1.15,1.55], squat:[1,1.5,2], deadlift:[1.2,1.8,2.4], bentOverRow:[0.65,1,1.35], overheadPress:[0.45,0.7,0.95], rdl:[0.8,1.3,1.8] })[lift] || [0.6,1,1.4];
   if (ratio < cuts[0]) return "novice";
   if (ratio < cuts[1]) return "novice-intermediate";
   if (ratio < cuts[2]) return "intermediate";
@@ -9699,13 +9726,18 @@ function liftOneRm(key) {
   const lift = normalizeBenchmarkLift(STATE.athleteProfile?.benchmarkLifts?.[key]);
   const explicit = lift.estimatedOneRm ?? estimateOneRm(lift.weightKg, lift.reps);
   if (explicit) return explicit;
+  // For RDL: fall back to 85% of deadlift 1RM if no direct entry
+  if (key === "rdl") {
+    const dlRm = liftOneRm("deadlift");
+    if (dlRm) return rdlOneRmFromDeadlift(dlRm);
+  }
   const fallbackMap = {
     benchPress: ["PUSH", 0],
     squat: ["LEGS", 0],
     bentOverRow: ["PULL", 0],
     deadlift: ["LEGS", 1],
     overheadPress: ["PUSH", 1],
-    barbellCurl: ["ARMS", 0],
+    rdl: ["LEGS", 1],
   };
   const slot = fallbackMap[key];
   if (!slot) return null;
@@ -9724,7 +9756,7 @@ function strengthLevelModifierForMuscle(muscle, strengthBalance) {
     shoulders: strengthBalance.verticalPress,
     back: strengthBalance.pulling,
     biceps: strengthBalance.pulling,
-    forearms: strengthBalance.armIsolation,
+    forearms: strengthBalance.hingeAccessory,
     quads: strengthBalance.squatting,
     glutes: strengthBalance.squatting,
     hamstrings: strengthBalance.hinge,
@@ -9790,7 +9822,7 @@ function buildLifterAnalysis() {
     hinge: classifyRelativeStrength(liftOneRm("deadlift"), bw, "deadlift"),
     pulling: classifyRelativeStrength(liftOneRm("bentOverRow"), bw, "bentOverRow"),
     verticalPress: classifyRelativeStrength(liftOneRm("overheadPress"), bw, "overheadPress"),
-    armIsolation: classifyRelativeStrength(liftOneRm("barbellCurl"), bw, "barbellCurl"),
+    hingeAccessory: classifyRelativeStrength(liftOneRm("rdl"), bw, "rdl"),
   };
   const fatigue = computeFatigueSummary(7);
   const vol = weeklyVolumeByMuscle(7);
@@ -9802,18 +9834,53 @@ function buildLifterAnalysis() {
   if (fatigue.spinal >= 20) fatigueRisks.push("High hinge/spinal fatigue exposure this week.");
   if (nearMrv.length) fatigueRisks.push(`${nearMrv.map(m => MUSCLE_LABELS[m] || m).join(", ")} near or above recoverable volume.`);
   if (trend28 != null && trend28 < -1.0 && STATE.cut.mode === "cut") fatigueRisks.push("Weight loss is fast enough to threaten recovery if performance declines.");
+  // Performance decline signal — check if recent sessions show load regression
+  const recentSessions = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 6);
+  let performanceDeclining = false;
+  if (recentSessions.length >= 4) {
+    const scores = recentSessions.map(s => {
+      let total = 0, count = 0;
+      (s.sets || []).forEach(set => {
+        if (set?.s1w && set?.s1r) { total += set.s1w * set.s1r; count++; }
+        if (set?.s2w && set?.s2r) { total += set.s2w * set.s2r; count++; }
+      });
+      return count > 0 ? total / count : null;
+    }).filter(v => v != null);
+    if (scores.length >= 4) {
+      const recent2 = (scores[0] + scores[1]) / 2;
+      const older2  = (scores[2] + scores[3]) / 2;
+      performanceDeclining = older2 > 0 && (recent2 / older2) < 0.97; // >3% drop = declining
+    }
+  }
   const recommendations = [];
-  if (STATE.cut.mode === "cut" && trend28 != null && trend28 < -1.2) recommendations.push("Reduce deficit aggressiveness only if the 7-14 day trend stays fast or performance drops.");
-  else if (STATE.cut.mode === "cut" && trend28 != null && trend28 > -0.2) recommendations.push("Check adherence before lowering calories; rolling cut trend is slow.");
-  else recommendations.push("Keep targets stable until the rolling trend changes.");
+  if (STATE.cut.mode === "cut") {
+    if (performanceDeclining && trend28 != null && trend28 < -0.8) {
+      recommendations.push("Performance declining alongside rapid weight loss — consider adding 150-200 kcal to protect muscle and training quality.");
+    } else if (performanceDeclining) {
+      recommendations.push("Performance declining — check sleep, recovery score, and calorie adherence before reducing further.");
+    } else if (trend28 != null && trend28 < -1.2) {
+      recommendations.push("Rapid weight loss trend — reduce deficit aggressiveness only if performance also drops.");
+    } else if (trend28 != null && trend28 > -0.2) {
+      recommendations.push("Check adherence before lowering calories; rolling cut trend is slow.");
+    } else {
+      recommendations.push("Keep targets stable — cut rate and performance both look appropriate.");
+    }
+  } else {
+    recommendations.push("Keep targets stable until the rolling trend changes.");
+  }
   if (nearMrv.length) recommendations.push(`Hold or reduce added sets for ${nearMrv[0]} this week.`);
   if (belowMev.length) recommendations.push(`${belowMev[0]} is below MEV; add work only if recovery is acceptable.`);
   const liftResponse = bestAndStalledLifts();
+  // Wave position from the most recently trained day
+  const lastSession = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date))[0];
+  const waveInfo = lastSession ? juggernautWave(0, lastSession.day) : null;
   const mode = STATE.cut.mode === "bulk" ? "lean gaining" : STATE.cut.mode === "maintain" ? "maintaining/recomping" : "cutting";
   const trendText = trend28 == null ? "insufficient weight trend data" : `${Math.abs(trend28).toFixed(2)} kg/week ${trend28 < 0 ? "loss" : "gain"}`;
-  const coachingVerdict = `${mode[0].toUpperCase() + mode.slice(1)} with ${trendText}. ${fatigueRisks[0] || "No major fatigue risk is dominant."} ${recommendations[0]}`;
+  const perfNote = performanceDeclining ? " Performance is declining." : "";
+  const coachingVerdict = `${mode[0].toUpperCase() + mode.slice(1)} with ${trendText}.${perfNote} ${fatigueRisks[0] || "No major fatigue risk is dominant."} ${recommendations[0]}`;
   return {
     strengthBalance,
+    wavePosition: waveInfo,
     bodyTrend: { currentWeight, avg7: rollingAverageEntries(logs, "weight", 7), trend28, bfTrend, leanMassKg: leanMassKg(currentWeight, bfTrend ?? bf), fatMassKg: fatMassKg(currentWeight, bfTrend ?? bf) },
     dietOutcome: { kcalAvg, proteinAvg, adherence, targetKcal: targets.kcal, targetProtein: targets.protein, recommendation: recommendations[0] },
     fatigueRisks,
@@ -9848,14 +9915,33 @@ function renderLifterAnalysis() {
     <div class="card-label" style="margin:14px 0 7px;">Lifter Profile</div>
     ${row("Press / pull", `${sb.pressing} / ${sb.pulling}`)}
     ${row("Squat / hinge", `${sb.squatting} / ${sb.hinge}`)}
-    ${row("OHP / curl", `${sb.verticalPress} / ${sb.armIsolation}`)}
+    ${row("OHP / hinge-acc", `${sb.verticalPress} / ${sb.hingeAccessory}`)}
+    <div class="card-label" style="margin:14px 0 7px;">Movement Pattern Balance</div>
+    ${row("Horizontal push/pull", `${sb.pressing} / ${sb.pulling}`)}
+    ${row("Vertical push", `${sb.verticalPress}`)}
+    ${row("Knee-dominant", `${sb.squatting}`)}
+    ${row("Hip-dominant", `${sb.hinge} (primary) · ${sb.hingeAccessory} (acc)`)}
+    ${(() => {
+      const pushPullImbalance = sb.pressing !== "unknown" && sb.pulling !== "unknown" && sb.pressing !== sb.pulling;
+      const hingeNote = sb.hinge === "advanced" ? "High hinge load — monitor spinal fatigue." : "";
+      const note = [pushPullImbalance ? "Push/pull strength imbalance detected." : "", hingeNote].filter(Boolean).join(" ");
+      return note ? `<div style="font-size:11px;color:var(--ink-mid);padding:4px 0 8px;">${note}</div>` : "";
+    })()}
     <div class="card-label" style="margin:14px 0 7px;">Training Response</div>
     ${row("Best response", tr.best.length ? tr.best.map(x => escapeHtml(x.name)).join(", ") : "—")}
     ${row("Stalled", tr.stalled.length ? tr.stalled.map(x => escapeHtml(x.name)).join(", ") : "—")}
     ${row("High fatigue", tr.highFatigue.length ? tr.highFatigue.map(x => escapeHtml(x.name)).join(", ") : "—")}
     ${row("Near MRV", tr.nearMrv.length ? tr.nearMrv.join(", ") : "—")}
     ${row("Below MEV", tr.belowMev.length ? tr.belowMev.join(", ") : "—")}
-    ${row("MRV estimate", analysis.mrvEstimates?.chest != null ? `Chest ${analysis.mrvEstimates.chest} · Back ${analysis.mrvEstimates.back} · Quads ${analysis.mrvEstimates.quads}` : "—")}
+    ${row("MEV→MRV range", (() => {
+      const muscles = ["chest","back","quads"];
+      return muscles.map(m => {
+        const lm = VOLUME_LANDMARKS[m];
+        const mrv = analysis.mrvEstimates?.[m];
+        return lm ? `${MUSCLE_LABELS[m]||m} ${lm.mev}→${mrv ?? lm.mrv}` : null;
+      }).filter(Boolean).join(" · ") || "—";
+    })())}
+    ${analysis.wavePosition ? `<div style="margin-top:10px;padding:8px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:11px;font-family:var(--f-mono);letter-spacing:0.05em;">WAVE ${analysis.wavePosition.waveWeek}/4 · ${analysis.wavePosition.name} · CYCLE ${analysis.wavePosition.cycleNum} · ${analysis.wavePosition.intensityNote}</div>` : ""}
     <div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.55;"><strong style="color:var(--ink);">Coaching verdict:</strong> ${escapeHtml(analysis.coachingVerdict)}</div>
   </div>`;
 }
@@ -10710,7 +10796,7 @@ const BENCHMARK_LIFT_META = [
   ["bentOverRow", "Bent-Over Row"],
   ["deadlift", "Deadlift"],
   ["overheadPress", "Overhead Press"],
-  ["barbellCurl", "Barbell Curl"],
+  ["rdl", "Romanian Deadlift"],
 ];
 
 function openProgramCalibrationSheet() {
@@ -10721,16 +10807,20 @@ function openProgramCalibrationSheet() {
   const fm = fatMassKg(ap.bodyweightKg, ap.bodyFatPercent);
   const liftRows = BENCHMARK_LIFT_META.map(([key, label]) => {
     const lift = normalizeBenchmarkLift(ap.benchmarkLifts?.[key]);
+    const historyRm = liftOneRm(key);
+    const historyTm = liftTrainingMax(key, historyRm);
+    const historyNote = historyRm ? `Auto from history: 1RM ≈ ${historyRm}kg, TM ≈ ${historyTm}kg` : (key === "rdl" ? "Will estimate from deadlift if entered." : "No history found — enter below.");
     return `
-      <div class="setting-row" style="align-items:flex-start;">
+      <div class="setting-row" style="align-items:flex-start;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line);">
         <div>
           <div class="lbl">${label}</div>
-          <div class="meta">Best recent set; Ascend estimates 1RM and uses it as a modifier.</div>
+          <div class="meta" id="cal-${key}-note" style="color:var(--ink-mid);">${historyNote}</div>
         </div>
-        <div style="display:flex;gap:6px;max-width:160px;">
-          <input type="number" step="0.5" id="cal-${key}-w" value="${lift.weightKg ?? ""}" placeholder="kg" style="width:72px;" />
-          <input type="number" step="1" id="cal-${key}-r" value="${lift.reps ?? ""}" placeholder="reps" style="width:72px;" />
+        <div style="display:flex;gap:6px;width:100%;">
+          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">WEIGHT (kg)</label><input type="number" step="0.5" id="cal-${key}-w" value="${lift.weightKg ?? ""}" placeholder="e.g. 80" style="width:100%;" /></div>
+          <div style="flex:1;"><label style="font-size:10px;color:var(--ink-dim);">REPS</label><input type="number" step="1" id="cal-${key}-r" value="${lift.reps ?? ""}" placeholder="e.g. 5" style="width:100%;" /></div>
         </div>
+        <div id="cal-${key}-rm-preview" style="font-family:var(--f-mono);font-size:11px;color:var(--ink-mid);padding:4px 0;"></div>
       </div>
     `;
   }).join("");
@@ -10796,10 +10886,26 @@ function openProgramCalibrationSheet() {
       <div class="input"><label>Sleep hours</label><input type="number" step="0.5" id="cal-sleep" value="${STATE.profile.sleepHours ?? ""}" /></div>
     </div>
 
-    <div class="card-label" style="margin:18px 0 8px;">Review & Apply</div>
-    <div style="padding:10px 12px;background:var(--bg-elev-2);border-left:3px solid var(--accent);border-radius:9px;font-size:12px;line-height:1.55;color:var(--ink-mid);">
-      Calibration updates coaching assumptions and targets. It does not delete logs, reset meals, or silently rewrite the exercise program.
+    <div class="card-label" style="margin:18px 0 8px;">Block Position</div>
+    <div class="muted" style="font-size:11px;margin-bottom:10px;">Where are you in your current training block? This helps Ascend calibrate volume and intensity expectations.</div>
+    <div class="input-grid">
+      <div class="input"><label>Current wave week</label>
+        <select id="cal-wave" style="width:100%;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);">
+          <option value="auto">Auto (from session history)</option>
+          <option value="1">Week 1 — Accumulation (high volume)</option>
+          <option value="2">Week 2 — Intensification (moderate volume)</option>
+          <option value="3">Week 3 — Realization (AMRAP week)</option>
+          <option value="4">Week 4 — Deload (recovery)</option>
+        </select>
+      </div>
+      <div class="input"><label>Block week (overall)</label><input type="number" min="1" max="52" id="cal-blockweek" value="${STATE.athleteProfile?.blockWeek ?? ""}" placeholder="e.g. 3" /></div>
     </div>
+
+    <div class="card-label" style="margin:18px 0 8px;">Review & Apply</div>
+    <div id="cal-review-summary" style="padding:10px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.6;color:var(--ink-mid);">
+      Fill in the fields above to see a summary of changes.
+    </div>
+    <div style="font-size:10px;color:var(--ink-dim);margin-top:8px;line-height:1.5;">Calibration updates coaching assumptions only. Logs, meals, sessions, and exercise order stay untouched.</div>
     <button class="btn primary full" style="margin-top:14px;" id="btn-cal-save">APPLY CALIBRATION</button>
   `;
   openSheet();
@@ -10813,6 +10919,98 @@ function openProgramCalibrationSheet() {
     if (el) el.textContent = `Lean mass ${lean ?? "—"}kg · Fat mass ${fat ?? "—"}kg. Body-fat readings are interpreted as trend data.`;
   };
   ["cal-bw", "cal-bf"].forEach(id => document.getElementById(id)?.addEventListener("input", updatePreview));
+
+  // Live 1RM calculator for each lift
+  const updateLiftPreview = (key) => {
+    const wEl = document.getElementById(`cal-${key}-w`);
+    const rEl = document.getElementById(`cal-${key}-r`);
+    const previewEl = document.getElementById(`cal-${key}-rm-preview`);
+    if (!previewEl) return;
+    const w = parseFloat(wEl?.value);
+    const r = parseInt(rEl?.value);
+    if (w && r && r > 0 && r <= 30) {
+      const oneRm = estimateOneRm(w, r);
+      const tm = liftTrainingMax(key, oneRm);
+      previewEl.textContent = `Est. 1RM: ${oneRm}kg · Training max: ${tm}kg`;
+      previewEl.style.color = "var(--accent)";
+    } else {
+      previewEl.textContent = "";
+    }
+    updateReviewSummary();
+  };
+
+  BENCHMARK_LIFT_META.forEach(([key]) => {
+    const wEl = document.getElementById(`cal-${key}-w`);
+    const rEl = document.getElementById(`cal-${key}-r`);
+    if (wEl) wEl.addEventListener("input", () => updateLiftPreview(key));
+    if (rEl) rEl.addEventListener("input", () => updateLiftPreview(key));
+    // Trigger preview for any pre-filled values
+    updateLiftPreview(key);
+  });
+
+  const updateReviewSummary = () => {
+    const el = document.getElementById("cal-review-summary");
+    if (!el) return;
+    const bw = parseFloat(document.getElementById("cal-bw")?.value) || null;
+    const bf = parseFloat(document.getElementById("cal-bf")?.value);
+    const goal = document.getElementById("cal-goal")?.value;
+    const kcal = parseInt(document.getElementById("cal-kcal")?.value) || null;
+    const protein = parseInt(document.getElementById("cal-protein")?.value) || null;
+    const experience = document.getElementById("cal-exp")?.value;
+    const recovery = document.getElementById("cal-recovery")?.value;
+    const waveVal = document.getElementById("cal-wave")?.value;
+
+    const changes = [];
+
+    // Body changes
+    const prevBw = ap.bodyweightKg;
+    const prevBf = ap.bodyFatPercent;
+    if (bw && bw !== prevBw) changes.push(`Body weight: ${prevBw ?? "—"}kg → ${bw}kg`);
+    if (!isNaN(bf) && bf !== prevBf) changes.push(`Body fat: ${prevBf ?? "—"}% → ${bf}% (lean mass ${leanMassKg(bw||prevBw, bf) ?? "—"}kg)`);
+    if (goal && goal !== ap.goal) changes.push(`Goal: ${ap.goal ?? "—"} → ${goal}`);
+
+    // Diet changes
+    const prevKcal = dp.calorieTarget ?? STATE.cut.p1Kcal;
+    const prevProtein = dp.proteinTarget ?? STATE.cut.proteinFloor;
+    if (kcal && kcal !== prevKcal) changes.push(`Calories: ${prevKcal ?? "—"} → ${kcal} kcal`);
+    if (protein && protein !== prevProtein) changes.push(`Protein floor: ${prevProtein ?? "—"}g → ${protein}g`);
+
+    // Profile changes
+    if (experience && experience !== ap.trainingExperience) changes.push(`Experience: ${ap.trainingExperience ?? "—"} → ${experience}`);
+    if (recovery && recovery !== ap.recoveryProfile) changes.push(`Recovery: ${ap.recoveryProfile ?? "—"} → ${recovery}`);
+
+    // Lift 1RMs
+    const liftLines = [];
+    BENCHMARK_LIFT_META.forEach(([key, label]) => {
+      const w = parseFloat(document.getElementById(`cal-${key}-w`)?.value);
+      const r = parseInt(document.getElementById(`cal-${key}-r`)?.value);
+      if (w && r) {
+        const oneRm = estimateOneRm(w, r);
+        const tm = liftTrainingMax(key, oneRm);
+        liftLines.push(`${label}: 1RM ≈ ${oneRm}kg, TM ≈ ${tm}kg`);
+      }
+    });
+    if (liftLines.length) changes.push("Benchmark 1RMs: " + liftLines.join("; "));
+
+    // Wave position
+    if (waveVal && waveVal !== "auto") {
+      const waveNames = { "1": "Accumulation", "2": "Intensification", "3": "Realization", "4": "Deload" };
+      changes.push(`Block position override: Week ${waveVal} (${waveNames[waveVal]})`);
+    }
+
+    if (changes.length === 0) {
+      el.innerHTML = `<span style="color:var(--ink-dim);">No changes detected yet. Fill in fields above.</span>`;
+    } else {
+      el.innerHTML = `<strong style="font-size:11px;letter-spacing:0.08em;color:var(--ink);">WHAT WILL CHANGE</strong><ul style="margin:6px 0 0;padding-left:16px;list-style:disc;">${changes.map(c => `<li>${escapeHtml(c)}</li>`).join("")}</ul>`;
+    }
+  };
+
+  // Wire review summary to key inputs
+  ["cal-bw","cal-bf","cal-goal","cal-kcal","cal-protein","cal-exp","cal-recovery","cal-wave"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", updateReviewSummary);
+    document.getElementById(id)?.addEventListener("change", updateReviewSummary);
+  });
+  updateReviewSummary();
 
   document.getElementById("btn-cal-save").addEventListener("click", () => {
     const bw = parseFloat(document.getElementById("cal-bw").value) || null;
@@ -10844,6 +11042,8 @@ function openProgramCalibrationSheet() {
       });
     });
 
+    const waveOverride = document.getElementById("cal-wave")?.value;
+    const blockWeek = parseInt(document.getElementById("cal-blockweek")?.value) || null;
     STATE.athleteProfile = {
       ...(STATE.athleteProfile || defaultAthleteProfile()),
       bodyweightKg: bw,
@@ -10853,6 +11053,8 @@ function openProgramCalibrationSheet() {
       trainingExperience: document.getElementById("cal-exp").value,
       recoveryProfile: document.getElementById("cal-recovery").value,
       benchmarkLifts,
+      waveOverride: waveOverride !== "auto" ? parseInt(waveOverride) : null,
+      blockWeek,
     };
     STATE.dietProfile = {
       calorieTarget: kcal,
