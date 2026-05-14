@@ -10501,6 +10501,8 @@ function renderWeightChart(logs) {
 }
 
 // ───────── 10. SETTINGS ─────────
+// Module-scope set so collapse state survives re-renders and starts collapsed by default
+const _progCollapsed = new Set(["PUSH","PULL","ARMS","LEGS"]);
 function renderSettings() {
   $("#set-bodyweight").value   = STATE.profile.bodyweight;
   $("#set-bodyfat").value      = STATE.profile.bodyFatPct ?? STATE.athleteProfile?.bodyFatPercent ?? "";
@@ -10530,7 +10532,6 @@ function renderSettings() {
 
   // Exercise program editor
   const wrap = $("#set-exercises");
-  const _progCollapsed = new Set();
   wrap.innerHTML = DAY_ORDER.map(day => `
     <div class="prog-day-label" data-prog-day="${day}">
       <span><span class="prog-day-arrow">▾</span>${day} <span style="color:var(--ink-faint);font-weight:400;">(${STATE.exercises[day].length})</span></span>
@@ -10550,6 +10551,16 @@ function renderSettings() {
       `).join("")}
     </div>
   `).join("");
+
+  // Apply persisted collapse state to rendered DOM
+  DAY_ORDER.forEach(day => {
+    if (_progCollapsed.has(day)) {
+      const hdr = wrap.querySelector(`.prog-day-label[data-prog-day="${day}"]`);
+      const list = wrap.querySelector(`.prog-ex-list[data-day="${day}"]`);
+      if (hdr) hdr.classList.add("collapsed");
+      if (list) list.classList.add("collapsed");
+    }
+  });
 
   // Collapsible day headers
   wrap.querySelectorAll(".prog-day-label").forEach(hdr => {
@@ -10938,7 +10949,7 @@ function openProgramCalibrationSheet() {
 
   const LIFT_ALT_SAVED = ap.liftAlternatives || {};
 
-  const buildLiftRow = (key, label, tier2Note) => {
+  const buildLiftRow = (key, label, tier2Note, autoOnly) => {
     const lift = normalizeBenchmarkLift(ap.benchmarkLifts?.[key]);
     const historyRm = liftOneRm(key);
     const historyTm = liftTrainingMax(key, historyRm);
@@ -10947,6 +10958,18 @@ function openProgramCalibrationSheet() {
     const historyNote = historyRm
       ? `Auto from history: 1RM ≈ ${historyRm}kg, TM ≈ ${historyTm}kg`
       : tier2Note || "No history — enter below.";
+    if (autoOnly) {
+      // Render as read-only auto-estimate row — no manual inputs
+      return `
+        <div style="padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:4px;">
+          <div class="lbl" style="margin-bottom:2px;">${label}</div>
+          <div style="padding:8px 10px;background:var(--bg-elev-2);border-radius:8px;font-size:12px;color:var(--ink-mid);line-height:1.5;">
+            ${historyRm ? `<span style="font-family:var(--f-mono);color:var(--accent);">1RM ≈ ${historyRm}kg · TM ≈ ${historyTm}kg</span><br>` : ""}
+            <span style="font-size:11px;">${tier2Note || "Auto-estimated from primary lifts."}</span>
+          </div>
+        </div>
+      `;
+    }
     const altDropdown = alts.length ? `
       <div style="margin-top:4px;">
         <label style="font-size:10px;color:var(--ink-dim);">LIFT USED</label>
@@ -10980,7 +11003,9 @@ function openProgramCalibrationSheet() {
       bentOverRow: "Estimated auto at ~70% of bench if not entered. Indicates horizontal pull balance.",
       rdl: "Estimated auto at ~85% of deadlift if not entered. Indicates hip hinge accessory capacity.",
     };
-    return buildLiftRow(key, label, notes[key]);
+    // RDL is always auto-estimated from deadlift — no manual input needed
+    const autoOnly = key === "rdl";
+    return buildLiftRow(key, label, notes[key], autoOnly);
   }).join("");
 
   const liftRows = `
@@ -11270,12 +11295,46 @@ function openProgramCalibrationSheet() {
       leanMassKg: leanMassKg(bw, bf),
     };
     STATE.lifterAnalysis = buildLifterAnalysis();
+
+    // Capture lift summary BEFORE closing sheet DOM
+    const _liftSummary = [];
+    BENCHMARK_LIFT_META.forEach(([k, lbl]) => {
+      const wv = parseFloat(document.getElementById(`cal-${k}-w`)?.value);
+      const rv = parseInt(document.getElementById(`cal-${k}-r`)?.value);
+      if (wv && rv) {
+        const rm = estimateOneRm(wv, rv);
+        _liftSummary.push(`${lbl}: 1RM ≈ ${rm}kg`);
+      }
+    });
+
     saveState();
     closeSheet();
     renderSettings();
     renderStats();
     renderToday();
-    toast("CALIBRATION SAVED");
+
+    // Build completion summary modal
+    const _summaryLines = [];
+    if (bw) _summaryLines.push(`Body weight set to <strong>${bw}kg</strong>`);
+    if (_liftSummary.length) _summaryLines.push(`Strength: ${_liftSummary.join(", ")}`);
+    const _goalLabels = { cut:"Cut", maintain:"Maintain / Recomp", lean_gain:"Lean Gain", hypertrophy:"Hypertrophy Focus" };
+    _summaryLines.push(`Goal: <strong>${_goalLabels[goal] || goal}</strong>`);
+    const _modeLabels = { hypertrophy:"Hypertrophy", powerbuilding:"Powerbuilding", powerlifting:"Powerlifting", strongman:"Strongman" };
+    _summaryLines.push(`Program mode: <strong>${_modeLabels[STATE.athleteProfile.programMode] || STATE.athleteProfile.programMode}</strong>`);
+
+    const _overlay = document.createElement("div");
+    _overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;";
+    _overlay.innerHTML = `
+      <div style="background:var(--bg-elev-1);border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-shadow:0 -4px 32px rgba(0,0,0,0.18);">
+        <div style="font-family:var(--f-display);font-size:22px;font-weight:900;letter-spacing:0.02em;margin-bottom:4px;">CALIBRATION COMPLETE</div>
+        <div style="font-size:12px;color:var(--ink-mid);margin-bottom:18px;">Ascend has updated your coaching profile.</div>
+        <div style="background:var(--bg-elev-2);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.8;margin-bottom:20px;">
+          ${_summaryLines.map(l => `<div>✓ ${l}</div>`).join("")}
+        </div>
+        <button id="cal-done-btn" class="btn primary full" style="font-size:14px;padding:14px;">LET'S GO</button>
+      </div>`;
+    document.body.appendChild(_overlay);
+    document.getElementById("cal-done-btn").addEventListener("click", () => _overlay.remove());
   });
 }
 
