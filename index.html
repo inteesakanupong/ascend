@@ -9881,6 +9881,28 @@ function buildLifterAnalysis() {
   if (nearMrv.length) fatigueRisks.push(`${nearMrv.map(m => MUSCLE_LABELS[m] || m).join(", ")} near or above recoverable volume.`);
   if (trend28 != null && trend28 < -1.0 && STATE.cut.mode === "cut") fatigueRisks.push("Weight loss is fast enough to threaten recovery if performance declines.");
   if (lowFreqMuscles.length) fatigueRisks.push(`${lowFreqMuscles.slice(0,3).join(", ")} trained less than 2×/week — hypertrophy responds best to higher frequency.`);
+  // ── Fatigue overlap / redundant stressor detection (Chad Wesley Smith) ──
+  const allExercises = Object.values(STATE.exercises).flat();
+  // a) Spinal hinge overlap
+  const spinalHingeExs = allExercises.filter(ex => {
+    const n = normalizeExerciseName(ex.name);
+    return /deadlift|romanian|rdl|good morning|barbell row|pendlay|squat/.test(n) && !/chest supported|machine|cable/.test(n);
+  });
+  if (spinalHingeExs.length >= 3) {
+    const names = spinalHingeExs.slice(0, 4).map(e => e.name).join(", ");
+    fatigueRisks.push(`Spinal load overlap: ${names}. Running 3+ heavy hinge/spinal exercises creates redundant fatigue — consider removing one.`);
+    recommendations.push(`Consolidate spinal load: remove one of (${spinalHingeExs.map(e=>e.name).join(", ")}) to reduce cumulative lower back fatigue.`);
+  }
+  // b) Horizontal push redundancy
+  const hPushExs = (STATE.exercises.PUSH || []).filter(ex => movementPatternForExercise(ex.name) === "horizontal_push");
+  if (hPushExs.length >= 3) {
+    fatigueRisks.push(`Horizontal push redundancy: ${hPushExs.map(e=>e.name).join(", ")}. More than 2 pressing variations adds joint stress without proportional stimulus.`);
+  }
+  // c) Horizontal pull redundancy
+  const hPullExs = (STATE.exercises.PULL || []).filter(ex => movementPatternForExercise(ex.name) === "horizontal_pull");
+  if (hPullExs.length >= 3) {
+    fatigueRisks.push(`Horizontal pull redundancy: ${hPullExs.map(e=>e.name).join(", ")}. Consider consolidating to 2 row variations.`);
+  }
   // Performance decline signal — check if recent sessions show load regression
   const recentSessions = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 6);
   let performanceDeclining = false;
@@ -9921,6 +9943,37 @@ function buildLifterAnalysis() {
   // Wave position from the most recently trained day
   const lastSession = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date))[0];
   const waveInfo = lastSession ? juggernautWave(0, lastSession.day) : null;
+  // ── Exercise rotation suggestions (Bromley SRN — novelty) ──
+  const exerciseRotationSuggestions = [];
+  const DAY_LIST_ROT = ["PUSH", "PULL", "ARMS", "LEGS"];
+  DAY_LIST_ROT.forEach(day => {
+    const daySessions = (STATE.sessions || [])
+      .filter(s => s.day === day)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (daySessions.length < 12) return; // need 3 full blocks minimum
+    const last12 = daySessions.slice(-12);
+    const plannedExercises = STATE.exercises[day] || [];
+    plannedExercises.forEach((ex, exIdx) => {
+      // Count how many of the last 12 sessions logged this exercise position
+      const appearedIn = last12.filter(s => {
+        const sets = s.sets?.[exIdx];
+        return sets && (sets.s1w || sets.s2w || sets.s1r || sets.s2r);
+      }).length;
+      if (appearedIn >= 10) { // appeared in 10 of last 12 = ~3 blocks consistently
+        const blocksRun = Math.floor(appearedIn / 4);
+        exerciseRotationSuggestions.push({ day, exerciseName: ex.name, exIdx, blocksRun, appearedIn });
+        if (blocksRun >= 3 && !fatigueRisks.some(r => r.includes(ex.name))) {
+          fatigueRisks.push(`${ex.name} (${day}) has run ${blocksRun}+ blocks unchanged — consider a variation next block to restore novelty stimulus (SRN).`);
+        }
+      }
+    });
+  });
+  // Surface rotation suggestion if currently in deload (ideal swap window)
+  const inDeload = waveInfo?.name === "DELOAD";
+  if (inDeload && exerciseRotationSuggestions.length > 0) {
+    const names = exerciseRotationSuggestions.slice(0,2).map(s => s.exerciseName).join(", ");
+    recommendations.push(`You're in a DELOAD — ideal time to swap stale exercises next block: ${names}.`);
+  }
   const mode = STATE.cut.mode === "bulk" ? "lean gaining" : STATE.cut.mode === "maintain" ? "maintaining/recomping" : "cutting";
   const trendText = trend28 == null ? "insufficient weight trend data" : `${Math.abs(trend28).toFixed(2)} kg/week ${trend28 < 0 ? "loss" : "gain"}`;
   const perfNote = performanceDeclining ? " Performance is declining." : "";
@@ -9936,6 +9989,7 @@ function buildLifterAnalysis() {
     mrvEstimates,
     trainingResponse: { ...liftResponse, nearMrv, belowMev },
     coachingVerdict,
+    exerciseRotationSuggestions,
   };
 }
 
@@ -9990,6 +10044,26 @@ function renderLifterAnalysis() {
     })())}
     ${analysis.wavePosition ? `<div style="margin-top:10px;padding:8px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:11px;font-family:var(--f-mono);letter-spacing:0.05em;">WAVE ${analysis.wavePosition.waveWeek}/4 · ${analysis.wavePosition.name} · CYCLE ${analysis.wavePosition.cycleNum} · ${analysis.wavePosition.intensityNote}</div>` : ""}
     <div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.55;"><strong style="color:var(--ink);">Coaching verdict:</strong> ${escapeHtml(analysis.coachingVerdict)}</div>
+    ${(() => {
+      const overlapRisks = (analysis.fatigueRisks || []).filter(r => /overlap|redundan/i.test(r));
+      const rotations = analysis.exerciseRotationSuggestions || [];
+      if (!overlapRisks.length && !rotations.length) return "";
+      let html = "";
+      if (overlapRisks.length) {
+        html += `<div style="margin-top:10px;padding:10px 12px;border-left:3px solid #e8a000;background:var(--bg-elev-2);border-radius:9px;">
+          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);margin-bottom:6px;">STRESSOR OVERLAP</div>
+          ${overlapRisks.map(r => `<div style="font-size:12px;line-height:1.5;margin-bottom:4px;">⚠ ${escapeHtml(r)}</div>`).join("")}
+        </div>`;
+      }
+      if (rotations.length) {
+        html += `<div style="margin-top:10px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;">
+          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);margin-bottom:6px;">EXERCISE ROTATION — SRN</div>
+          <div style="font-size:11px;color:var(--ink-mid);margin-bottom:8px;">Exercises run 3+ blocks unchanged. Deload week is the ideal time to swap in a variation.</div>
+          ${rotations.map(r => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:12px;"><span>${escapeHtml(r.exerciseName)} <span style="color:var(--ink-dim);font-size:10px;">${r.day}</span></span><span style="font-family:var(--f-mono);font-size:11px;color:var(--accent);">${r.blocksRun} BLOCKS</span></div>`).join("")}
+        </div>`;
+      }
+      return html;
+    })()}
   </div>`;
 }
 
@@ -15757,43 +15831,6 @@ let _lastRenderedDate = todayISO();
 function checkDateFreshness() {
   const today = todayISO();
   if (today !== _lastRenderedDate) {
-    _lastRenderedDate = today;
-    const activeTab = document.querySelector(".tab.active");
-    if (activeTab) goTab(activeTab.dataset.tab);
-  }
-}
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) checkDateFreshness();
-});
-window.addEventListener("pageshow", checkDateFreshness);
-// Also poll every minute as a safety net for browsers that don't fire the above
-setInterval(checkDateFreshness, 60000);
-
-// Catch unhandled promise rejections so toast surfaces issues
-window.addEventListener("unhandledrejection", (e) => {
-  console.error(e);
-  toast("ERROR · CHECK CONSOLE");
-});
-
-// ── Start the app ──────────────────────────────────────────────────────────
-// Set dynamic version in footer
-const footerVersion = document.getElementById("footer-version");
-if (footerVersion) footerVersion.textContent = "Ascend " + APP_VERSION;
-
-// "What's New" button in Profile footer
-document.getElementById("btn-whats-new").addEventListener("click", showChangelog);
-try {
-  updateAdaptiveStateSnapshot("app_start");
-  saveState();
-} catch (e) {
-  console.warn("Adaptive state refresh failed", e);
-}
-appInit();
-</script>
-
-</body>
-</html>
-Date) {
     _lastRenderedDate = today;
     const activeTab = document.querySelector(".tab.active");
     if (activeTab) goTab(activeTab.dataset.tab);
