@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.2";
+const CACHE = "ascend-2026-05-15.3";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.2";
+const APP_VERSION = "2026-05-15.3";
 
 const CHANGELOG = [
   {
@@ -5523,6 +5523,17 @@ function progressionFor(day, exIdx) {
   // ── Juggernaut wave phase for this day
   const wave = juggernautWave(0, day);
 
+  if (set2Incomplete) {
+    return {
+      verdict: "HOLD",
+      weight: workingWeight,
+      reps: Math.min(ex.repMax, Math.max(ex.repMin, s1r)),
+      last: lastStr,
+      note: "Set 2 was incomplete or skipped. Hold the same load next time; do not reset or progress from a partial exercise.",
+      wavePhase: wave.name
+    };
+  }
+
   // ── LEAD LIFT: Juggernaut TM-based weight prescription
   // Training Max (TM) = stored working max (set from AMRAP → 1RM → 90%)
   // Falls back to: Epley from last session performance if no TM stored
@@ -5531,7 +5542,7 @@ function progressionFor(day, exIdx) {
     // Derive TM from last session if not stored: use last s2 (AMRAP set) for best estimate
     const amrapW = s2w || s1w;
     const amrapR = Math.max(s1r, s2r);
-    const estimatedOneRm = !set2Incomplete && amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
+    const estimatedOneRm = amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
     const derivedTM = estimatedOneRm ? roundToIncrement(estimatedOneRm * 0.90, ex) : null;
     const TM = storedTM || derivedTM || workingWeight;
     const tmPct = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
@@ -5599,17 +5610,6 @@ function progressionFor(day, exIdx) {
       last: lastStr,
       note: `Deload week — ${fmtWeight(deloadW)}kg (≈87.5% of ${fmtWeight(workingWeight)}kg). Stay RPE 5-6, feel fresh.`,
       wavePhase: "DELOAD"
-    };
-  }
-
-  if (set2Incomplete) {
-    return {
-      verdict: "HOLD",
-      weight: workingWeight,
-      reps: Math.min(ex.repMax, Math.max(ex.repMin, s1r)),
-      last: lastStr,
-      note: "Set 2 was incomplete or skipped. Hold the same load next time; do not reset or progress from a partial exercise.",
-      wavePhase: wave.name
     };
   }
 
@@ -7961,6 +7961,12 @@ function renderLiftExercises() {
         <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.14em;color:var(--good);margin-bottom:3px;">🔄 DELOAD WEEK</div>
         <div style="font-size:12px;color:var(--ink-mid);line-height:1.5;">Lower weight, lower volume. Feel fresh, recover fully. Fitness is NOT lost in one week — fatigue IS cleared.</div>
       </div>` : "";
+    const displayTargetWeight = LIFT_SESSION_ACTIVE && draftSet
+      ? (draftSet.s1w ?? draftSet.s2w ?? p.weight)
+      : p.weight;
+    const displayTargetReps = LIFT_SESSION_ACTIVE && draftSet
+      ? (draftSet.s1r ?? draftSet.s2r ?? p.reps)
+      : p.reps;
 
     return `
       <div class="exercise-card ${doneClass}" data-ex-idx="${idx}">
@@ -7977,13 +7983,13 @@ function renderLiftExercises() {
         <div class="prescription">
           <div>
             <div class="lbl">Target${p.wavePhase ? ` <span style="font-weight:400;opacity:0.6;font-size:9px;">${p.wavePhase}</span>` : ""}</div>
-            <div class="val">${fmtPrescribedWeight(p.weight, ex)} · ${p.reps} reps</div>
+            <div class="val">${fmtPrescribedWeight(displayTargetWeight, ex)} · ${displayTargetReps} reps</div>
           </div>
         </div>
         ${(() => {
           const barType = canonEx.barType || getBarType(canonEx);
           if (barType === "none" || isBW) return "";
-          const plates = fmtPlates(p.weight, barType);
+          const plates = fmtPlates(displayTargetWeight, barType);
           if (!plates) return "";
           const barKg = BAR_WEIGHTS[barType] ?? 20;
           return `<div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);margin-top:5px;letter-spacing:0.06em;">
@@ -10129,12 +10135,21 @@ function renderLifterAnalysis() {
   </div>`;
 }
 
+function safeRender(label, fn) {
+  try {
+    return fn();
+  } catch (err) {
+    console.error(`${label} render failed:`, err);
+    return null;
+  }
+}
+
 function renderStats() {
   // Calendar + Lift Graph
-  Calendar.render();
-  LiftGraph.renderExercisePills();
-  LiftGraph.drawGraph();
-  renderLifterAnalysis();
+  safeRender("stats.calendar", () => Calendar.render());
+  safeRender("stats.liftGraphPills", () => LiftGraph.renderExercisePills());
+  safeRender("stats.liftGraph", () => LiftGraph.drawGraph());
+  safeRender("stats.lifterAnalysis", () => renderLifterAnalysis());
 
   // Weight chart
   const logs = STATE.dailyLogs.filter(d => typeof d.weight === "number")
@@ -10274,11 +10289,11 @@ function renderStats() {
   }
 
   // Render the new sections
-  renderPRs();
-  renderVolume();
-  renderMeasurements();
-  renderTrainingMax();
-  renderMrvRecommendations();
+  safeRender("stats.personalRecords", () => renderPRs());
+  safeRender("stats.weeklyVolume", () => renderVolume());
+  safeRender("stats.measurements", () => renderMeasurements());
+  safeRender("stats.trainingMax", () => renderTrainingMax());
+  safeRender("stats.mrvRecommendations", () => renderMrvRecommendations());
 }
 
 function renderTrainingMax() {
@@ -11490,6 +11505,20 @@ $("#btn-export").addEventListener("click", () => {
   toast("EXPORTED");
 });
 $("#btn-import").addEventListener("click", () => $("#file-import").click());
+function normalizeImportedState(raw) {
+  let incoming = raw;
+  if (typeof incoming === "string") incoming = JSON.parse(incoming);
+  if (incoming && typeof incoming === "object" && !Array.isArray(incoming)) {
+    incoming = incoming.state || incoming.data || incoming.backup || incoming.ascend || incoming;
+  }
+  if (typeof incoming === "string") incoming = JSON.parse(incoming);
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    throw new Error("backup root must be an object");
+  }
+  if (!Array.isArray(incoming.sessions)) incoming.sessions = [];
+  if (!Array.isArray(incoming.dailyLogs)) incoming.dailyLogs = [];
+  return incoming;
+}
 $("#file-import").addEventListener("change", async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
@@ -11502,9 +11531,11 @@ $("#file-import").addEventListener("change", async (e) => {
       e.target.value = "";
       return;
     }
-    // Loose validation: only require sessions array; v and exercises may be missing in old backups
-    if (!Array.isArray(incoming.sessions)) {
-      toast("IMPORT FAILED — missing sessions data");
+    try {
+      incoming = normalizeImportedState(incoming);
+    } catch (shapeErr) {
+      console.error("Import shape error:", shapeErr);
+      toast("IMPORT FAILED — backup format not recognized");
       e.target.value = "";
       return;
     }
@@ -11527,9 +11558,9 @@ $("#file-import").addEventListener("change", async (e) => {
       updateAdaptiveStateSnapshot("import");
     } catch (_) {}
     saveState();
-    renderToday();
-    try { renderSettings(); } catch (_) {}
-    try { renderStats(); } catch (_) {}
+    safeRender("import.renderToday", () => renderToday());
+    safeRender("import.renderSettings", () => renderSettings());
+    safeRender("import.renderStats", () => renderStats());
     toast(`IMPORTED — ${STATE.sessions.length} sessions loaded`);
   } catch (err) {
     console.error("Import error:", err);
