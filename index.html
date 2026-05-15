@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.3";
+const CACHE = "ascend-2026-05-15.4";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.3";
+const APP_VERSION = "2026-05-15.4";
 
 const CHANGELOG = [
   {
@@ -5295,7 +5295,6 @@ function buildTrainingProgram(input = {}, preserveStarts = true) {
 function applyNewTrainingProgram(input = {}) {
   const rec = recommendTrainingApproach(input);
   STATE.exercises = buildTrainingProgram(input, true);
-  STATE.profile.programStart = todayISO();
   STATE.profile.trainingProgramStartedAt = todayISO();
   STATE.profile.trainingGoal = input.trainingGoal || STATE.profile.trainingGoal || "hypertrophy";
   STATE.profile.experienceLevel = input.experienceLevel || STATE.profile.experienceLevel || "intermediate";
@@ -5469,29 +5468,98 @@ const JUG_TM_PCTS = {
   DELOAD:          { pct: 0.50, reps: 5  },  // 50% TM × low reps (recovery)
 };
 
+function trainingProgramStartDate() {
+  return STATE.profile.trainingProgramStartedAt || STATE.profile.programStart || todayISO();
+}
+
+function trainingSessionsForDay(day) {
+  const start = trainingProgramStartDate();
+  return (STATE.sessions || []).filter(s => s.day === day && (!start || s.date >= start));
+}
+
+function sortSessionsChronological(list) {
+  return [...(list || [])].sort((a, b) => {
+    const dateCmp = (a.date || "").localeCompare(b.date || "");
+    if (dateCmp !== 0) return dateCmp;
+    const aTs = parseInt(String(a.id || "").replace(/^s-/, "")) || 0;
+    const bTs = parseInt(String(b.id || "").replace(/^s-/, "")) || 0;
+    return aTs - bTs;
+  });
+}
+
+function leadTmPrescription(ex, wave, TM, lastStr = null) {
+  const tmPct = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
+  const tmWeight = roundToIncrement(TM * tmPct.pct, ex);
+  const tmReps = Math.min(Math.max(tmPct.reps, ex.repMin), ex.repMax);
+  const tmNote = `TM: ${fmtWeight(TM)}kg × ${Math.round(tmPct.pct * 100)}% = ${fmtWeight(tmWeight)}kg`;
+
+  if (wave.name === "DELOAD") {
+    return {
+      verdict: "DELOAD_WAVE",
+      weight: tmWeight,
+      reps: tmReps,
+      last: lastStr,
+      trainingMax: TM,
+      note: `Deload week — ${tmNote}. Stay RPE 5-6, feel fresh.`,
+      wavePhase: "DELOAD"
+    };
+  }
+
+  if (wave.name === "REALIZATION") {
+    return {
+      verdict: "REALIZE",
+      weight: tmWeight,
+      reps: tmReps,
+      last: lastStr,
+      trainingMax: TM,
+      note: `${tmNote}. AMRAP on final set — push to 1-2 RIR. This result sets your new Training Max.`,
+      wavePhase: "REALIZATION"
+    };
+  }
+
+  if (wave.name === "ACCUMULATION") {
+    return {
+      verdict: "BEAT",
+      weight: tmWeight,
+      reps: tmReps,
+      last: lastStr,
+      trainingMax: TM,
+      note: `${tmNote}. Accumulation — high reps, submaximal effort. Leave 3+ reps in tank.`,
+      wavePhase: "ACCUMULATION"
+    };
+  }
+
+  return {
+    verdict: "BEAT",
+    weight: tmWeight,
+    reps: tmReps,
+    last: lastStr,
+    trainingMax: TM,
+    note: `${tmNote}. Intensification — push to RPE 7-8. Leave 1-2 reps in tank.`,
+    wavePhase: "INTENSIFICATION"
+  };
+}
+
 function progressionFor(day, exIdx) {
   const ex = STATE.exercises[day][exIdx];
   const inc = incrementFor(ex);
   const isLead = isLeadLift(day, exIdx);
+  const wave = juggernautWave(0, day);
 
-  const sessions = STATE.sessions
-    .filter(s => s.day === day)
-    .sort((a, b) => {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) return dateCmp;
-      const aTs = parseInt(a.id.replace(/^s-/, "")) || 0;
-      const bTs = parseInt(b.id.replace(/^s-/, "")) || 0;
-      return aTs - bTs;
-    });
+  const sessions = sortSessionsChronological(trainingSessionsForDay(day));
 
   // ── First session ever for this day
   if (sessions.length === 0) {
+    const storedTM = isLead ? getWorkingMax(day, exIdx) : null;
+    if (storedTM) return leadTmPrescription(ex, wave, storedTM);
     return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
              note: "First session — start moderate, leave 2-3 reps in reserve." };
   }
 
   const last = sessions[sessions.length - 1].sets[exIdx];
   if (!last || last.s1r == null) {
+    const storedTM = isLead ? getWorkingMax(day, exIdx) : null;
+    if (storedTM) return leadTmPrescription(ex, wave, storedTM);
     return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
              note: "No set data — start moderate, leave 2-3 reps in reserve." };
   }
@@ -5520,9 +5588,6 @@ function progressionFor(day, exIdx) {
   }).length;
   const shouldHoldLoad = poorReadiness || (avgLastRpe != null && avgLastRpe > (isIsolation ? 8 : 8.5));
 
-  // ── Juggernaut wave phase for this day
-  const wave = juggernautWave(0, day);
-
   if (set2Incomplete) {
     return {
       verdict: "HOLD",
@@ -5545,58 +5610,7 @@ function progressionFor(day, exIdx) {
     const estimatedOneRm = amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
     const derivedTM = estimatedOneRm ? roundToIncrement(estimatedOneRm * 0.90, ex) : null;
     const TM = storedTM || derivedTM || workingWeight;
-    const tmPct = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
-    const tmWeight = roundToIncrement(TM * tmPct.pct, ex);
-    // Clamp target reps to exercise rep range
-    const tmReps = Math.min(Math.max(tmPct.reps, ex.repMin), ex.repMax);
-    const tmNote = `TM: ${fmtWeight(TM)}kg × ${Math.round(tmPct.pct * 100)}% = ${fmtWeight(tmWeight)}kg`;
-
-    if (wave.name === "DELOAD") {
-      return {
-        verdict: "DELOAD_WAVE",
-        weight: tmWeight,
-        reps: tmReps,
-        last: lastStr,
-        trainingMax: TM,
-        note: `Deload week — ${tmNote}. Stay RPE 5-6, feel fresh.`,
-        wavePhase: "DELOAD"
-      };
-    }
-
-    if (wave.name === "REALIZATION") {
-      return {
-        verdict: "REALIZE",
-        weight: tmWeight,
-        reps: tmReps,
-        last: lastStr,
-        trainingMax: TM,
-        note: `${tmNote}. AMRAP on final set — push to 1-2 RIR. This result sets your new Training Max.`,
-        wavePhase: "REALIZATION"
-      };
-    }
-
-    if (wave.name === "ACCUMULATION") {
-      return {
-        verdict: "BEAT",
-        weight: tmWeight,
-        reps: tmReps,
-        last: lastStr,
-        trainingMax: TM,
-        note: `${tmNote}. Accumulation — high reps, submaximal effort. Leave 3+ reps in tank.`,
-        wavePhase: "ACCUMULATION"
-      };
-    }
-
-    // INTENSIFICATION
-    return {
-      verdict: "BEAT",
-      weight: tmWeight,
-      reps: tmReps,
-      last: lastStr,
-      trainingMax: TM,
-      note: `${tmNote}. Intensification — push to RPE 7-8. Leave 1-2 reps in tank.`,
-      wavePhase: "INTENSIFICATION"
-    };
+    return leadTmPrescription(ex, wave, TM, lastStr);
   }
 
   // ── ACCESSORY LIFTS: performance-based progression (no TM system)
@@ -6403,7 +6417,7 @@ function juggernautWave(dayNum, day) {
   // Better: count completed sessions for this day to determine wave week.
   let weekNum;
   if (day && STATE.sessions) {
-    const completedForDay = STATE.sessions.filter(s => s.day === day).length;
+    const completedForDay = trainingSessionsForDay(day).length;
     // Next session number determines the wave position
     const nextSessionNum = completedForDay + 1;
     weekNum = Math.ceil(nextSessionNum / 1); // each session is in a week
@@ -6416,6 +6430,16 @@ function juggernautWave(dayNum, day) {
   const waveWeek = ((weekNum - 1) % 4) + 1; // 1, 2, 3, 4, 1, 2, 3, 4...
   const cycleNum  = Math.floor((weekNum - 1) / 4) + 1;
   return { ...JUG_WAVES[waveWeek - 1], waveWeek, weekNum, cycleNum };
+}
+
+function juggernautWaveForSession(session) {
+  if (!session?.day) return juggernautWave(1, null);
+  const sessions = sortSessionsChronological(trainingSessionsForDay(session.day));
+  let sessionNum = sessions.findIndex(s => s.id === session.id) + 1;
+  if (sessionNum <= 0) sessionNum = sessions.length || 1;
+  const waveWeek = ((sessionNum - 1) % 4) + 1;
+  const cycleNum = Math.floor((sessionNum - 1) / 4) + 1;
+  return { ...JUG_WAVES[waveWeek - 1], waveWeek, weekNum: sessionNum, cycleNum };
 }
 
 // Working max — stored per exercise day in STATE, used for Juggernaut % calculations
@@ -9320,7 +9344,7 @@ document.querySelectorAll(".lsg-energy-btn").forEach(btn => {
       LIFT_DRAFT.energyRating = _lsgEnergy;
       // Re-apply adjustment
       const day = LIFT_DAY;
-      const wave = juggernautWave(Math.max(1, daysBetween(STATE.profile.programStart, todayISO()) + 1), day);
+      const wave = juggernautWave(0, day);
       if (wave.name !== "DELOAD") {
         LIFT_DRAFT.sets = STATE.exercises[day].map((_, idx) => {
           const ex = STATE.exercises[day][idx];
@@ -9387,8 +9411,7 @@ $("#btn-save-session").addEventListener("click", () => {
     toast(`${LIFT_DRAFT.day} SAVED${durStr}${volStr}${prStr}`);
 
     // Juggernaut: after Realization week, recalculate working max from AMRAP performance
-    const saveDayNum = Math.max(1, daysBetween(STATE.profile.programStart, session.date) + 1);
-    const saveWave = juggernautWave(saveDayNum, session.day);
+    const saveWave = juggernautWaveForSession(session);
     if (saveWave.name === "REALIZATION") {
       // Check lead exercise (idx 0) AMRAP reps
       const leadIdx = getLeadLiftIdx(session.day);
@@ -10010,7 +10033,7 @@ function buildLifterAnalysis() {
   const liftResponse = bestAndStalledLifts();
   // Wave position from the most recently trained day
   const lastSession = [...(STATE.sessions || [])].sort((a,b) => b.date.localeCompare(a.date))[0];
-  const waveInfo = lastSession ? juggernautWave(0, lastSession.day) : null;
+  const waveInfo = lastSession ? juggernautWaveForSession(lastSession) : null;
   // ── Exercise rotation suggestions (Bromley SRN — novelty) ──
   const exerciseRotationSuggestions = [];
   const DAY_LIST_ROT = ["PUSH", "PULL", "ARMS", "LEGS"];
@@ -13789,8 +13812,8 @@ ATHLETE PROFILE:
     const muscleVol = muscle ? `${weeklyVol[muscle] || 0} sets/week` : "n/a";
 
     // Juggernaut wave context
-    const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, session.date) + 1);
-    const wave = juggernautWave(dayNum, session.day);
+    const dayNum = Math.max(1, daysBetween(trainingProgramStartDate(), session.date) + 1);
+    const wave = juggernautWaveForSession(session);
     const phaseStr = `${wave.name} week (${wave.waveWeek}/4, Cycle ${wave.cycleNum}) — ${wave.intensityNote}`;
 
     const prompt = `You are a strength coach using Juggernaut Method / SRA principles. Write a precise 4-sentence session debrief. Use actual numbers — no generic advice.
