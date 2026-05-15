@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.7";
+const CACHE = "ascend-2026-05-15.8";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.7";
+const APP_VERSION = "2026-05-15.8";
 
 const CHANGELOG = [
   {
@@ -3852,22 +3852,22 @@ const DEFAULT_STATE = {
         "start": 72.5
       },
       {
-        "name": "DB Lateral Raise \u2605",
+        "name": "Machine Chest Press (Flat)",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 50
+      },
+      {
+        "name": "DB Lateral Raise",
         "repMin": 15,
         "repMax": 25,
         "start": 10
       },
       {
-        "name": "Cable Lateral Raise (1-arm) \u2605",
+        "name": "Cable Lateral Raise (1-arm)",
         "repMin": 12,
         "repMax": 20,
         "start": 7.5
-      },
-      {
-        "name": "Machine Chest Press (Flat)",
-        "repMin": 8,
-        "repMax": 12,
-        "start": 50
       },
       {
         "name": "Incline DB Fly / Cable Fly",
@@ -4729,6 +4729,38 @@ function freshDefaultState() {
   return s;
 }
 
+function normalizeExerciseProgramNamesAndOrder(s) {
+  if (!s?.exercises) return s;
+  Object.values(s.exercises).forEach(list => {
+    if (!Array.isArray(list)) return;
+    list.forEach(ex => {
+      if (ex?.name) ex.name = String(ex.name).replace(/\u2605/g, "").replace(/\s+/g, " ").trim();
+    });
+  });
+
+  const pushOrder = [
+    "Smith Incline Bench Press",
+    "Smith Seated OHP",
+    "Machine Chest Press (Flat)",
+    "DB Lateral Raise",
+    "Cable Lateral Raise (1-arm)",
+    "Incline DB Fly / Cable Fly",
+    "Cable OH Tricep Extension",
+    "Tricep Pushdown (rope)",
+  ];
+  if (Array.isArray(s.exercises.PUSH)) {
+    const remaining = [...s.exercises.PUSH];
+    s.exercises.PUSH = pushOrder
+      .map(name => {
+        const idx = remaining.findIndex(ex => ex?.name === name);
+        return idx >= 0 ? remaining.splice(idx, 1)[0] : null;
+      })
+      .filter(Boolean)
+      .concat(remaining);
+  }
+  return s;
+}
+
 const HABIT_DEFS = [
   { key: "run",     glyph: "🚶", name: "10k Steps" },
   { key: "protein", glyph: "🥩", name: "Protein" },
@@ -5056,6 +5088,7 @@ function migrateState(s) {
   if (!s.adaptive_state.fatigue)        s.adaptive_state.fatigue = {};
   if (!Array.isArray(s.adaptive_state.decisions)) s.adaptive_state.decisions = [];
   s.adaptive_state.version = 1;
+  s = normalizeExerciseProgramNamesAndOrder(s);
   s = normalizeProgramCalibrationState(s);
 
   // Backfill working maxes for REALIZATION sessions that were saved before setWorkingMax existed.
@@ -8603,11 +8636,9 @@ const EXERCISE_DB_RAW = [
   ["Machine Shoulder Press","shoulders","push","machine","compound"],
   ["Cable Overhead Press","shoulders","push","cable","compound"],
   ["Dumbbell Lateral Raise","shoulders","push","dumbbell","isolation"],
-  ["DB Lateral Raise ★","shoulders","push","dumbbell","isolation"],
   ["DB Lateral Raise","shoulders","push","dumbbell","isolation"],
   ["Cable Lateral Raise","shoulders","push","cable","isolation"],
   ["Cable Lateral Raise (1-arm)","shoulders","push","cable","isolation"],
-  ["Cable Lateral Raise (1-arm) ★","shoulders","push","cable","isolation"],
   ["Machine Lateral Raise","shoulders","push","machine","isolation"],
   ["Dumbbell Front Raise","shoulders","push","dumbbell","isolation"],
   ["Cable Front Raise","shoulders","push","cable","isolation"],
@@ -12786,7 +12817,7 @@ const MRV_EXERCISE_SUGGESTIONS = {
   ],
   shoulders: [
     { name: "DB Lateral Raise",           note: "Pure side-delt isolation" },
-    { name: "Cable Lateral Raise (1-arm) ★", note: "Constant tension vs DB" },
+    { name: "Cable Lateral Raise (1-arm)", note: "Constant tension vs DB" },
     { name: "Face Pull (cable)",          note: "Also trains rear delt + external rotation" },
     { name: "Cable Rear Delt Fly",        note: "Rear delt isolation" },
   ],
