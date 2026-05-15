@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.1";
+const CACHE = "ascend-2026-05-15.2";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-12.1";
+const APP_VERSION = "2026-05-15.2";
 
 const CHANGELOG = [
   {
@@ -5007,7 +5007,10 @@ function migrateState(s) {
     if (!ex) return;
 
     const wmKey = `wm_${day}_${li}`;
-    if (s.profile[wmKey] != null) return; // already set — don't overwrite
+    const storedWM = s.profile[wmKey];
+    // Skip only if already set to something different from ex.start
+    // (ex.start as WM = bad initialization — we should fix it from session data)
+    if (storedWM != null && storedWM !== (ex?.start ?? storedWM)) return;
 
     // Find the last REALIZATION session (waveWeek 3 = session index 2, 6, 10...)
     // waveWeek = ((sessionNumber-1) % 4) + 1, so REALIZATION = waveWeek 3 → (n-1)%4 === 2
@@ -5017,17 +5020,14 @@ function migrateState(s) {
       const sess = daySessions[i];
       const sets = sess.sets?.[li];
       if (!sets) break;
-      const s1r = sets.s1r ?? 0;
-      const s2r = sets.s2r ?? 0;
-      const amrapReps = Math.max(s1r, s2r);
-      const amrapW = sets.s2r >= sets.s1r ? (sets.s2w ?? sets.s1w) : sets.s1w;
+      const amrapReps = sets.s2r ?? 0;
+      const amrapW = sets.s2w ?? 0;
       if (!amrapW || amrapReps === 0) break;
-      const inc = 2.5;
-      const repsAbove = Math.max(0, amrapReps - (ex.repMax || 10));
-      const gain = Math.min(repsAbove * (inc / 2), inc * 3);
-      const computedWM = Math.round((amrapW + gain) / inc) * inc;
-      // Only set if it represents a genuine improvement over start weight
-      if (computedWM > (ex.start || 0)) {
+      // Juggernaut TM: AMRAP → 1RM (Epley) → TM = 90% of 1RM
+      const epleyOneRm = amrapW * (1 + amrapReps / 30);
+      const computedWM = Math.round((epleyOneRm * 0.90) / 2.5) * 2.5;
+      // Only set if sensible (greater than zero, not inflated from ex.start)
+      if (computedWM > 0 && computedWM < (ex.start || 9999) * 1.5) {
         s.profile[wmKey] = computedWM;
       }
       break; // only use the most recent REALIZATION
@@ -5459,16 +5459,26 @@ function nutritionTargetsForDate(date) {
   };
 }
 
+// ── Juggernaut TM wave percentages (from Juggernaut Method book)
+// Lead lift only — all weights derived from Training Max (TM = 90% of estimated 1RM)
+// Accessories use performance-based progression (no TM system)
+const JUG_TM_PCTS = {
+  ACCUMULATION:    { pct: 0.60, reps: 10 },  // 60% TM × higher reps (volume intro)
+  INTENSIFICATION: { pct: 0.70, reps: 8  },  // 70% TM × moderate reps
+  REALIZATION:     { pct: 0.775, reps: 5 },  // 77.5% TM × 5 + AMRAP final set
+  DELOAD:          { pct: 0.50, reps: 5  },  // 50% TM × low reps (recovery)
+};
+
 function progressionFor(day, exIdx) {
   const ex = STATE.exercises[day][exIdx];
   const inc = incrementFor(ex);
+  const isLead = isLeadLift(day, exIdx);
 
   const sessions = STATE.sessions
     .filter(s => s.day === day)
     .sort((a, b) => {
       const dateCmp = a.date.localeCompare(b.date);
       if (dateCmp !== 0) return dateCmp;
-      // Tiebreak by session id (s-{timestamp}) for same-date sessions
       const aTs = parseInt(a.id.replace(/^s-/, "")) || 0;
       const bTs = parseInt(b.id.replace(/^s-/, "")) || 0;
       return aTs - bTs;
@@ -5481,17 +5491,22 @@ function progressionFor(day, exIdx) {
   }
 
   const last = sessions[sessions.length - 1].sets[exIdx];
-  if (!last || last.s1r == null || last.s2r == null) {
+  if (!last || last.s1r == null) {
     return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
              note: "No set data — start moderate, leave 2-3 reps in reserve." };
   }
 
-  const { s1w: _s1w, s1r, s2w: _s2w, s2r } = last;
-  // BW exercises may have null weight — treat as 0 (bodyweight only)
+  const { s1w: _s1w, s1r, s2w: _s2w, s2r: _s2r } = last;
   const s1w = _s1w ?? 0;
-  const s2w = _s2w ?? 0;
-  const lastStr = `${fmtWeight(s1w)}kg × ${s1r}, ${s2r}`;
-  const workingWeight = s1w; // last session's weight is the baseline
+  const set2Incomplete = _s2r == null;
+  // If set 2 was intentionally skipped/incomplete, keep the real set 1 load instead of resetting to ex.start.
+  const s2w = _s2w ?? s1w;
+  const s2r = _s2r ?? s1r;
+  const lastStr = !set2Incomplete
+    ? `${fmtWeight(s1w)}kg × ${s1r}, ${s2r}`
+    : `${fmtWeight(s1w)}kg × ${s1r} (set 2 incomplete)`;
+  const workingWeight = s1w;
+
   const lastSession = sessions[sessions.length - 1];
   const lastRpeVals = [lastSession.rpe?.[exIdx]?.s1, lastSession.rpe?.[exIdx]?.s2].filter(v => v != null);
   const avgLastRpe = lastRpeVals.length ? lastRpeVals.reduce((a, b) => a + b, 0) / lastRpeVals.length : null;
@@ -5501,17 +5516,82 @@ function progressionFor(day, exIdx) {
   const poorReadiness = readiness.score != null && readiness.score <= 2.5;
   const recentSameMisses = sessions.slice(-2).filter(s => {
     const st = s.sets?.[exIdx];
-    return st && (st.s1r < ex.repMin || st.s2r < ex.repMin);
+    return st && (st.s1r < ex.repMin || (st.s2r != null && st.s2r < ex.repMin));
   }).length;
   const shouldHoldLoad = poorReadiness || (avgLastRpe != null && avgLastRpe > (isIsolation ? 8 : 8.5));
 
   // ── Juggernaut wave phase for this day
   const wave = juggernautWave(0, day);
 
-  // ── DELOAD WEEK — reduce volume and intensity regardless of last performance
-  // Juggernaut: 60% of working max, same rep ranges, feel fresh
+  // ── LEAD LIFT: Juggernaut TM-based weight prescription
+  // Training Max (TM) = stored working max (set from AMRAP → 1RM → 90%)
+  // Falls back to: Epley from last session performance if no TM stored
+  if (isLead) {
+    const storedTM = getWorkingMax(day, exIdx);
+    // Derive TM from last session if not stored: use last s2 (AMRAP set) for best estimate
+    const amrapW = s2w || s1w;
+    const amrapR = Math.max(s1r, s2r);
+    const estimatedOneRm = !set2Incomplete && amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
+    const derivedTM = estimatedOneRm ? roundToIncrement(estimatedOneRm * 0.90, ex) : null;
+    const TM = storedTM || derivedTM || workingWeight;
+    const tmPct = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
+    const tmWeight = roundToIncrement(TM * tmPct.pct, ex);
+    // Clamp target reps to exercise rep range
+    const tmReps = Math.min(Math.max(tmPct.reps, ex.repMin), ex.repMax);
+    const tmNote = `TM: ${fmtWeight(TM)}kg × ${Math.round(tmPct.pct * 100)}% = ${fmtWeight(tmWeight)}kg`;
+
+    if (wave.name === "DELOAD") {
+      return {
+        verdict: "DELOAD_WAVE",
+        weight: tmWeight,
+        reps: tmReps,
+        last: lastStr,
+        trainingMax: TM,
+        note: `Deload week — ${tmNote}. Stay RPE 5-6, feel fresh.`,
+        wavePhase: "DELOAD"
+      };
+    }
+
+    if (wave.name === "REALIZATION") {
+      return {
+        verdict: "REALIZE",
+        weight: tmWeight,
+        reps: tmReps,
+        last: lastStr,
+        trainingMax: TM,
+        note: `${tmNote}. AMRAP on final set — push to 1-2 RIR. This result sets your new Training Max.`,
+        wavePhase: "REALIZATION"
+      };
+    }
+
+    if (wave.name === "ACCUMULATION") {
+      return {
+        verdict: "BEAT",
+        weight: tmWeight,
+        reps: tmReps,
+        last: lastStr,
+        trainingMax: TM,
+        note: `${tmNote}. Accumulation — high reps, submaximal effort. Leave 3+ reps in tank.`,
+        wavePhase: "ACCUMULATION"
+      };
+    }
+
+    // INTENSIFICATION
+    return {
+      verdict: "BEAT",
+      weight: tmWeight,
+      reps: tmReps,
+      last: lastStr,
+      trainingMax: TM,
+      note: `${tmNote}. Intensification — push to RPE 7-8. Leave 1-2 reps in tank.`,
+      wavePhase: "INTENSIFICATION"
+    };
+  }
+
+  // ── ACCESSORY LIFTS: performance-based progression (no TM system)
+  // ── DELOAD WEEK
   if (wave.name === "DELOAD") {
-    const deloadW = roundToIncrement(workingWeight * 0.875, ex); // ~12.5% drop
+    const deloadW = roundToIncrement(workingWeight * 0.875, ex);
     return {
       verdict: "DELOAD_WAVE",
       weight: deloadW,
@@ -5522,28 +5602,23 @@ function progressionFor(day, exIdx) {
     };
   }
 
-  // ── REALIZATION WEEK — AMRAP test on lead lift, normal progression on accessories
+  if (set2Incomplete) {
+    return {
+      verdict: "HOLD",
+      weight: workingWeight,
+      reps: Math.min(ex.repMax, Math.max(ex.repMin, s1r)),
+      last: lastStr,
+      note: "Set 2 was incomplete or skipped. Hold the same load next time; do not reset or progress from a partial exercise.",
+      wavePhase: wave.name
+    };
+  }
+
+  // ── REALIZATION WEEK accessories — normal progression
   if (wave.name === "REALIZATION") {
-    const isLead = isLeadLift(day, exIdx);
-
-    if (isLead) {
-      // Lead lift always gets REALIZE verdict — weight may have progressed but we AMRAP regardless
-      const weight = (s1r >= ex.repMax && s2r >= ex.repMax) ? workingWeight + inc : workingWeight;
-      return {
-        verdict: "REALIZE",
-        weight,
-        reps: ex.repMin,
-        last: lastStr,
-        note: `Realization week — ${weight > workingWeight ? `progressed to ${fmtWeight(weight)}kg, ` : ""}AMRAP on your last set to find your ceiling.`,
-        wavePhase: "REALIZATION"
-      };
-    }
-
-    // Accessories follow normal performance-based progression
     if (s1r < ex.repMin || s2r < ex.repMin) {
-      if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+      if (recentSameMisses < 2 && (avgLastRpe == null || avgLastRpe <= 8.5)) {
         return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
-                 note: "One low-rep session is not enough to cut load. Hold weight and rebuild reps unless fatigue or pain persists.", wavePhase: "REALIZATION" };
+                 note: "One low-rep session: hold weight and rebuild reps.", wavePhase: "REALIZATION" };
       }
       const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
       return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
@@ -5552,7 +5627,7 @@ function progressionFor(day, exIdx) {
     if (s1r >= ex.repMax && s2r >= ex.repMax) {
       if (shouldHoldLoad || isIsolation) {
         return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
-                 note: isIsolation ? "Isolation lift: own the top reps before adding load." : "Top reps hit, but readiness/RPE says hold load this time.", wavePhase: "REALIZATION" };
+                 note: isIsolation ? "Isolation: own the reps before adding load." : "Top reps hit, poor readiness — hold.", wavePhase: "REALIZATION" };
       }
       return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
                note: `Both sets hit ${ex.repMax} — add ${inc}kg.`, wavePhase: "REALIZATION" };
@@ -5561,37 +5636,34 @@ function progressionFor(day, exIdx) {
              note: "Same weight, push one more rep.", wavePhase: "REALIZATION" };
   }
 
-  // ── ACCUMULATION WEEK — performance-based but stay submaximal (RPE 6-7)
-  // Bromley: progress only when reps clearly earned, leave reps in tank
+  // ── ACCUMULATION WEEK accessories
   if (wave.name === "ACCUMULATION") {
     if (s1r < ex.repMin || s2r < ex.repMin) {
-      if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+      if (recentSameMisses < 2 && (avgLastRpe == null || avgLastRpe <= 8.5)) {
         return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
-                 note: "Hold after one miss; reduce only after repeated misses, high RPE, pain, or poor readiness.", wavePhase: "ACCUMULATION" };
+                 note: "Hold after one miss — reduce only after repeated misses.", wavePhase: "ACCUMULATION" };
       }
       const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
       return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
-               note: "Below rep range — drop weight, rebuild. Stay submaximal this week.", wavePhase: "ACCUMULATION" };
+               note: "Below rep range — drop weight, rebuild.", wavePhase: "ACCUMULATION" };
     }
     if (s1r >= ex.repMax && s2r >= ex.repMax) {
       if (shouldHoldLoad || isIsolation) {
         return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
-                 note: isIsolation ? "Isolation lift: prioritize clean high reps before load jumps." : "Top reps hit, but readiness/RPE guardrail says hold load.", wavePhase: "ACCUMULATION" };
+                 note: isIsolation ? "Isolation: prioritize reps before load." : "Top reps hit — hold load, stay submaximal.", wavePhase: "ACCUMULATION" };
       }
       return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
-               note: `Both sets hit ${ex.repMax} reps — add ${inc}kg. Target RPE 6-7 accumulation week.`, wavePhase: "ACCUMULATION" };
+               note: `Both sets hit ${ex.repMax} reps — add ${inc}kg.`, wavePhase: "ACCUMULATION" };
     }
-    // In accumulation, push reps not weight when in range
     return { verdict: "BEAT", weight: workingWeight, reps: Math.min(ex.repMax, Math.min(s1r, s2r) + 1), last: lastStr,
              note: "Accumulation — same weight, push one more rep. Leave 3+ reps in tank.", wavePhase: "ACCUMULATION" };
   }
 
-  // ── INTENSIFICATION WEEK — push harder, heavier (RPE 7-8)
-  // Bromley: earn the weight progression, performance-based
+  // ── INTENSIFICATION WEEK accessories
   if (s1r < ex.repMin || s2r < ex.repMin) {
-    if (recentSameMisses < 2 && avgLastRpe != null && avgLastRpe <= 8.5) {
+    if (recentSameMisses < 2 && (avgLastRpe == null || avgLastRpe <= 8.5)) {
       return { verdict: "HOLD", weight: workingWeight, reps: ex.repMin, last: lastStr,
-               note: "Single-session miss: hold weight and rebuild before reducing load.", wavePhase: "INTENSIFICATION" };
+               note: "Single-session miss: hold weight and rebuild before reducing.", wavePhase: "INTENSIFICATION" };
     }
     const newW = roundToIncrement(workingWeight * STATE.profile.deloadFactor, ex);
     return { verdict: "DELOAD", weight: newW, reps: ex.repMin, last: lastStr,
@@ -5600,7 +5672,7 @@ function progressionFor(day, exIdx) {
   if (s1r >= ex.repMax && s2r >= ex.repMax) {
     if (shouldHoldLoad || isIsolation) {
       return { verdict: "HOLD", weight: workingWeight, reps: ex.repMax, last: lastStr,
-               note: isIsolation ? "Isolation lift: keep load and progress reps/quality first." : "Top reps hit, but high RPE/readiness prevents an automatic jump.", wavePhase: "INTENSIFICATION" };
+               note: isIsolation ? "Isolation: keep load and progress reps first." : "Top reps hit — hold, readiness guardrail.", wavePhase: "INTENSIFICATION" };
     }
     return { verdict: "PROGRESS", weight: workingWeight + inc, reps: ex.repMin, last: lastStr,
              note: `Both sets hit ${ex.repMax} — add ${inc}kg. Leave 1-2 reps in tank.`, wavePhase: "INTENSIFICATION" };
@@ -5667,8 +5739,7 @@ function personalRecord(day, exIdx, beforeSessionId = null) {
   for (const s of sessions) {
     const set = s.sets[exIdx];
     if (!set) continue;
-    for (const w of [set.s1w, set.s2w]) {
-      const r = w === set.s1w ? set.s1r : set.s2r;
+    for (const [w, r] of [[set.s1w, set.s1r], [set.s2w, set.s2r]]) {
       if (w == null || r == null) continue;
       if (!best || w > best.w || (w === best.w && r > best.r)) {
         best = { w, r, date: s.date, sessionId: s.id };
@@ -6363,15 +6434,12 @@ function setWorkingMax(day, exIdx, value) {
 // If reps > repMax consistently: add weight. If reps < repMin: deload.
 function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight) {
   const ex = STATE.exercises[day][exIdx];
-  const inc = incrementFor(ex);
-  const currentWM = getWorkingMax(day, exIdx) || progressionFor(day, exIdx).weight;
-  // Use actual lifted weight if provided and higher than stored WM
-  const baseWeight = Math.max(currentWM, amrapWeight || 0);
-  // Each rep above repMax → +increment/2, cap at +3 increments
-  const repsAbove = Math.max(0, amrapReps - ex.repMax);
-  const gain = Math.min(repsAbove * (inc / 2), inc * 3);
-  const newWM = roundToIncrement(baseWeight + gain, ex);
-  return newWM;
+  // Juggernaut Method: AMRAP → estimate 1RM (Epley) → Training Max = 90% of 1RM
+  // This TM is stored as the working max and drives all future wave percentages.
+  if (!amrapWeight || !amrapReps || amrapReps < 1) return getWorkingMax(day, exIdx) || ex.start;
+  const estimatedOneRm = estimateOneRm(amrapWeight, amrapReps);
+  const newTM = roundToIncrement(estimatedOneRm * 0.90, ex);
+  return newTM;
 }
 
 // ── Phase-1: Stall detection ──────────────────────────────────────────────────
@@ -6557,9 +6625,7 @@ function savePendingProgramChanges(day, changes) {
 // Apply a stall_deload change: adjust the working max downward
 function applyProgramChange(day, change) {
   if (change.type !== "stall_deload") return; // info-only changes don't auto-apply
-  if (!STATE.workingMaxes) STATE.workingMaxes = {};
-  const key = `${day}:${change.exIdx}`;
-  STATE.workingMaxes[key] = change.newWeight;
+  setWorkingMax(day, change.exIdx, change.newWeight);
   // Also clear any stale stall counters
   if (STATE.repRangeCounters) STATE.repRangeCounters[`${day}:${change.exIdx}`] = { hitTop: 0, missMin: 0 };
   saveState();
@@ -9320,20 +9386,16 @@ $("#btn-save-session").addEventListener("click", () => {
     if (saveWave.name === "REALIZATION") {
       // Check lead exercise (idx 0) AMRAP reps
       const leadIdx = getLeadLiftIdx(session.day);
-      const s1r = session.sets[leadIdx]?.s1r ?? 0;
-      const s2r = session.sets[leadIdx]?.s2r ?? 0;
-      const amrapReps = Math.max(s1r, s2r);
-      // Use the actual weight from the set with the higher reps
-      const amrapWeight = s2r >= s1r
-        ? (session.sets[leadIdx]?.s2w ?? session.sets[leadIdx]?.s1w ?? 0)
-        : (session.sets[leadIdx]?.s1w ?? 0);
-      if (amrapReps > 0) {
+      const leadSet = session.sets[leadIdx];
+      const amrapReps = leadSet?.s2r ?? null;
+      const amrapWeight = leadSet?.s2w ?? null;
+      if (amrapReps != null && amrapWeight != null && amrapReps > 0) {
         const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight);
-        const oldWM = getWorkingMax(session.day, leadIdx) || progressionFor(session.day, leadIdx).weight;
-        if (newWM > oldWM) {
+        if (newWM > 0) {
           setWorkingMax(session.day, leadIdx, newWM);
           saveState();
-          setTimeout(() => toast(`🏆 NEW WORKING MAX: ${newWM}kg — weights updated for next cycle`), 2000);
+          const oneRmDisplay = Math.round(estimateOneRm(amrapWeight, amrapReps));
+          setTimeout(() => toast(`🏆 NEW TM: ${newWM}kg (1RM ≈ ${oneRmDisplay}kg × 90%) — next cycle weights updated`), 2000);
         }
       }
     }
@@ -9877,6 +9939,7 @@ function buildLifterAnalysis() {
     : [];
 
   const fatigueRisks = [];
+  const recommendations = [];
   if (fatigue.spinal >= 20) fatigueRisks.push("High hinge/spinal fatigue exposure this week.");
   if (nearMrv.length) fatigueRisks.push(`${nearMrv.map(m => MUSCLE_LABELS[m] || m).join(", ")} near or above recoverable volume.`);
   if (trend28 != null && trend28 < -1.0 && STATE.cut.mode === "cut") fatigueRisks.push("Weight loss is fast enough to threaten recovery if performance declines.");
@@ -9921,7 +9984,6 @@ function buildLifterAnalysis() {
       performanceDeclining = older2 > 0 && (recent2 / older2) < 0.97; // >3% drop = declining
     }
   }
-  const recommendations = [];
   if (STATE.cut.mode === "cut") {
     if (performanceDeclining && trend28 != null && trend28 < -0.8) {
       recommendations.push("Performance declining alongside rapid weight loss — consider adding 150-200 kcal to protect muscle and training quality.");
@@ -11238,7 +11300,7 @@ function openProgramCalibrationSheet() {
     updateLiftPreview(key);
   });
 
-  const updateReviewSummary = () => {
+  function updateReviewSummary() {
     const el = document.getElementById("cal-review-summary");
     if (!el) return;
     const bw = parseFloat(document.getElementById("cal-bw")?.value) || null;
@@ -11293,7 +11355,7 @@ function openProgramCalibrationSheet() {
     } else {
       el.innerHTML = `<strong style="font-size:11px;letter-spacing:0.08em;color:var(--ink);">WHAT WILL CHANGE</strong><ul style="margin:6px 0 0;padding-left:16px;list-style:disc;">${changes.map(c => `<li>${escapeHtml(c)}</li>`).join("")}</ul>`;
     }
-  };
+  }
 
   // Wire review summary to key inputs
   ["cal-bw","cal-bf","cal-goal","cal-kcal","cal-protein","cal-exp","cal-recovery","cal-wave"].forEach(id => {
@@ -11374,8 +11436,6 @@ function openProgramCalibrationSheet() {
       bodyFatPercent: bf,
       leanMassKg: leanMassKg(bw, bf),
     };
-    STATE.lifterAnalysis = buildLifterAnalysis();
-
     // Capture lift summary BEFORE closing sheet DOM
     const _liftSummary = [];
     BENCHMARK_LIFT_META.forEach(([k, lbl]) => {
@@ -11389,18 +11449,19 @@ function openProgramCalibrationSheet() {
 
     saveState();
     closeSheet();
-    renderSettings();
-    renderStats();
-    renderToday();
+    try { STATE.lifterAnalysis = buildLifterAnalysis(); } catch(e) { console.warn("buildLifterAnalysis failed", e); }
+    try { renderSettings(); } catch(e) {}
+    try { renderStats(); } catch(e) {}
+    try { renderToday(); } catch(e) {}
 
-    // Build completion summary modal
+    // Build completion summary modal — always show even if renders above threw
     const _summaryLines = [];
     if (bw) _summaryLines.push(`Body weight set to <strong>${bw}kg</strong>`);
     if (_liftSummary.length) _summaryLines.push(`Strength: ${_liftSummary.join(", ")}`);
     const _goalLabels = { cut:"Cut", maintain:"Maintain / Recomp", lean_gain:"Lean Gain", hypertrophy:"Hypertrophy Focus" };
     _summaryLines.push(`Goal: <strong>${_goalLabels[goal] || goal}</strong>`);
     const _modeLabels = { hypertrophy:"Hypertrophy", powerbuilding:"Powerbuilding", powerlifting:"Powerlifting", strongman:"Strongman" };
-    _summaryLines.push(`Program mode: <strong>${_modeLabels[STATE.athleteProfile.programMode] || STATE.athleteProfile.programMode}</strong>`);
+    _summaryLines.push(`Program mode: <strong>${_modeLabels[STATE.athleteProfile?.programMode] || "Hypertrophy"}</strong>`);
 
     const _overlay = document.createElement("div");
     _overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;";
@@ -15855,7 +15916,8 @@ const footerVersion = document.getElementById("footer-version");
 if (footerVersion) footerVersion.textContent = "Ascend " + APP_VERSION;
 
 // "What's New" button in Profile footer
-document.getElementById("btn-whats-new").addEventListener("click", showChangelog);
+const whatsNewBtn = document.getElementById("btn-whats-new");
+if (whatsNewBtn) whatsNewBtn.addEventListener("click", showChangelog);
 try {
   updateAdaptiveStateSnapshot("app_start");
   saveState();
