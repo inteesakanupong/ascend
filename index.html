@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.4";
+const CACHE = "ascend-2026-05-15.5";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.4";
+const APP_VERSION = "2026-05-15.5";
 
 const CHANGELOG = [
   {
@@ -5294,8 +5294,13 @@ function buildTrainingProgram(input = {}, preserveStarts = true) {
 
 function applyNewTrainingProgram(input = {}) {
   const rec = recommendTrainingApproach(input);
+  const baseline = {};
+  ["PUSH", "PULL", "ARMS", "LEGS"].forEach(day => {
+    baseline[day] = (STATE.sessions || []).filter(s => s.day === day).length;
+  });
   STATE.exercises = buildTrainingProgram(input, true);
   STATE.profile.trainingProgramStartedAt = todayISO();
+  STATE.profile.trainingProgramSessionBaseline = baseline;
   STATE.profile.trainingGoal = input.trainingGoal || STATE.profile.trainingGoal || "hypertrophy";
   STATE.profile.experienceLevel = input.experienceLevel || STATE.profile.experienceLevel || "intermediate";
   STATE.profile.knowledgeLevel = input.knowledgeLevel || STATE.profile.knowledgeLevel || "intermediate";
@@ -5473,6 +5478,10 @@ function trainingProgramStartDate() {
 }
 
 function trainingSessionsForDay(day) {
+  const baseline = STATE.profile.trainingProgramSessionBaseline?.[day];
+  if (Number.isFinite(baseline)) {
+    return sortSessionsChronological((STATE.sessions || []).filter(s => s.day === day)).slice(baseline);
+  }
   const start = trainingProgramStartDate();
   return (STATE.sessions || []).filter(s => s.day === day && (!start || s.date >= start));
 }
