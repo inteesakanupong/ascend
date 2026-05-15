@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.8";
+const CACHE = "ascend-2026-05-16.1";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1692,6 +1692,38 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   font-size: 12px;
   color: var(--ink-mid);
   line-height: 1.4;
+}
+
+.activity-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: var(--bg-elev-1);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 180ms;
+}
+.activity-card.selected {
+  background: var(--bg-elev-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.activity-card input {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.activity-card .title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.activity-card .sub {
+  font-size: 11px;
+  display: block;
 }
 
 /* Auto-suggested helper */
@@ -3497,7 +3529,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.8";
+const APP_VERSION = "2026-05-16.1";
 
 const CHANGELOG = [
   {
@@ -5602,7 +5634,7 @@ function sortSessionsChronological(list) {
 function leadTmPrescription(ex, wave, TM, lastStr = null) {
   const tmPct = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
   const tmWeight = roundToIncrement(TM * tmPct.pct, ex);
-  const tmReps = Math.min(Math.max(tmPct.reps, ex.repMin), ex.repMax);
+  const tmReps = tmPct.reps;
   const tmNote = `TM: ${fmtWeight(TM)}kg × ${Math.round(tmPct.pct * 100)}% = ${fmtWeight(tmWeight)}kg`;
 
   if (wave.name === "DELOAD") {
@@ -12281,11 +12313,11 @@ const Wizard = (() => {
             <div class="input">
               <label>Activity level</label>
               ${Object.entries(ACTIVITY_MULTIPLIERS).map(([k, v]) => `
-                <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:${draft.activityLevel === k ? 'var(--bg-elev-2)' : 'var(--bg-elev-1)'};border:1.5px solid ${draft.activityLevel === k ? 'var(--accent)' : 'var(--line)'};border-radius:10px;cursor:pointer;transition:all 180ms;">
-                  <input type="radio" name="wz-activity" id="wz-act-${k}" value="${k}" ${draft.activityLevel === k ? "checked" : ""} style="accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;" />
+                <label class="activity-card ${draft.activityLevel === k ? 'selected' : ''}" data-activity="${k}">
+                  <input type="radio" name="wz-activity" id="wz-act-${k}" value="${k}" ${draft.activityLevel === k ? "checked" : ""} />
                   <span>
-                    <span style="font-weight:600;font-size:13px;">${v.label}</span>
-                    <span class="muted" style="font-size:11px;display:block;">${v.sub}</span>
+                    <span class="title">${v.label}</span>
+                    <span class="muted sub">${v.sub}</span>
                   </span>
                 </label>
               `).join("")}
@@ -12313,6 +12345,10 @@ const Wizard = (() => {
           // Also stash for the calories step
           draft._tdee = tdee;
           draft._sex  = sex;
+          draft.activityLevel = act;
+          document.querySelectorAll(".activity-card").forEach(card => {
+            card.classList.toggle("selected", card.dataset.activity === act);
+          });
         };
         ["wz-sex","wz-age","wz-bw","wz-height"].forEach(id => {
           document.getElementById(id)?.addEventListener("input", updatePreview);
@@ -12320,6 +12356,7 @@ const Wizard = (() => {
         document.querySelectorAll('input[name="wz-activity"]').forEach(el => {
           el.addEventListener("change", updatePreview);
         });
+        updatePreview();
       }
     },
     {
