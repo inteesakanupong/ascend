@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-15.6";
+const CACHE = "ascend-2026-05-15.7";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3497,7 +3497,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-15.6";
+const APP_VERSION = "2026-05-15.7";
 
 const CHANGELOG = [
   {
@@ -4677,6 +4677,58 @@ const DEFAULT_STATE = {
   }
 };
 
+function freshDefaultState() {
+  const s = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  s.onboarded = false;
+  s.sessions = [];
+  s.dailyLogs = [];
+  s.measurements = [];
+  s.customFoods = [];
+  s.customExercises = [];
+  s.repRangeCounters = {};
+  s.pendingProgramChanges = {};
+  s.lastMrvSwap = null;
+  s.adaptive_state = { version: 1, exerciseMemory: {}, muscleMemory: {}, fatigue: {}, decisions: [] };
+  s.lifterAnalysis = { strengthBalance: {}, bodyTrend: {}, dietOutcome: {}, fatigueRisks: [], progressionDrivers: [], recommendations: [] };
+  s.profile = {
+    ...s.profile,
+    name: "",
+    sex: null,
+    age: null,
+    height: null,
+    bodyweight: 80,
+    bodyFatPct: null,
+    programStart: "2026-05-15",
+    trainingProgramStartedAt: "2026-05-15",
+    dietProgramStartedAt: "2026-05-15",
+    trainingProgramSessionBaseline: { PUSH: 0, PULL: 0, ARMS: 0, LEGS: 0 },
+  };
+  Object.keys(s.profile).forEach(k => { if (k.startsWith("wm_")) delete s.profile[k]; });
+  s.cut = {
+    ...s.cut,
+    mode: "cut",
+    p1Target: 75,
+    p1Weeks: 8,
+    dbWeeks: 1.5,
+    p2Target: 73,
+    p2Weeks: 4,
+    p1Kcal: 2100,
+    dbKcal: 2800,
+    p2Kcal: 1950,
+    proteinFloor: 160,
+  };
+  s.athleteProfile = {
+    ...s.athleteProfile,
+    bodyweightKg: 80,
+    bodyFatPercent: null,
+    leanMassKg: null,
+    benchmarkLifts: defaultBenchmarkLifts ? defaultBenchmarkLifts() : s.athleteProfile.benchmarkLifts,
+  };
+  s.dietProfile = { calorieTarget: null, proteinTarget: null, carbTarget: null, fatTarget: null, weeklyWeightChangeTarget: null, source: "ascend" };
+  s.healthSignals = { source: "manual", date: null, sleepHours: null, sleepScore: null, restingHR: null, steps: null, activeCalories: null, bodyweightKg: null, bodyFatPercent: null, leanMassKg: null };
+  return s;
+}
+
 const HABIT_DEFS = [
   { key: "run",     glyph: "🚶", name: "10k Steps" },
   { key: "protein", glyph: "🥩", name: "Protein" },
@@ -4693,6 +4745,8 @@ const STORAGE_KEY = "ppal-state";
 const IDB_NAME    = "ppal-db";
 const IDB_STORE   = "state";
 const IDB_KEY     = "main";
+const HARD_RESET_VERSION = "2026-05-15.7";
+const HARD_RESET_KEY = "ascend-hard-reset-version";
 
 // ── IndexedDB helpers ──
 function openIDB() {
@@ -4743,18 +4797,18 @@ async function loadStateAsync() {
       }
     }
   } catch(e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  return freshDefaultState();
 }
 
 // ── Synchronous load (reads localStorage immediately for fast first paint) ──
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    if (!raw) return freshDefaultState();
     const parsed = JSON.parse(raw);
-    return parsed && parsed.v ? parsed : JSON.parse(JSON.stringify(DEFAULT_STATE));
+    return parsed && parsed.v ? parsed : freshDefaultState();
   } catch (e) {
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    return freshDefaultState();
   }
 }
 
@@ -4765,11 +4819,27 @@ function saveState() {
   idbSet(JSON.parse(JSON.stringify(STATE))).catch(e => console.warn("IDB write failed", e));
 }
 
+function forceFreshStartForThisBuild() {
+  try {
+    if (localStorage.getItem(HARD_RESET_KEY) === HARD_RESET_VERSION) return;
+    const fresh = freshDefaultState();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    localStorage.setItem(HARD_RESET_KEY, HARD_RESET_VERSION);
+  } catch (e) {
+    console.warn("fresh start reset failed", e);
+  }
+}
+
+forceFreshStartForThisBuild();
 let STATE = loadState();
 
 // Async upgrade: if IDB has newer data than localStorage, replace STATE
 // (runs after first render to avoid blocking)
 (async () => {
+  if (localStorage.getItem(HARD_RESET_KEY) === HARD_RESET_VERSION) {
+    await idbSet(JSON.parse(JSON.stringify(STATE)));
+    return;
+  }
   const idbState = await idbGet();
   if (idbState && idbState.v && JSON.stringify(idbState) !== JSON.stringify(STATE)) {
     STATE = migrateState(idbState);
@@ -11609,7 +11679,7 @@ $("#file-import").addEventListener("change", async (e) => {
 $("#btn-reset").addEventListener("click", () => {
   if (!confirm("Delete ALL data and start from scratch? This cannot be undone.")) return;
   if (!confirm("Really? Every log, meal, session, and setting will be erased.")) return;
-  STATE = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  STATE = freshDefaultState();
   saveState();
   renderSettings();
   toast("DATA DELETED — STARTING SETUP");
@@ -12068,6 +12138,7 @@ const Wizard = (() => {
     STATE.profile.sleepHours      = draft.sleepHours;
     STATE.profile.sportsActivity  = draft.sportsActivity;
     STATE.profile.programStart  = draft.programStart;
+    STATE.profile.dietProgramStartedAt = draft.programStart;
     STATE.cut.mode              = draft.mode;
     STATE.cut.p1Kcal            = draft.p1Kcal;
     STATE.cut.proteinFloor      = draft.proteinFloor;
@@ -12079,6 +12150,14 @@ const Wizard = (() => {
     } else {
       STATE.cut.p1Target = draft.bodyweight;
     }
+    STATE.dietProfile = {
+      ...(STATE.dietProfile || {}),
+      calorieTarget: draft.p1Kcal,
+      proteinTarget: draft.proteinFloor,
+      carbTarget: draft.p1Kcal ? Math.round(draft.p1Kcal * 0.37 / 4) : null,
+      fatTarget: draft.p1Kcal ? Math.round(draft.p1Kcal * 0.28 / 9) : null,
+      source: "setup",
+    };
     applyNewTrainingProgram(draft);
     // Map assessment results to exercise starting weights
     // BENCH → PUSH:0 (Incline Bench), OHP → PUSH:1 (OHP), ROW → PULL:0, SQUAT → LEGS:0
@@ -12087,8 +12166,10 @@ const Wizard = (() => {
       const slot = assessmentMap[k];
       const tm = v.trainingMax || oneRmToTrainingMax(v.oneRM);
       if (slot && tm && STATE.exercises[slot[0]]?.[slot[1]]) {
-        STATE.exercises[slot[0]][slot[1]].start = tm;
-        setWorkingMax(slot[0], slot[1], tm);
+        const ex = STATE.exercises[slot[0]][slot[1]];
+        const isLeadAssessment = isLeadLift(slot[0], slot[1]);
+        ex.start = roundToIncrement(tm * (isLeadAssessment ? JUG_TM_PCTS.ACCUMULATION.pct : 0.70), ex);
+        if (isLeadAssessment) setWorkingMax(slot[0], slot[1], tm);
       }
     });
     STATE.onboarded = true;
