@@ -3377,7 +3377,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   <div class="grabber"></div>
   <div id="sheet-body"></div>
 </div>
-<input type="file" id="file-import" accept="application/json" style="display:none;" />
+<input type="file" id="file-import" accept=".json,application/json,text/plain" style="display:none;" />
 <!-- Barcode scanner overlay -->
 <div class="scanner-overlay" id="scanner-overlay">
   <div class="scanner-box" id="scanner-box">
@@ -3529,7 +3529,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.2";
+const APP_VERSION = "2026-05-16.3";
 
 const CHANGELOG = [
   {
@@ -4812,6 +4812,7 @@ const IDB_STORE   = "state";
 const IDB_KEY     = "main";
 const HARD_RESET_VERSION = "2026-05-15.7";
 const HARD_RESET_KEY = "ascend-hard-reset-version";
+const IMPORT_LOCK_KEY = "ascend-import-lock";
 
 // ── IndexedDB helpers ──
 function openIDB() {
@@ -4901,6 +4902,11 @@ let STATE = loadState();
 // Async upgrade: if IDB has newer data than localStorage, replace STATE
 // (runs after first render to avoid blocking)
 (async () => {
+  if (localStorage.getItem(IMPORT_LOCK_KEY)) {
+    const ok = await idbSet(JSON.parse(JSON.stringify(STATE)));
+    if (ok) localStorage.removeItem(IMPORT_LOCK_KEY);
+    return;
+  }
   if (localStorage.getItem(HARD_RESET_KEY) === HARD_RESET_VERSION) {
     await idbSet(JSON.parse(JSON.stringify(STATE)));
     return;
@@ -11673,7 +11679,6 @@ $("#btn-export").addEventListener("click", () => {
   URL.revokeObjectURL(url);
   toast("EXPORTED");
 });
-$("#btn-import").addEventListener("click", () => $("#file-import").click());
 function normalizeImportedState(raw) {
   let incoming = raw;
   if (typeof incoming === "string") incoming = JSON.parse(incoming);
@@ -11688,60 +11693,151 @@ function normalizeImportedState(raw) {
   if (!Array.isArray(incoming.dailyLogs)) incoming.dailyLogs = [];
   return incoming;
 }
+
+async function readImportFile(file) {
+  if (!file) throw new Error("no file selected");
+  if (file.text) {
+    try { return await file.text(); }
+    catch (_) {}
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("could not read file"));
+    reader.readAsText(file);
+  });
+}
+
+async function persistImportedState(nextState) {
+  const copy = JSON.parse(JSON.stringify(nextState));
+  localStorage.setItem(IMPORT_LOCK_KEY, String(Date.now()));
+  localStorage.setItem(HARD_RESET_KEY, HARD_RESET_VERSION);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(copy));
+
+  const savedRaw = localStorage.getItem(STORAGE_KEY);
+  const saved = savedRaw ? JSON.parse(savedRaw) : null;
+  if (!saved || saved.v !== copy.v) {
+    throw new Error("localStorage verification failed");
+  }
+
+  const idbOk = await idbSet(copy);
+  if (idbOk) localStorage.removeItem(IMPORT_LOCK_KEY);
+  else console.warn("IDB import write failed; import lock will protect localStorage on reload");
+  return idbOk;
+}
+
+async function importBackupPayload(payload, statusEl) {
+  try {
+    if (statusEl) statusEl.textContent = "Reading backup...";
+    let incoming;
+    try {
+      incoming = normalizeImportedState(payload);
+    } catch (parseErr) {
+      console.error("Import parse/shape error:", parseErr);
+      const msg = parseErr instanceof SyntaxError ? "IMPORT FAILED - file is not valid JSON" : "IMPORT FAILED - backup format not recognized";
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      return false;
+    }
+
+    if (statusEl) {
+      statusEl.textContent = `Backup found: ${incoming.sessions.length} sessions, ${incoming.dailyLogs.length} daily logs. Importing...`;
+    }
+
+    try { STATE = migrateState(incoming); }
+    catch (migrateErr) {
+      console.error("migrateState failed:", migrateErr);
+      const msg = "IMPORT FAILED - data migration error";
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      return false;
+    }
+
+    try { STATE.lifterAnalysis = buildLifterAnalysis(); } catch (_) {}
+    try { updateAdaptiveStateSnapshot("import"); } catch (_) {}
+
+    try { await persistImportedState(STATE); }
+    catch (persistErr) {
+      console.error("Import save failed:", persistErr);
+      const msg = "IMPORT FAILED - could not save backup";
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      return false;
+    }
+
+    const msg = `IMPORTED - ${STATE.sessions.length} sessions loaded`;
+    if (statusEl) statusEl.textContent = msg + ". Reloading...";
+    toast(msg);
+    setTimeout(() => location.reload(), 500);
+    return true;
+  } catch (err) {
+    console.error("Import error:", err);
+    const msg = "IMPORT FAILED - " + (err.message || "unknown error");
+    if (statusEl) statusEl.textContent = msg;
+    toast(msg);
+    return false;
+  }
+}
+
+function openImportSheet() {
+  $("#sheet-body").innerHTML = `
+    <h3>Import Backup</h3>
+    <p class="muted" style="font-size:13px;line-height:1.45;margin:0 0 14px;">
+      Choose a backup JSON file, or paste the JSON text below. Import replaces the current app data on this device.
+    </p>
+    <div class="input">
+      <label>Backup file</label>
+      <input id="import-file-picker" type="file" accept=".json,application/json,text/plain" />
+    </div>
+    <button class="btn primary" id="import-file-now" style="width:100%;margin-top:10px;">IMPORT SELECTED FILE</button>
+    <div class="input" style="margin-top:16px;">
+      <label>Paste backup JSON</label>
+      <textarea id="import-json-paste" rows="7" placeholder="{...}"></textarea>
+    </div>
+    <button class="btn ghost" id="import-paste-now" style="width:100%;margin-top:10px;">IMPORT PASTED JSON</button>
+    <div id="import-status" class="muted" style="min-height:20px;margin-top:12px;font-size:12px;line-height:1.4;"></div>
+    <button class="btn ghost" id="import-cancel" style="width:100%;margin-top:10px;">CANCEL</button>
+  `;
+  openSheet();
+
+  const statusEl = document.getElementById("import-status");
+  const fileInput = document.getElementById("import-file-picker");
+  document.getElementById("import-file-now").addEventListener("click", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      statusEl.textContent = "Choose a backup file first.";
+      return;
+    }
+    try {
+      const text = await readImportFile(file);
+      await importBackupPayload(text, statusEl);
+    } catch (err) {
+      console.error("Import file read failed:", err);
+      const msg = "IMPORT FAILED - could not read file";
+      statusEl.textContent = msg;
+      toast(msg);
+    }
+  });
+  document.getElementById("import-paste-now").addEventListener("click", async () => {
+    const text = document.getElementById("import-json-paste").value.trim();
+    if (!text) {
+      statusEl.textContent = "Paste backup JSON first.";
+      return;
+    }
+    await importBackupPayload(text, statusEl);
+  });
+  document.getElementById("import-cancel").addEventListener("click", closeSheet);
+}
+
+$("#btn-import").addEventListener("click", openImportSheet);
 $("#file-import").addEventListener("change", async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
-    const text = await f.text();
-    let incoming;
-    try {
-      incoming = JSON.parse(text);
-    } catch (parseErr) {
-      toast("IMPORT FAILED — file is not valid JSON");
-      e.target.value = "";
-      return;
-    }
-    try {
-      incoming = normalizeImportedState(incoming);
-    } catch (shapeErr) {
-      console.error("Import shape error:", shapeErr);
-      toast("IMPORT FAILED — backup format not recognized");
-      e.target.value = "";
-      return;
-    }
-    if (!confirm(`Import backup? This will replace all current data.\n\nBackup contains: ${incoming.sessions.length} sessions, ${incoming.dailyLogs?.length ?? 0} daily logs.`)) {
-      e.target.value = "";
-      return;
-    }
-    try {
-      STATE = migrateState(incoming);
-    } catch (migrateErr) {
-      console.error("migrateState failed:", migrateErr);
-      toast("IMPORT FAILED — data migration error (see console)");
-      e.target.value = "";
-      return;
-    }
-    try {
-      STATE.lifterAnalysis = buildLifterAnalysis();
-    } catch (_) {}
-    try {
-      updateAdaptiveStateSnapshot("import");
-    } catch (_) {}
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
-      await idbSet(JSON.parse(JSON.stringify(STATE)));
-    } catch (persistErr) {
-      console.error("Import save failed:", persistErr);
-      toast("IMPORT FAILED — could not save backup");
-      e.target.value = "";
-      return;
-    }
-    toast(`IMPORTED — ${STATE.sessions.length} sessions loaded`);
-    setTimeout(() => location.reload(), 700);
-  } catch (err) {
-    console.error("Import error:", err);
-    toast("IMPORT FAILED — " + (err.message || "unknown error"));
+    const text = await readImportFile(f);
+    await importBackupPayload(text);
+  } finally {
+    e.target.value = "";
   }
-  e.target.value = "";
 });
 $("#btn-reset").addEventListener("click", () => {
   if (!confirm("Delete ALL data and start from scratch? This cannot be undone.")) return;
