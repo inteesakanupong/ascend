@@ -8,6 +8,8 @@ Ascend
 Ascend/**
 docs
 docs/**
+Resources
+Resources/**
 .assetsignore
 .gitattributes
 .gitignore
