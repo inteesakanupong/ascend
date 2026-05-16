@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.3";
+const CACHE = "ascend-2026-05-16.9";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -2480,42 +2480,6 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 .prog-day-label .prog-day-arrow { font-size: 10px; transition: transform 150ms; margin-right: 4px; }
 .prog-day-label.collapsed .prog-day-arrow { transform: rotate(-90deg); }
 .prog-ex-list.collapsed { display: none; }
-.p5-btn {
-  width: 44px; height: 44px;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
-  cursor: pointer;
-  font-size: 20px;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.p5-btn.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-}
-.p5-text-btn {
-  width: auto;
-  font-family: var(--f-mono);
-  font-size: 10px !important;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  color: var(--ink-mid);
-}
-.p5-text-btn.selected {
-  color: white;
-}
-.p5-pain-btn.selected {
-  background: var(--bad) !important;
-  border-color: var(--bad) !important;
-  color: white;
-}
-.p5-pain-btn[data-val="0"].selected {
-  background: var(--good) !important;
-  border-color: var(--good) !important;
-}
 .lsg-energy-btn {
   width: 44px; height: 44px; font-size: 22px; background: var(--bg-elev-2);
   border: 2px solid var(--line); border-radius: 12px; cursor: pointer;
@@ -2557,8 +2521,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
         <div style="font-size:11px;font-weight:700;color:var(--good);letter-spacing:0.1em;">SESSION LOGGED TODAY</div>
         <div class="muted" style="font-size:11px;margin-top:2px;" id="today-session-done-meta">—</div>
       </div>
-      <div id="today-weekly-dashboard"></div>
-    <div id="today-readiness" style="display:none; margin-top:10px; padding:10px 14px; background:var(--bg-elev-2); border-radius:10px; border-left:3px solid var(--ink-dim);">
+      <div id="today-readiness" style="display:none; margin-top:10px; padding:10px 14px; background:var(--bg-elev-2); border-radius:10px; border-left:3px solid var(--ink-dim);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:10px;font-weight:700;color:var(--ink-dim);letter-spacing:0.12em;">READINESS</span>
           <span id="today-readiness-score" style="font-family:var(--f-mono); font-weight:900; font-size:14px; letter-spacing:0.06em;">—</span>
@@ -2815,90 +2778,6 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
     <div id="lift-exercises" style="display:none;"></div>
 
     <button class="btn primary full" style="margin-top:18px; display:none;" id="btn-save-session">SAVE SESSION</button>
-
-    <!-- PHASE 5: Post-session feedback panel (shown after exercises, before save) -->
-    <div id="session-feedback-panel" style="display:none; margin-top:14px;">
-      <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-dim);margin-bottom:10px;">SESSION FEEDBACK</div>
-
-      <!-- Enjoyment / Sustainability -->
-      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">How was this session?</div>
-        <div style="display:flex;gap:8px;justify-content:center;" id="p5-enjoyment-btns">
-          <button class="p5-btn" data-field="enjoyment" data-val="1" title="Terrible">😤</button>
-          <button class="p5-btn" data-field="enjoyment" data-val="2" title="Poor">😞</button>
-          <button class="p5-btn" data-field="enjoyment" data-val="3" title="OK">😐</button>
-          <button class="p5-btn" data-field="enjoyment" data-val="4" title="Good">😊</button>
-          <button class="p5-btn" data-field="enjoyment" data-val="5" title="Great">💪</button>
-        </div>
-        <div id="p5-enjoyment-label" style="font-size:10px;color:var(--ink-dim);text-align:center;margin-top:4px;height:14px;font-family:var(--f-mono);"></div>
-      </div>
-
-      <!-- Session duration felt -->
-      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Session length felt…</div>
-        <div style="display:flex;gap:6px;justify-content:center;" id="p5-duration-btns">
-          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="short" style="font-size:10px;padding:6px 10px;">Too short</button>
-          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="good" style="font-size:10px;padding:6px 10px;">About right</button>
-          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="long" style="font-size:10px;padding:6px 10px;">Too long</button>
-        </div>
-      </div>
-
-      <!-- Pain / joint stress -->
-      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Any joint pain or discomfort? <span style="font-size:10px;font-weight:400;color:var(--ink-dim);">(0 = none)</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="p5-pain-grid">
-          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Shoulder</div>
-            <div style="display:flex;gap:4px;" id="p5-pain-shoulder">
-              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="shoulder" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
-            </div>
-          </div>
-          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Elbow</div>
-            <div style="display:flex;gap:4px;" id="p5-pain-elbow">
-              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="elbow" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
-            </div>
-          </div>
-          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Lower back</div>
-            <div style="display:flex;gap:4px;" id="p5-pain-lowerback">
-              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="lowerback" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
-            </div>
-          </div>
-          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Knee</div>
-            <div style="display:flex;gap:4px;" id="p5-pain-knee">
-              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="knee" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Technique quality -->
-      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Overall technique quality</div>
-        <div style="display:flex;gap:8px;justify-content:center;" id="p5-technique-btns">
-          <button class="p5-btn" data-field="techniqueScore" data-val="1" title="Poor">1</button>
-          <button class="p5-btn" data-field="techniqueScore" data-val="2" title="Inconsistent">2</button>
-          <button class="p5-btn" data-field="techniqueScore" data-val="3" title="Acceptable">3</button>
-          <button class="p5-btn" data-field="techniqueScore" data-val="4" title="Good">4</button>
-          <button class="p5-btn" data-field="techniqueScore" data-val="5" title="Excellent">5</button>
-        </div>
-        <div id="p5-technique-label" style="font-size:10px;color:var(--ink-dim);text-align:center;margin-top:4px;height:14px;font-family:var(--f-mono);">
-          1=poor · 3=ok · 5=excellent
-        </div>
-      </div>
-
-      <!-- Manual override reason -->
-      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Override reason <span style="font-size:10px;font-weight:400;color:var(--ink-dim);">(optional)</span></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="p5-override-btns">
-          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="warmups_felt_strong" style="font-size:10px;padding:5px 9px;">Warmups felt strong</button>
-          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="deload_early" style="font-size:10px;padding:5px 9px;">Taking early deload</button>
-          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="pushed_through" style="font-size:10px;padding:5px 9px;">Pushed through fatigue</button>
-          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="technique_focus" style="font-size:10px;padding:5px 9px;">Technique focus day</button>
-          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="submax_day" style="font-size:10px;padding:5px 9px;">Intentionally submaximal</button>
-        </div>
-      </div>
-
-    </div><!-- /session-feedback-panel -->
-
     <div class="input" style="margin-top:10px;">
       <label>Session notes <span class="muted" style="text-transform:none;letter-spacing:0;">(optional)</span></label>
       <textarea id="lift-notes" rows="2" placeholder="How it felt, what to try next…" style="font-size:13px;"></textarea>
@@ -3396,7 +3275,6 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
       <div class="setting-row">
         <div><div class="lbl">Export backup</div><div class="meta">Save your data as JSON</div></div>
         <button class="btn ghost sm" id="btn-export">EXPORT</button>
-        <button class="btn ghost sm" id="btn-ai-export">AI PACKET</button>
       </div>
       <div class="setting-row">
         <div><div class="lbl">Import backup</div><div class="meta">Restore from JSON file</div></div>
@@ -3651,42 +3529,9 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.3";
+const APP_VERSION = "2026-05-16.9";
 
 const CHANGELOG = [
-  {
-    version: "2026-05-17.3",
-    title: "Exercise Library + Substitution Engine (Phase 7)",
-    items: [
-      "Rich exercise metadata added for 30+ key exercises: primary/secondary muscles, movement pattern, joint stress, fatigue cost, progression type, best rep range, technique cues, and substitutions.",
-      "Substitution engine: getSubstitutions(name, reason) returns role-preserving alternatives. Pain-triggered substitutions filter out high joint-stress options automatically.",
-      "Stale exercise detection: exercises used 12+ sessions unchanged are flagged in the post-session review (♻) and surface as swap recommendations on deload week.",
-      "AI export packet now includes substitution suggestions and technique cues for each exercise.",
-      "Dev console: ascendGetMeta(name), ascendGetSubs(name, reason), ascendStaleExercises(day), ascendGetCues(name).",
-    ]
-  },
-  {
-    version: "2026-05-17.2",
-    title: "Post-Session Review + Weekly Dashboard (Phase 6)",
-    items: [
-      "After saving a session, a review sheet appears showing next-session prescriptions with confidence scores, pain warnings, and enjoyment notes.",
-      "Today tab now shows a weekly dashboard: completed days (PU/PL/AR/LE chips), session count, avg duration, wave position, and muscle volume bars.",
-      "New AI PACKET button in Profile exports a structured Markdown review file for ChatGPT/Claude analysis including all prescriptions, reasoning, and flags.",
-      "ascendCoachDebug(day, exIdx) in the dev console shows the full decision breakdown for any exercise.",
-      "ascendExportAiPacket() in the dev console triggers the AI packet export.",
-    ]
-  },
-  {
-    version: "2026-05-16.9",
-    title: "Data Quality Layer (Phase 4) + User Feedback (Phase 5)",
-    items: [
-      "After each session, rate enjoyment (1–5 emoji), session length, technique quality (1–5), and any joint pain (shoulder/elbow/lower back/knee, 0–5 each).",
-      "Optional override reasons: warmups felt strong, early deload, technique focus day, etc.",
-      "Pain scores ≥3 now suppress optional extra sets and intensity techniques via the restraint gate.",
-      "All feedback is saved with the session and available in exports and the dev console.",
-      "Set classification (Phase 4): load-finding, warmup, failed, bodyweight now properly labeled.",
-    ]
-  },
   {
     version: "2026-05-16.9",
     title: "Data Quality Layer (Phase 4)",
@@ -5031,14 +4876,6 @@ function phase2RestraintGate() {
   ) : { score: null };
   const poorReadiness = readiness.score != null && readiness.score <= 2;
 
-  // Phase 5: Check most recent session pain score
-  const recentSession = STATE.sessions && STATE.sessions.length
-    ? sortSessionsChronological(STATE.sessions).slice(-1)[0]
-    : null;
-  const recentMaxPain = recentSession && recentSession.feedback
-    ? (recentSession.feedback.maxPain || 0) : 0;
-  const highPain = recentMaxPain >= 3; // pain 3+ = suppress optional stress
-
   // Session duration (minutes) from current live session start time
   let sessionMinutes = 0;
   if (typeof LIFT_START_TIME !== "undefined" && LIFT_START_TIME) {
@@ -5050,7 +4887,6 @@ function phase2RestraintGate() {
     !isDeload &&
     !aggCut &&
     !poorReadiness &&
-    !highPain &&
     sessionMinutes < 75;
 
   const suppressReason = !hasRotation  ? "baseline mode — first full rotation not yet complete" :
@@ -6663,278 +6499,6 @@ function goTab(tab) {
 $$(".tab").forEach(t => t.addEventListener("click", () => goTab(t.dataset.tab)));
 
 // ───────── 6. TODAY PAGE ─────────
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PHASE 6 — PRODUCT/UX LAYER
-// Post-session review · Weekly dashboard · AI export packet · Coach debug
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// ── Phase 6 Item 1: Post-session review ──────────────────────────────────
-function showPostSessionReview(session) {
-  if (!session) return;
-  const day = session.day;
-  const exercises = STATE.exercises[day] || [];
-  const wave = juggernautWaveForSession(session);
-  const vol = sessionVolume(session);
-  const dur = session.durationSec ? Math.round(session.durationSec / 60) : null;
-  const fb  = session.feedback || {};
-
-  // Build per-exercise summary
-  const lines = [];
-  exercises.forEach(function(ex, idx) {
-    var s = session.sets && session.sets[idx];
-    if (!s || s.s1r == null) return;
-    var p = progressionFor(day, idx);
-    var exName = ex.name.split(' ').slice(0, 3).join(' ');
-    var verdict = p.verdict;
-    var conf = p.confidence != null ? Math.round(p.confidence * 100) : null;
-    var icon = verdict === 'PROGRESS' ? '↑' : verdict === 'DELOAD' ? '↓' : verdict === 'HOLD' ? '→' : '•';
-    var confStr = conf != null && conf < 70 ? ' (' + conf + '%)' : '';
-    // Phase 7: attach stale-rotation flag if detected
-    var staleFlag = '';
-    if (!ex.leadLift) {
-      var staleSessions = sortSessionsChronological(trainingSessionsForDay(day))
-        .filter(function(s) { return s.sets && s.sets[idx] && s.sets[idx].s1r != null; }).length;
-      if (staleSessions >= 12) staleFlag = ' ♻';
-    }
-    lines.push(icon + ' ' + exName + confStr + staleFlag);
-  });
-
-  // Pain summary
-  var painParts = [];
-  if (fb.painScores) {
-    Object.entries(fb.painScores).forEach(function(e) {
-      if (e[1] >= 2) painParts.push(e[0] + ' ' + e[1] + '/5');
-    });
-  }
-
-  // Build review HTML for sheet
-  var html = '<h3 style="margin-bottom:12px;">' + day + ' \u2014 Session Review</h3>';
-
-  // Stats row
-  html += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
-  if (dur) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">DURATION</div><strong>' + dur + 'min</strong></div>';
-  if (vol > 0) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">VOLUME</div><strong>' + (vol/1000).toFixed(1) + 't</strong></div>';
-  html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">WAVE</div><strong>' + wave.name + '</strong></div>';
-  if (fb.techniqueScore) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">TECHNIQUE</div><strong>' + fb.techniqueScore + '/5</strong></div>';
-  html += '</div>';
-
-  // Next-session prescriptions
-  if (lines.length) {
-    html += '<div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.15em;color:var(--ink-dim);margin-bottom:6px;">NEXT SESSION</div>';
-    html += '<div style="background:var(--bg-elev-1);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.9;">';
-    html += lines.join('<br>');
-    html += '</div>';
-  }
-
-  // Pain warnings
-  if (painParts.length) {
-    html += '<div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;">';
-    html += '<span style="color:var(--bad);">\u26a0\ufe0f Pain flagged: ' + painParts.join(' \xb7 ') + '. Optional extras suppressed next session.</span>';
-    html += '</div>';
-  }
-
-  // Enjoyment note
-  if (fb.enjoyment && fb.enjoyment <= 2) {
-    html += '<div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--warn);">';
-    html += 'Low enjoyment logged \u2014 if repeated, the app may suggest exercise swaps.';
-    html += '</div>';
-  }
-
-  // Override reasons
-  if (fb.overrideReasons && fb.overrideReasons.length) {
-    html += '<div style="font-size:11px;color:var(--ink-dim);margin-bottom:12px;">';
-    html += 'Override: ' + fb.overrideReasons.join(' \xb7 ');
-    html += '</div>';
-  }
-
-  html += '<button class="btn ghost" onclick="closeSheet()" style="width:100%;margin-top:4px;">GOT IT \u2192</button>';
-
-  document.getElementById('sheet-body').innerHTML = html;
-  openSheet();
-}
-
-// ── Phase 6 Item 2: Weekly dashboard card ────────────────────────────────
-function buildWeeklyDashboardHTML() {
-  var today = todayISO();
-  var vol = weeklyVolumeByMuscle(7);
-  var gate = completedFullRotation();
-  var wave = juggernautWave(0, 'PUSH'); // representative wave
-  var sessions7 = (STATE.sessions || []).filter(function(s) {
-    return daysBetween(s.date, today) <= 7;
-  });
-
-  // Muscle volume strip
-  var muscles = ['chest','shoulders','back','biceps','triceps','quads','hamstrings','glutes'];
-  var muscleHTML = muscles.map(function(m) {
-    var lm = (typeof VOLUME_LANDMARKS !== 'undefined' ? VOLUME_LANDMARKS[m] : null) || { mev: 4, mav: 12, mrv: 20 };
-    var sets = vol[m] || 0;
-    var pct = Math.min(100, Math.round((sets / lm.mrv) * 100));
-    var color = sets === 0 ? 'var(--line)' : sets >= lm.mrv ? 'var(--bad)' : sets >= lm.mav ? 'var(--good)' : sets >= lm.mev ? 'var(--accent)' : 'var(--warn)';
-    return '<div style="flex:1;min-width:0;">'
-      + '<div style="font-size:8px;color:var(--ink-dim);font-family:var(--f-mono);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + m.slice(0,4).toUpperCase() + '</div>'
-      + '<div style="height:32px;background:var(--bg-elev-2);border-radius:4px;overflow:hidden;position:relative;">'
-      + '<div style="position:absolute;bottom:0;left:0;right:0;height:' + pct + '%;background:' + color + ';border-radius:4px;transition:height 0.3s;"></div>'
-      + '</div>'
-      + '<div style="font-size:9px;text-align:center;margin-top:2px;color:var(--ink-dim);">' + sets + '</div>'
-      + '</div>';
-  }).join('');
-
-  // Sessions completed this week
-  var completedDays = new Set(sessions7.map(function(s) { return s.day; }));
-  var dayOrder = ['PUSH','PULL','ARMS','LEGS'];
-  var dayColors = { PUSH: 'var(--push)', PULL: 'var(--pull)', ARMS: 'var(--arms)', LEGS: 'var(--legs)' };
-  var dayChips = dayOrder.map(function(d) {
-    var done = completedDays.has(d);
-    return '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;'
-      + 'background:' + (done ? dayColors[d] : 'var(--bg-elev-2)') + ';'
-      + 'color:' + (done ? 'white' : 'var(--ink-dim)') + ';">' + d.slice(0,2) + '</div>';
-  }).join('');
-
-  // Avg session duration this week
-  var durs = sessions7.filter(function(s) { return s.durationSec; }).map(function(s) { return Math.round(s.durationSec/60); });
-  var avgDur = durs.length ? Math.round(durs.reduce(function(a,b){return a+b;},0)/durs.length) : null;
-
-  return '<div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">'
-    + '<div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-dim);margin-bottom:10px;">WEEKLY OVERVIEW</div>'
-    // Day chips
-    + '<div style="display:flex;gap:6px;margin-bottom:12px;">' + dayChips + '</div>'
-    // Stats row
-    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">'
-    + '<div style="font-size:11px;color:var(--ink-mid);">' + sessions7.length + ' session' + (sessions7.length!==1?'s':'') + ' this week</div>'
-    + (avgDur ? '<div style="font-size:11px;color:var(--ink-mid);">\xb7 avg ' + avgDur + 'min</div>' : '')
-    + '<div style="font-size:11px;color:var(--ink-mid);">\xb7 ' + wave.name + ' week ' + wave.waveWeek + '/4</div>'
-    + (!gate ? '<div style="font-size:11px;color:var(--warn);">\xb7 Baseline mode active</div>' : '')
-    + '</div>'
-    // Volume bars
-    + '<div style="display:flex;gap:4px;align-items:flex-end;">' + muscleHTML + '</div>'
-    + '</div>';
-}
-
-// ── Phase 6 Item 3: AI review packet export ──────────────────────────────
-function exportAiReviewPacket() {
-  var today = todayISO();
-  var wave = juggernautWave(0, 'PUSH');
-  var vol = weeklyVolumeByMuscle(7);
-  var recentSessions = sortSessionsChronological(STATE.sessions || []).slice(-8);
-  var profile = STATE.profile || {};
-  var md = [];
-
-  md.push('# Ascend AI Review Packet');
-  md.push('Generated: ' + today + '  |  App: v' + APP_VERSION);
-  md.push('');
-  md.push('## Athlete Profile');
-  md.push('- Name: ' + (profile.name || 'Unknown'));
-  md.push('- Bodyweight: ' + (profile.bodyweight || '?') + 'kg');
-  md.push('- Goal: ' + (STATE.cut && STATE.cut.mode ? STATE.cut.mode : 'unknown'));
-  md.push('- Experience: ' + (profile.experienceLevel || 'unknown'));
-  md.push('- Program start: ' + (profile.trainingProgramStartedAt || profile.programStart || 'unknown'));
-  md.push('- Baseline rotation complete: ' + completedFullRotation());
-  md.push('');
-  md.push('## Current Training Block');
-  md.push('- Wave: ' + wave.name + ' (week ' + wave.waveWeek + '/4, cycle ' + wave.cycleNum + ')');
-  md.push('- Sessions total: ' + (STATE.sessions || []).length);
-  md.push('');
-  md.push('## Lead Lift Working Maxes');
-  ['PUSH','PULL','ARMS','LEGS'].forEach(function(day) {
-    var exs = STATE.exercises[day] || [];
-    var li = exs.findIndex(function(e) { return e.leadLift; });
-    if (li < 0) li = 0;
-    var ex = exs[li];
-    var wm = getWorkingMax(day, li);
-    if (ex) md.push('- ' + day + ' (' + ex.name + '): TM = ' + (wm ? wm + 'kg' : 'not set'));
-  });
-  md.push('');
-  md.push('## Weekly Volume (last 7 days, weighted sets)');
-  ['chest','shoulders','back','biceps','triceps','quads','hamstrings','glutes','abs','calves'].forEach(function(m) {
-    var sets = vol[m] || 0;
-    if (sets > 0) md.push('- ' + m + ': ' + sets + ' sets');
-  });
-  md.push('');
-  md.push('## Recent Sessions (last 8)');
-  recentSessions.forEach(function(s) {
-    var wv = juggernautWaveForSession(s);
-    var vol2 = sessionVolume(s);
-    var dur = s.durationSec ? Math.round(s.durationSec/60) + 'min' : '?';
-    var fb = s.feedback || {};
-    md.push('### ' + s.day + ' \u2014 ' + s.date + ' (' + wv.name + ')');
-    md.push('Duration: ' + dur + '  |  Volume: ' + (vol2/1000).toFixed(1) + 't');
-    if (fb.techniqueScore) md.push('Technique: ' + fb.techniqueScore + '/5');
-    if (fb.enjoyment) md.push('Enjoyment: ' + fb.enjoyment + '/5');
-    if (fb.maxPain && fb.maxPain >= 2) md.push('Max pain: ' + fb.maxPain + '/5');
-    if (fb.overrideReasons && fb.overrideReasons.length) md.push('Override: ' + fb.overrideReasons.join(', '));
-    // Lead lift
-    var exs = STATE.exercises[s.day] || [];
-    var li = exs.findIndex(function(e) { return e.leadLift; });
-    if (li < 0) li = 0;
-    var leadSet = s.sets && s.sets[li];
-    if (leadSet && leadSet.s1r != null) {
-      md.push('Lead lift: ' + (exs[li]&&exs[li].name||'?') + ' ' + (leadSet.s1w||0) + 'kg \xd7 ' + leadSet.s1r + ', ' + (leadSet.s2r||'?'));
-    }
-    md.push('');
-  });
-  md.push('## Next Session Prescriptions');
-  ['PUSH','PULL','ARMS','LEGS'].forEach(function(day) {
-    md.push('### ' + day);
-    var exs = STATE.exercises[day] || [];
-    exs.forEach(function(ex, idx) {
-      try {
-        var p = progressionFor(day, idx);
-        var conf = p.confidence != null ? ' [' + Math.round(p.confidence*100) + '%]' : '';
-        md.push('- ' + ex.name + ': ' + p.weight + 'kg \xd7 ' + p.reps + ' (' + p.verdict + ')' + conf);
-        if (p.reasoning && p.reasoning.length && p.reasoning[0] !== 'normal progression') {
-          md.push('  Reasoning: ' + p.reasoning.join(', '));
-        }
-        // Phase 7: include substitutions if stale or pain flagged
-        var subs = getSubstitutions(ex.name, 'general');
-        if (subs.length && !ex.leadLift) {
-          md.push('  Substitutions: ' + subs.slice(0,3).map(function(s){return s.name;}).join(' / '));
-        }
-        var cues = getExerciseCues(ex.name);
-        if (cues.length) md.push('  Cues: ' + cues.slice(0,2).join(' · '));
-      } catch(e) { md.push('- ' + ex.name + ': (error)'); }
-    });
-    md.push('');
-  });
-  md.push('## Known Issues / Flags');
-  var stateIssues = validateState(STATE);
-  if (stateIssues.length === 0) md.push('- No data quality issues detected');
-  else stateIssues.forEach(function(i) { md.push('- ' + i); });
-  md.push('');
-  md.push('---');
-  md.push('*Paste this packet into ChatGPT or Claude for coaching review.*');
-
-  var blob = new Blob([md.join('\n')], { type: 'text/markdown' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'ascend-ai-review-' + today + '.md';
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('AI REVIEW PACKET EXPORTED');
-}
-
-// ── Phase 6 Item 4: Coach/debug mode ─────────────────────────────────────
-function showCoachDebug(day, exIdx) {
-  var ex = STATE.exercises[day] && STATE.exercises[day][exIdx];
-  if (!ex) { console.log('Exercise not found'); return; }
-  var p = progressionFor(day, exIdx);
-  var gate = phase2RestraintGate();
-  console.group('Coach Debug: ' + day + '[' + exIdx + '] ' + ex.name);
-  console.log('Verdict:', p.verdict);
-  console.log('Weight:', p.weight + 'kg, Reps:', p.reps);
-  if (p.confidence != null) console.log('Confidence:', Math.round(p.confidence * 100) + '%');
-  if (p.reasoning) console.log('Reasoning:', p.reasoning);
-  console.log('Note:', p.note);
-  console.log('Wave:', p.wavePhase);
-  console.log('Restraint gate:', gate);
-  console.groupEnd();
-  return p;
-}
-window.ascendCoachDebug = showCoachDebug;
-window.ascendExportAiPacket = exportAiReviewPacket;
-
-
 function renderToday() {
   const today = todayISO();
   const start = STATE.profile.programStart;
@@ -6943,9 +6507,6 @@ function renderToday() {
   const phase = currentPhase(dayNum);
 
   $("#today-eyebrow").textContent = `${phaseName(phase)} · WEEK ${weekNum} · DAY ${dayNum}`;
-  // Phase 6: Inject weekly dashboard card
-  const weeklyDashEl = document.getElementById("today-weekly-dashboard");
-  if (weeklyDashEl) weeklyDashEl.innerHTML = buildWeeklyDashboardHTML();
   $("#today-date").textContent = formatDate(today);
 
   // Readiness score
@@ -9677,343 +9238,6 @@ function findDbMatch(name) {
   return best;
 }
 
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PHASE 7 — EXERCISE LIBRARY + SUBSTITUTION ENGINE
-// Rich metadata per exercise · substitution by role · rotation intelligence
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// Phase 7 Item 1: Rich exercise metadata library
-// Each entry extends the base EXERCISE_DB with detailed coaching knowledge.
-// Keys match normalized exercise names from findDbMatch().
-const EXERCISE_METADATA = {
-  // ── CHEST ──────────────────────────────────────────────────────────────
-  "Smith Incline Bench Press": {
-    primaryMuscle: "chest", secondaryMuscles: ["shoulders","triceps"],
-    movementPattern: "horizontal_push", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [6,12],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Barbell Incline Bench Press","Dumbbell Incline Bench Press","Machine Incline Press"],
-    cues: ["Retract scapula","Slight arch","Drive bar in arc toward chin","Full ROM — touch chest"]
-  },
-  "Dumbbell Incline Bench Press": {
-    primaryMuscle: "chest", secondaryMuscles: ["shoulders","triceps"],
-    movementPattern: "horizontal_push", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "high",
-    substitutions: ["Smith Incline Bench Press","Machine Incline Press","Barbell Incline Bench Press"],
-    cues: ["Neutral-to-prone grip","Full stretch at bottom","Don't flare elbows excessively"]
-  },
-  "Dumbbell Fly": {
-    primaryMuscle: "chest", secondaryMuscles: [],
-    movementPattern: "chest_fly", exerciseClass: "isolation",
-    jointStress: "moderate", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [12,20],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Cable Fly","Cable Low Fly","Machine Fly"],
-    cues: ["Slight elbow bend maintained","Lead with elbows","Stretch at bottom — don't overextend shoulder"]
-  },
-  "Cable Fly": {
-    primaryMuscle: "chest", secondaryMuscles: [],
-    movementPattern: "chest_fly", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [12,20],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Dumbbell Fly","Cable Low Fly","Machine Fly"],
-    cues: ["Constant tension throughout","Slight forward lean","Squeeze at peak contraction"]
-  },
-  // ── SHOULDERS ──────────────────────────────────────────────────────────
-  "DB Lateral Raise": {
-    primaryMuscle: "shoulders", secondaryMuscles: ["upper_traps"],
-    movementPattern: "shoulder_abduction", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [15,25],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Cable Lateral Raise (1-arm)","Machine Lateral Raise","Lean-Away Cable Lateral Raise"],
-    cues: ["Lead with elbows","Avoid shrugging","Slight forward lean","Control the eccentric","Thumb slightly down"]
-  },
-  "Cable Lateral Raise (1-arm)": {
-    primaryMuscle: "shoulders", secondaryMuscles: [],
-    movementPattern: "shoulder_abduction", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [15,25],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["DB Lateral Raise","Machine Lateral Raise","DB Lateral Raise"],
-    cues: ["Constant tension from cable","Lead with elbow","Slight forward lean"]
-  },
-  "Face Pull (cable)": {
-    primaryMuscle: "shoulders", secondaryMuscles: ["upper_traps","rear_delts"],
-    movementPattern: "shoulder_external_rotation", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [15,25],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Cable Rear Delt Fly","DB Rear Delt Fly","Band Pull Apart"],
-    cues: ["Pull to forehead level","External rotate at top","Elbows high throughout"]
-  },
-  "Smith Seated OHP": {
-    primaryMuscle: "shoulders", secondaryMuscles: ["triceps","upper_traps"],
-    movementPattern: "vertical_push", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Dumbbell Shoulder Press","Machine Shoulder Press","Barbell Overhead Press"],
-    cues: ["Bar path straight up","Core braced","Don't hyperextend lumbar"]
-  },
-  // ── BACK ───────────────────────────────────────────────────────────────
-  "Cable Row": {
-    primaryMuscle: "back", secondaryMuscles: ["biceps","rear_delts"],
-    movementPattern: "horizontal_pull", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Machine Row","DB Row","Barbell Row"],
-    cues: ["Retract scapula at finish","Don't lean back excessively","Pull to lower chest/upper abs"]
-  },
-  "Lat Pulldown (pronated)": {
-    primaryMuscle: "back", secondaryMuscles: ["biceps"],
-    movementPattern: "vertical_pull", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Lat Pulldown (neutral)","Assisted Pull-Up","Cable Pulldown"],
-    cues: ["Slight lean back","Pull to upper chest","Depress and retract scapula first","Full arm extension at top"]
-  },
-  // ── BICEPS ─────────────────────────────────────────────────────────────
-  "Cable Curl": {
-    primaryMuscle: "biceps", secondaryMuscles: ["forearms"],
-    movementPattern: "elbow_flexion", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [10,20],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["DB Curl","Incline DB Curl","EZ Bar Curl"],
-    cues: ["Full extension at bottom","Squeeze at top","Don't swing"]
-  },
-  "Incline DB Curl": {
-    primaryMuscle: "biceps", secondaryMuscles: [],
-    movementPattern: "elbow_flexion", exerciseClass: "isolation",
-    jointStress: "moderate", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [10,18],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Cable Curl","DB Curl","Bayesian Cable Curls"],
-    cues: ["Long head stretch emphasized","Don't let shoulders elevate","Supinate at top","Slow eccentric"]
-  },
-  // ── TRICEPS ────────────────────────────────────────────────────────────
-  "Cable OH Tricep Extension": {
-    primaryMuscle: "triceps", secondaryMuscles: [],
-    movementPattern: "elbow_extension", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [10,20],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["DB Overhead Tricep Extension","Rope OH Extension","Cross-body Cable Extension"],
-    cues: ["Long head stretch at bottom","Keep elbows stationary","Full lockout"]
-  },
-  "Tricep Pushdown (rope)": {
-    primaryMuscle: "triceps", secondaryMuscles: [],
-    movementPattern: "elbow_extension", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [12,20],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Triceps Pushdown (Straight bar)","Cable OH Tricep Extension","Machine Dip"],
-    cues: ["Elbows tight to sides","Spread rope at bottom","Full extension"]
-  },
-  "JM Smith Press": {
-    primaryMuscle: "triceps", secondaryMuscles: ["chest"],
-    movementPattern: "elbow_extension", exerciseClass: "compound",
-    jointStress: "high", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [6,12],
-    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
-    substitutions: ["Cable OH Tricep Extension","Tricep Pushdown (rope)","Cross-body Cable Extension","Machine Dip"],
-    cues: ["Bar path toward chin","Elbows tracking forward","Don't let wrists collapse","Reduce load if elbow pain"]
-  },
-  // ── LEGS ───────────────────────────────────────────────────────────────
-  "Hatfield Squat": {
-    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
-    movementPattern: "squat", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [6,12],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Leg Press","Hack Squat","Front Squat"],
-    cues: ["Upright torso","Knees track toes","Depth to parallel or below","Brace core"]
-  },
-  "Romanian Deadlift": {
-    primaryMuscle: "hamstrings", secondaryMuscles: ["glutes","lower_back"],
-    movementPattern: "hip_hinge", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
-    substitutions: ["Leg Curl","Single-leg RDL","Good Morning"],
-    cues: ["Hinge at hips","Bar close to legs","Feel hamstring stretch","Neutral spine throughout","Soft knee bend"]
-  },
-  "Bulgarian Split Squat": {
-    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
-    movementPattern: "lunge", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Single-leg Leg Press","Hack Squat","Leg Press","Split Squat Machine"],
-    cues: ["Front foot forward enough","Torso upright or slight lean","Don't let knee cave","Slow eccentric"]
-  },
-  "Hip Thrust (Smith)": {
-    primaryMuscle: "glutes", secondaryMuscles: ["hamstrings"],
-    movementPattern: "hip_extension", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [8,15],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Barbell Hip Thrust","Cable Pull-Through","Glute Bridge"],
-    cues: ["Chin tucked","Ribs down","Full hip extension at top","Squeeze glutes","Feet flat"]
-  },
-  "Leg Press": {
-    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
-    movementPattern: "squat", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [8,20],
-    techniqueSensitivity: "low", loadJumpSensitivity: "low",
-    substitutions: ["Hack Squat","Hatfield Squat","Machine Squat"],
-    cues: ["Full ROM — don't cut short","Don't lock out knees completely","Feet position changes emphasis"]
-  },
-  "Leg Extension": {
-    primaryMuscle: "quads", secondaryMuscles: [],
-    movementPattern: "knee_extension", exerciseClass: "isolation",
-    jointStress: "moderate", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [12,20],
-    techniqueSensitivity: "low", loadJumpSensitivity: "moderate",
-    substitutions: ["Leg Press","Sissy Squat"],
-    cues: ["Full extension at top","Control the descent","Pause at top"]
-  },
-  "Leg Curl": {
-    primaryMuscle: "hamstrings", secondaryMuscles: [],
-    movementPattern: "knee_flexion", exerciseClass: "isolation",
-    jointStress: "low", fatigueCost: "low",
-    progressionType: "rep_first", bestRepRange: [10,20],
-    techniqueSensitivity: "low", loadJumpSensitivity: "moderate",
-    substitutions: ["Romanian Deadlift","Glute Ham Raise","Nordic Curl"],
-    cues: ["Full ROM","Don't let hips lift","Squeeze at top","Slow eccentric"]
-  },
-  // ── CORE ───────────────────────────────────────────────────────────────
-  "Ab Rollout": {
-    primaryMuscle: "abs", secondaryMuscles: ["shoulders","lats"],
-    movementPattern: "anti_extension", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "rep_first", bestRepRange: [8,15],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Cable Crunch","Hanging Leg Raise","Plank"],
-    cues: ["Neutral spine","Don't let hips sag","Full extension only if stable","Pull back with lats"]
-  },
-};
-
-// Phase 7 Item 2: Substitution engine
-// Returns ordered substitution candidates preserving exercise role.
-function getSubstitutions(exerciseName, reason) {
-  reason = reason || "general";
-  var meta = getExerciseMeta(exerciseName);
-  var subs = [];
-
-  // First: use curated substitutions from metadata
-  if (meta && meta.substitutions && meta.substitutions.length) {
-    meta.substitutions.forEach(function(name) {
-      subs.push({ name: name, source: "curated", reason: reason });
-    });
-  }
-
-  // Second: find DB exercises with same primary muscle and movement
-  if (meta) {
-    var dbFallbacks = EXERCISE_DB.filter(function(ex) {
-      return ex.muscle === meta.primaryMuscle &&
-             ex.name !== exerciseName &&
-             !subs.some(function(s) { return s.name === ex.name; });
-    }).slice(0, 4);
-    dbFallbacks.forEach(function(ex) {
-      subs.push({ name: ex.name, source: "db_match", reason: reason });
-    });
-  }
-
-  // Annotate with reason-specific guidance
-  if (reason === "pain") {
-    subs = subs.filter(function(s) {
-      var m = getExerciseMeta(s.name);
-      return !m || m.jointStress !== "high";
-    });
-  }
-
-  return subs.slice(0, 5);
-}
-
-// Phase 7 Item 3: Exercise metadata lookup (merges DB + rich metadata)
-function getExerciseMeta(name) {
-  if (!name) return null;
-  // Exact match first
-  var rich = EXERCISE_METADATA[name];
-  if (rich) return rich;
-  // Try fuzzy match
-  var dbMatch = findDbMatch(name);
-  if (dbMatch) {
-    rich = EXERCISE_METADATA[dbMatch.name];
-    if (rich) return rich;
-    // Build minimal metadata from DB entry
-    return {
-      primaryMuscle: dbMatch.muscle,
-      secondaryMuscles: [],
-      movementPattern: dbMatch.movement,
-      exerciseClass: dbMatch.type,
-      jointStress: dbMatch.type === "compound" ? "moderate" : "low",
-      fatigueCost: dbMatch.type === "compound" ? "high" : "low",
-      progressionType: dbMatch.type === "compound" ? "load_first" : "rep_first",
-      bestRepRange: dbMatch.type === "compound" ? [6,12] : [10,20],
-      techniqueSensitivity: "moderate",
-      loadJumpSensitivity: "moderate",
-      substitutions: [],
-      cues: [],
-    };
-  }
-  return null;
-}
-
-// Phase 7 Item 4: Rotation intelligence
-// Detects when an exercise has been used for 3+ cycles without variation
-// Returns substitution suggestions for stale exercises.
-function detectStaleExercises(day) {
-  var exs = STATE.exercises[day] || [];
-  var sessions = sortSessionsChronological(trainingSessionsForDay(day));
-  var stale = [];
-
-  exs.forEach(function(ex, idx) {
-    if (ex.leadLift) return; // don't rotate lead lifts
-    // Count how many sessions this exercise has been logged unchanged
-    var consecutiveSessions = sessions.filter(function(s) {
-      return s.sets && s.sets[idx] && s.sets[idx].s1r != null &&
-             !(s.swappedExercises && s.swappedExercises[idx]);
-    }).length;
-    if (consecutiveSessions >= 12) { // 3 full 4-session cycles
-      var subs = getSubstitutions(ex.name, "rotation");
-      stale.push({
-        idx: idx,
-        name: ex.name,
-        sessions: consecutiveSessions,
-        message: ex.name + " used for " + consecutiveSessions + " sessions — consider a variation for fresh stimulus.",
-        substitutions: subs.slice(0, 3),
-      });
-    }
-  });
-
-  return stale;
-}
-
-// Phase 7 Item 5: Get coaching cues for an exercise
-function getExerciseCues(name) {
-  var meta = getExerciseMeta(name);
-  if (meta && meta.cues && meta.cues.length) return meta.cues;
-  return [];
-}
-
-// Expose Phase 7 tools globally
-window.ascendGetMeta        = getExerciseMeta;
-window.ascendGetSubs        = getSubstitutions;
-window.ascendStaleExercises = detectStaleExercises;
-window.ascendGetCues        = getExerciseCues;
-
-
 // Get all unique muscle groups from DB
 const ALL_MUSCLES = [...new Set(EXERCISE_DB.map(e => e.muscle))].sort();
 const MUSCLE_LABELS = {
@@ -10672,93 +9896,6 @@ document.getElementById("btn-start-lift").addEventListener("click", () => {
 
 // Energy rating buttons on lift gate
 let _lsgEnergy = null;
-
-// ── PHASE 5: Post-session feedback state ──
-const P5_FEEDBACK = {
-  enjoyment: null,
-  sessionLengthFelt: null,
-  techniqueScore: null,
-  painScores: { shoulder: 0, elbow: 0, lowerback: 0, knee: 0 },
-  overrideReasons: [],
-};
-
-function p5Reset() {
-  P5_FEEDBACK.enjoyment = null;
-  P5_FEEDBACK.sessionLengthFelt = null;
-  P5_FEEDBACK.techniqueScore = null;
-  P5_FEEDBACK.painScores = { shoulder: 0, elbow: 0, lowerback: 0, knee: 0 };
-  P5_FEEDBACK.overrideReasons = [];
-  document.querySelectorAll(".p5-btn, .p5-pain-btn").forEach(b => b.classList.remove("selected"));
-  const techLabel = document.getElementById("p5-technique-label");
-  if (techLabel) techLabel.textContent = "1=poor · 3=ok · 5=excellent";
-  const enjLabel = document.getElementById("p5-enjoyment-label");
-  if (enjLabel) enjLabel.textContent = "";
-}
-
-function p5ShowPanel() {
-  const panel = document.getElementById("session-feedback-panel");
-  if (panel) panel.style.display = "block";
-}
-
-function p5HidePanel() {
-  const panel = document.getElementById("session-feedback-panel");
-  if (panel) panel.style.display = "none";
-  p5Reset();
-}
-
-// Wire feedback buttons
-document.addEventListener("click", function(e) {
-  // Single-select buttons
-  const btn = e.target.closest(".p5-btn:not(.p5-multi)");
-  if (btn) {
-    const field = btn.dataset.field;
-    const val = btn.dataset.val;
-    if (!field || val === undefined) return;
-    // Deselect siblings
-    const parent = btn.parentElement;
-    parent.querySelectorAll(".p5-btn").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
-    P5_FEEDBACK[field] = isNaN(+val) ? val : +val;
-    // Update labels
-    if (field === "techniqueScore") {
-      const labels = ["", "Poor — major compensation", "Inconsistent", "Acceptable", "Good form", "Excellent — full ROM"];
-      const el = document.getElementById("p5-technique-label");
-      if (el) el.textContent = labels[+val] || "";
-    }
-    if (field === "enjoyment") {
-      const labels = ["", "Terrible", "Poor", "OK", "Good", "Great!"];
-      const el = document.getElementById("p5-enjoyment-label");
-      if (el) el.textContent = labels[+val] || "";
-    }
-  }
-
-  // Multi-select override reasons
-  const multiBtn = e.target.closest(".p5-btn.p5-multi");
-  if (multiBtn) {
-    const val = multiBtn.dataset.val;
-    if (!val) return;
-    const isSelected = multiBtn.classList.contains("selected");
-    if (isSelected) {
-      multiBtn.classList.remove("selected");
-      P5_FEEDBACK.overrideReasons = P5_FEEDBACK.overrideReasons.filter(r => r !== val);
-    } else {
-      multiBtn.classList.add("selected");
-      P5_FEEDBACK.overrideReasons.push(val);
-    }
-  }
-
-  // Pain buttons
-  const painBtn = e.target.closest(".p5-pain-btn");
-  if (painBtn) {
-    const joint = painBtn.dataset.joint;
-    const val = +(painBtn.dataset.val || 0);
-    if (!joint) return;
-    const row = document.getElementById("p5-pain-" + joint);
-    if (row) row.querySelectorAll(".p5-pain-btn").forEach(b => b.classList.remove("selected"));
-    painBtn.classList.add("selected");
-    P5_FEEDBACK.painScores[joint] = val;
-  }
-});
 const ENERGY_LABELS = { 1: "Very low energy", 2: "Below average", 3: "Average", 4: "Feeling good", 5: "Peak energy 🔥" };
 document.querySelectorAll(".lsg-energy-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -10798,17 +9935,6 @@ $("#btn-save-session").addEventListener("click", () => {
 
   // Build session object
   const isEditing = !!LIFT_EDITING_ID;
-  // Phase 5: Build feedback object from P5_FEEDBACK state
-  const p5data = !isEditing ? {
-    enjoyment:         P5_FEEDBACK.enjoyment,
-    sessionLengthFelt: P5_FEEDBACK.sessionLengthFelt,
-    techniqueScore:    P5_FEEDBACK.techniqueScore,
-    painScores:        { ...P5_FEEDBACK.painScores },
-    overrideReasons:   P5_FEEDBACK.overrideReasons.length ? [...P5_FEEDBACK.overrideReasons] : null,
-    // Compute max pain for quick gate checks
-    maxPain: Math.max(0, ...Object.values(P5_FEEDBACK.painScores)),
-  } : (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.feedback ?? null);
-
   const session = {
     id: isEditing ? LIFT_EDITING_ID : `s-${Date.now()}`,
     day: LIFT_DRAFT.day,
@@ -10819,9 +9945,9 @@ $("#btn-save-session").addEventListener("click", () => {
     rpe: LIFT_SET_RPE.map(r => ({ s1: r.s1, s2: r.s2 })),
     extraSets: LIFT_EXTRA_SETS.map(e => ({ sets: (e?.sets || []).filter(s => s.done) })),
     techniques: LIFT_TECHNIQUES.map(t => (t && t !== "skipped") ? t : null),
-    energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null,
-    feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
+    energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null, // only save completed extra sets
     durationSec: isEditing
+      // preserve existing duration if editing
       ? (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
   };
@@ -10848,8 +9974,6 @@ $("#btn-save-session").addEventListener("click", () => {
     toast("SESSION UPDATED");
   } else {
     toast(`${LIFT_DRAFT.day} SAVED${durStr}${volStr}${prStr}`);
-    // Phase 6: post-session review
-    setTimeout(() => showPostSessionReview(session), 1800);
 
     // Juggernaut: after Realization week, recalculate working max from AMRAP performance
     const saveWave = juggernautWaveForSession(session);
@@ -10883,8 +10007,6 @@ $("#btn-save-session").addEventListener("click", () => {
       }
     }
   }
-  // Phase 5: hide feedback panel and reset state
-  p5HidePanel();
   // Reset draft (back to a fresh recommendation for the same day)
   selectLiftDay(LIFT_DRAFT.day);
 });
@@ -12960,9 +12082,6 @@ function openProgramCalibrationSheet() {
   });
 }
 
-document.getElementById("btn-ai-export").addEventListener("click", function() {
-  exportAiReviewPacket();
-});
 $("#btn-export").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -14608,30 +13727,6 @@ function generateMrvRecommendations() {
   }
 
   recs.push(...swapRecs);
-
-  // Phase 7: During deload week, flag stale exercises as swap candidates
-  var currentWave = juggernautWave(0, null);
-  if (currentWave && currentWave.name === "DELOAD") {
-    DAY_ORDER.forEach(function(day) {
-      var stale = detectStaleExercises(day);
-      stale.forEach(function(s) {
-        if (!recs.some(function(r) { return r.fromExercise === s.name; })) {
-          recs.push({
-            severity: "low",
-            muscle: (STATE.exercises[day][s.idx] && exercisePrimaryMuscleFromWeights(STATE.exercises[day][s.idx].name)) || "unknown",
-            action: "swap",
-            title: s.name.split(" ").slice(0,3).join(" ") + " — ROTATION DUE",
-            body: s.message + (s.substitutions.length ? " Suggestions: " + s.substitutions.map(function(x){return x.name;}).join(", ") + "." : ""),
-            fromExercise: s.name,
-            toExercise: s.substitutions[0] && s.substitutions[0].name,
-            fromIdx: s.idx,
-            day: day,
-            source: "phase7_rotation"
-          });
-        }
-      });
-    });
-  }
 
   // Sort: over MRV first, then high, then low/zero
   const order = { over: 0, swap: 1, high: 2, low: 3, zero: 4 };
