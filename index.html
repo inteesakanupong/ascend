@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.4";
+const CACHE = "ascend-2026-05-17.3";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -2849,22 +2849,22 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="p5-pain-grid">
           <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Shoulder</div>
             <div style="display:flex;gap:4px;" id="p5-pain-shoulder">
-              <button class="p5-pain-btn" data-joint="shoulder" data-val="0" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">0</button><button class="p5-pain-btn" data-joint="shoulder" data-val="1" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">1</button><button class="p5-pain-btn" data-joint="shoulder" data-val="2" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">2</button><button class="p5-pain-btn" data-joint="shoulder" data-val="3" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">3</button><button class="p5-pain-btn" data-joint="shoulder" data-val="4" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">4</button><button class="p5-pain-btn" data-joint="shoulder" data-val="5" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">5</button>
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="shoulder" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
             </div>
           </div>
           <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Elbow</div>
             <div style="display:flex;gap:4px;" id="p5-pain-elbow">
-              <button class="p5-pain-btn" data-joint="elbow" data-val="0" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">0</button><button class="p5-pain-btn" data-joint="elbow" data-val="1" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">1</button><button class="p5-pain-btn" data-joint="elbow" data-val="2" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">2</button><button class="p5-pain-btn" data-joint="elbow" data-val="3" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">3</button><button class="p5-pain-btn" data-joint="elbow" data-val="4" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">4</button><button class="p5-pain-btn" data-joint="elbow" data-val="5" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">5</button>
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="elbow" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
             </div>
           </div>
           <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Lower back</div>
             <div style="display:flex;gap:4px;" id="p5-pain-lowerback">
-              <button class="p5-pain-btn" data-joint="lowerback" data-val="0" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">0</button><button class="p5-pain-btn" data-joint="lowerback" data-val="1" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">1</button><button class="p5-pain-btn" data-joint="lowerback" data-val="2" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">2</button><button class="p5-pain-btn" data-joint="lowerback" data-val="3" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">3</button><button class="p5-pain-btn" data-joint="lowerback" data-val="4" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">4</button><button class="p5-pain-btn" data-joint="lowerback" data-val="5" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">5</button>
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="lowerback" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
             </div>
           </div>
           <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Knee</div>
             <div style="display:flex;gap:4px;" id="p5-pain-knee">
-              <button class="p5-pain-btn" data-joint="knee" data-val="0" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">0</button><button class="p5-pain-btn" data-joint="knee" data-val="1" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">1</button><button class="p5-pain-btn" data-joint="knee" data-val="2" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">2</button><button class="p5-pain-btn" data-joint="knee" data-val="3" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">3</button><button class="p5-pain-btn" data-joint="knee" data-val="4" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">4</button><button class="p5-pain-btn" data-joint="knee" data-val="5" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">5</button>
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="knee" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
             </div>
           </div>
         </div>
@@ -3651,21 +3651,9 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.4";
+const APP_VERSION = "2026-05-17.3";
 
 const CHANGELOG = [
-  {
-    version: "2026-05-17.4",
-    title: "Alex Leonidas Exercise Library (Phase 7 Extended)",
-    items: [
-      "16 Alex Leonidas / unconventional exercises added to the exercise metadata library with full coaching notes sourced from his YouTube and alexleonidas.com.",
-      "AD Press: seated OHP at 70-80° for maximum anterior delt stretch — his signature shoulder builder.",
-      "Sissy Squat, Good Morning, Box Squat, Hack Deadlift: full posterior chain and quad coverage with Alex's technique cues.",
-      "Neck Curl / Neck Extension: yoke training exercises with safe progression cues — a core part of the Naturally Enhanced system.",
-      "Chest Expander Pull-Apart, Dual Rope Pushdown, Pendlay Row, Reverse Hyperextension, Weighted Pull-Up, Preacher Curl, Standing Cable Crunch, Overhead Barbell Extension, Seated Leg Curl all catalogued.",
-      "All new exercises appear in the exercise picker and support substitution suggestions.",
-    ]
-  },
   {
     version: "2026-05-17.3",
     title: "Exercise Library + Substitution Engine (Phase 7)",
@@ -9623,20 +9611,6 @@ const EXERCISE_DB_RAW = [
   ["Leg Curl","hamstrings","legs","machine","isolation"],
   ["Nordic Hamstring Curl","hamstrings","legs","bodyweight","isolation"],
   ["Cable Pull-Through","hamstrings","legs","cable","isolation"],
-  ["Reverse Hyperextension","glutes","legs","machine","isolation"],
-  ["Good Morning","hamstrings","legs","barbell","compound"],
-  ["Box Squat","glutes","legs","barbell","compound"],
-  ["Hack Deadlift","quads","legs","barbell","compound"],
-  // Alex Leonidas unconventional — upper body
-  ["AD Press","shoulders","push","barbell","compound"],
-  ["Chest Expander Pull-Apart","shoulders","pull","cable","isolation"],
-  ["Dual Rope Pushdown","triceps","push","cable","isolation"],
-  ["Pendlay Row","back","pull","barbell","compound"],
-  ["Weighted Pull-Up","back","pull","bodyweight","compound"],
-  ["Overhead Barbell Extension","triceps","push","barbell","isolation"],
-  ["Standing Cable Crunch","abs","core","cable","isolation"],
-  ["Preacher Curl","biceps","pull","barbell","isolation"],
-
   ["Good Morning (for hamstrings)","hamstrings","legs","barbell","compound"],
   // ── GLUTES ───────────────────────────────────────────────────────────────
   ["Hip Thrust","glutes","legs","barbell","compound"],
@@ -9917,70 +9891,7 @@ const EXERCISE_METADATA = {
     substitutions: ["Romanian Deadlift","Glute Ham Raise","Nordic Curl"],
     cues: ["Full ROM","Don't let hips lift","Squeeze at top","Slow eccentric"]
   },
-  // ── ALEX LEONIDAS / UNCONVENTIONAL EXERCISES ──────────────────────────
-  // Source: Alex Leonidas (Alpha Destiny) YouTube, alexleonidas.com
-  // These exercises are central to his Naturally Enhanced philosophy:
-  // yoke development, stretch-mediated hypertrophy, unconventional overload.
-
-  "AD Press": {
-    // The Alpha Destiny Press — seated OHP at 70-80° back angle.
-    // Alex credits this for breaking through intermediate plateaus.
-    // The layback lets elbows get behind torso at bottom, maximising
-    // anterior delt stretch and upper chest involvement.
-    primaryMuscle: "shoulders", secondaryMuscles: ["chest","triceps"],
-    movementPattern: "vertical_push", exerciseClass: "compound",
-    jointStress: "low", fatigueCost: "moderate",
-    progressionType: "load_first", bestRepRange: [6,12],
-    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
-    substitutions: ["Smith Seated OHP","Dumbbell Shoulder Press","Barbell Overhead Press"],
-    cues: [
-      "Set pad to 70-80° — NOT fully upright",
-      "Let elbows drift behind torso at bottom for anterior delt stretch",
-      "Drive bar straight up — don't push it forward",
-      "Core braced — the back support is for stability, not to sag into",
-      "Full lockout at top"
-    ]
-  },
-
-  "Sissy Squat": {
-    // Alex advocates this as a pure quad isolator superior to leg extension
-    // for sweep development. High technique sensitivity — knees must be healthy.
-    primaryMuscle: "quads", secondaryMuscles: [],
-    movementPattern: "knee_extension", exerciseClass: "isolation",
-    jointStress: "high", fatigueCost: "moderate",
-    progressionType: "rep_first", bestRepRange: [8,20],
-    techniqueSensitivity: "high", loadJumpSensitivity: "high",
-    substitutions: ["Leg Extension","Leg Press","Hack Squat"],
-    cues: [
-      "Hold something for balance — this is a knee-dominant movement",
-      "Lean back as you descend — do NOT maintain an upright torso",
-      "Full knee flexion — feel the quad stretch at the bottom",
-      "Don't do these with knee pain — substitute leg extension instead",
-      "Bodyweight first, then add load via plate or vest"
-    ]
-  },
-
-  "Good Morning": {
-    // Alex's favourite hip hinge — he prefers it over RDL for hamstring/erector
-    // development, citing smoother recovery and bigger posterior chain gains.
-    // He reported glutes, hamstrings, and spinal erectors all grew faster than with RDL.
-    primaryMuscle: "hamstrings", secondaryMuscles: ["glutes","lower_back"],
-    movementPattern: "hip_hinge", exerciseClass: "compound",
-    jointStress: "moderate", fatigueCost: "high",
-    progressionType: "load_first", bestRepRange: [6,10],
-    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
-    substitutions: ["Romanian Deadlift","Stiff-Leg Deadlift","Cable Pull-Through"],
-    cues: [
-      "Bar high on traps — not low-bar squat position",
-      "Soft knee bend — this is a hip hinge not a squat",
-      "Push hips BACK — feel the hamstring stretch at the bottom",
-      "Neutral spine throughout — don't round",
-      "Alex: start light and go high rep (6-10) — treat it as a hypertrophy movement"
-    ]
-  },
-
-
-  // ── END ALEX LEONIDAS EXERCISES ─────────────────────────────────────────
+  // ── CORE ───────────────────────────────────────────────────────────────
   "Ab Rollout": {
     primaryMuscle: "abs", secondaryMuscles: ["shoulders","lats"],
     movementPattern: "anti_extension", exerciseClass: "compound",
