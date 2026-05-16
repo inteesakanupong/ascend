@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.3";
+const CACHE = "ascend-2026-05-17.4";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3651,9 +3651,21 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.3";
+const APP_VERSION = "2026-05-17.4";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.4",
+    title: "Alex Leonidas Exercise Library (Phase 7 Extended)",
+    items: [
+      "16 Alex Leonidas / unconventional exercises added to the exercise metadata library with full coaching notes sourced from his YouTube and alexleonidas.com.",
+      "AD Press: seated OHP at 70-80° for maximum anterior delt stretch — his signature shoulder builder.",
+      "Sissy Squat, Good Morning, Box Squat, Hack Deadlift: full posterior chain and quad coverage with Alex's technique cues.",
+      "Neck Curl / Neck Extension: yoke training exercises with safe progression cues — a core part of the Naturally Enhanced system.",
+      "Chest Expander Pull-Apart, Dual Rope Pushdown, Pendlay Row, Reverse Hyperextension, Weighted Pull-Up, Preacher Curl, Standing Cable Crunch, Overhead Barbell Extension, Seated Leg Curl all catalogued.",
+      "All new exercises appear in the exercise picker and support substitution suggestions.",
+    ]
+  },
   {
     version: "2026-05-17.3",
     title: "Exercise Library + Substitution Engine (Phase 7)",
@@ -9611,6 +9623,22 @@ const EXERCISE_DB_RAW = [
   ["Leg Curl","hamstrings","legs","machine","isolation"],
   ["Nordic Hamstring Curl","hamstrings","legs","bodyweight","isolation"],
   ["Cable Pull-Through","hamstrings","legs","cable","isolation"],
+  ["Reverse Hyperextension","glutes","legs","machine","isolation"],
+  ["Good Morning","hamstrings","legs","barbell","compound"],
+  ["Box Squat","glutes","legs","barbell","compound"],
+  ["Hack Deadlift","quads","legs","barbell","compound"],
+  // Alex Leonidas unconventional — upper body
+  ["AD Press","shoulders","push","barbell","compound"],
+  ["Chest Expander Pull-Apart","shoulders","pull","other","isolation"],
+  ["Dual Rope Pushdown","triceps","push","cable","isolation"],
+  ["Pendlay Row","back","pull","barbell","compound"],
+  ["Weighted Pull-Up","back","pull","bodyweight","compound"],
+  ["Overhead Barbell Extension","triceps","push","barbell","isolation"],
+  ["Standing Cable Crunch","abs","core","cable","isolation"],
+  ["Preacher Curl","biceps","pull","barbell","isolation"],
+  // Yoke / neck
+  ["Neck Curl","neck","pull","bodyweight","isolation"],
+  ["Neck Extension","neck","push","bodyweight","isolation"],
   ["Good Morning (for hamstrings)","hamstrings","legs","barbell","compound"],
   // ── GLUTES ───────────────────────────────────────────────────────────────
   ["Hip Thrust","glutes","legs","barbell","compound"],
@@ -9891,7 +9919,309 @@ const EXERCISE_METADATA = {
     substitutions: ["Romanian Deadlift","Glute Ham Raise","Nordic Curl"],
     cues: ["Full ROM","Don't let hips lift","Squeeze at top","Slow eccentric"]
   },
-  // ── CORE ───────────────────────────────────────────────────────────────
+  // ── ALEX LEONIDAS / UNCONVENTIONAL EXERCISES ──────────────────────────
+  // Source: Alex Leonidas (Alpha Destiny) YouTube, alexleonidas.com
+  // These exercises are central to his Naturally Enhanced philosophy:
+  // yoke development, stretch-mediated hypertrophy, unconventional overload.
+
+  "AD Press": {
+    // The Alpha Destiny Press — seated OHP at 70-80° back angle.
+    // Alex credits this for breaking through intermediate plateaus.
+    // The layback lets elbows get behind torso at bottom, maximising
+    // anterior delt stretch and upper chest involvement.
+    primaryMuscle: "shoulders", secondaryMuscles: ["chest","triceps"],
+    movementPattern: "vertical_push", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [6,12],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Smith Seated OHP","Dumbbell Shoulder Press","Barbell Overhead Press"],
+    cues: [
+      "Set pad to 70-80° — NOT fully upright",
+      "Let elbows drift behind torso at bottom for anterior delt stretch",
+      "Drive bar straight up — don't push it forward",
+      "Core braced — the back support is for stability, not to sag into",
+      "Full lockout at top"
+    ]
+  },
+
+  "Sissy Squat": {
+    // Alex advocates this as a pure quad isolator superior to leg extension
+    // for sweep development. High technique sensitivity — knees must be healthy.
+    primaryMuscle: "quads", secondaryMuscles: [],
+    movementPattern: "knee_extension", exerciseClass: "isolation",
+    jointStress: "high", fatigueCost: "moderate",
+    progressionType: "rep_first", bestRepRange: [8,20],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Leg Extension","Leg Press","Hack Squat"],
+    cues: [
+      "Hold something for balance — this is a knee-dominant movement",
+      "Lean back as you descend — do NOT maintain an upright torso",
+      "Full knee flexion — feel the quad stretch at the bottom",
+      "Don't do these with knee pain — substitute leg extension instead",
+      "Bodyweight first, then add load via plate or vest"
+    ]
+  },
+
+  "Good Morning": {
+    // Alex's favourite hip hinge — he prefers it over RDL for hamstring/erector
+    // development, citing smoother recovery and bigger posterior chain gains.
+    // He reported glutes, hamstrings, and spinal erectors all grew faster than with RDL.
+    primaryMuscle: "hamstrings", secondaryMuscles: ["glutes","lower_back"],
+    movementPattern: "hip_hinge", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [6,10],
+    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
+    substitutions: ["Romanian Deadlift","Stiff-Leg Deadlift","Cable Pull-Through"],
+    cues: [
+      "Bar high on traps — not low-bar squat position",
+      "Soft knee bend — this is a hip hinge not a squat",
+      "Push hips BACK — feel the hamstring stretch at the bottom",
+      "Neutral spine throughout — don't round",
+      "Alex: start light and go high rep (6-10) — treat it as a hypertrophy movement"
+    ]
+  },
+
+  "Neck Curl": {
+    // A signature Alex Leonidas / yoke exercise. He advocates neck training
+    // heavily — a thick neck and traps is central to the 'Naturally Enhanced' look.
+    // 90lb x100 reps is one of his noted lifts.
+    primaryMuscle: "neck", secondaryMuscles: [],
+    movementPattern: "neck_flexion", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [15,30],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Machine Neck Flexion","Band Neck Curl","Neck Harness"],
+    cues: [
+      "Lie face up on a bench — plate on forehead with towel padding",
+      "Full ROM: chin-to-chest and back",
+      "Slow, controlled — this is NOT a momentum exercise",
+      "Start very light (5-10kg plate) regardless of strength",
+      "Alex: build to high reps first before adding load"
+    ]
+  },
+
+  "Neck Extension": {
+    primaryMuscle: "neck", secondaryMuscles: ["upper_traps"],
+    movementPattern: "neck_extension", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [15,30],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Machine Neck Extension","Band Neck Extension","Neck Harness"],
+    cues: [
+      "Lie face down on bench — plate or harness on back of head",
+      "Full ROM: tuck chin then extend fully",
+      "No bouncing — pure muscle contraction",
+      "Alex logged 270lb x50 on machine — build volume gradually"
+    ]
+  },
+
+  "Chest Expander Pull-Apart": {
+    // Alex's #9 top exercise — he credits chest expander pull-aparts for
+    // his exceptional yoke development (rear delts, upper back, traps).
+    // He places them above face pulls for rear delt/trap density.
+    primaryMuscle: "shoulders", secondaryMuscles: ["upper_traps","rear_delts","rhomboids"],
+    movementPattern: "shoulder_horizontal_abduction", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [5,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "high",
+    substitutions: ["Face Pull (cable)","Band Pull-Apart","Cable Rear Delt Fly"],
+    cues: [
+      "Use a chest expander (spring-based) — NOT a resistance band",
+      "Full extension — pull all the way to chest level",
+      "Overhand and underhand grip variations for full yoke coverage",
+      "Max out for reps — Alex uses 5-7 springs",
+      "Alex: this created 'dense, sinewy' rear delt/trap development no cable exercise matched"
+    ]
+  },
+
+  "Dual Rope Pushdown": {
+    // Alex's preferred tricep isolation — two ropes simultaneously.
+    // He learned it from John Meadows. Key difference from single rope:
+    // allows shoulder extension so the long head is fully activated.
+    primaryMuscle: "triceps", secondaryMuscles: [],
+    movementPattern: "elbow_extension", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,20],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Tricep Pushdown (rope)","Cable OH Tricep Extension","Triceps Pushdown (Straight bar)"],
+    cues: [
+      "Two separate ropes attached to the cable — not one rope",
+      "Arms can extend back behind hips at the bottom — this is the point",
+      "Allows shoulder extension unlike a fixed bar, hitting the long head",
+      "Elbows stay close to body throughout",
+      "Alex: elbow-friendly, excellent warmup before heavier extension work"
+    ]
+  },
+
+  "Seated Leg Curl": {
+    // Alex's #10 top exercise. He regrets not prioritising leg curls earlier
+    // — hip hinges alone failed to develop his hamstrings. The seated version
+    // emphasises the lengthened position (straight leg at start).
+    primaryMuscle: "hamstrings", secondaryMuscles: [],
+    movementPattern: "knee_flexion", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [8,20],
+    techniqueSensitivity: "low", loadJumpSensitivity: "moderate",
+    substitutions: ["Leg Curl","Nordic Curl","Glute Ham Raise"],
+    cues: [
+      "Seated (not lying) preferred — emphasises lengthened hamstring position",
+      "Full extension at top — don't cut the ROM",
+      "Squeeze hard at full flexion",
+      "Alex: prioritise this even over hip hinges for isolated hamstring growth",
+      "Start your leg session with leg curls to warm up the knee"
+    ]
+  },
+
+  "Box Squat": {
+    // Central to Alex's programming. He prefers box squats over free squats
+    // for novices and intermediate lifters — the box eliminates forward knee
+    // travel, making it more posterior-chain dominant. Sit fully on the box.
+    primaryMuscle: "glutes", secondaryMuscles: ["hamstrings","quads"],
+    movementPattern: "squat", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [4,8],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Hatfield Squat","Leg Press","Safety Bar Squat"],
+    cues: [
+      "Sit BACK and DOWN — not just down like a free squat",
+      "SIT fully on the box — release hip flexors, then drive up",
+      "Wider stance than free squat — toes out",
+      "Box at parallel or just below",
+      "More posterior chain than free squat — complements RDL/good mornings"
+    ]
+  },
+
+  "Weighted Pull-Up": {
+    // Alex's #1 back exercise — he built an 'elite bodybuilder level back'
+    // almost exclusively from pull-ups. He eventually hit 180lb weighted.
+    // High stimulus-to-fatigue ratio, covers lower lats, overall lat width and thickness.
+    primaryMuscle: "back", secondaryMuscles: ["biceps","rear_delts"],
+    movementPattern: "vertical_pull", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [3,10],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Lat Pulldown (pronated)","Lat Pulldown (neutral)","Assisted Pull-Up"],
+    cues: [
+      "Dead hang start — full scapular depression before pulling",
+      "Pull chest to bar — chin over isn't enough",
+      "Controlled descent — don't drop",
+      "Alex: overhand, neutral, or underhand all valid — rotate for variety",
+      "Alex: when you can do BW + your bodyweight for reps, your back cannot be small"
+    ]
+  },
+
+  "Pendlay Row": {
+    // Alex's preferred horizontal pull — the bar starts dead on the floor
+    // each rep, eliminating momentum. He hit 365lb x5.
+    // Teaches explosive pulling and keeps the lower back more honest than bent-over rows.
+    primaryMuscle: "back", secondaryMuscles: ["biceps","rear_delts"],
+    movementPattern: "horizontal_pull", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [4,8],
+    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
+    substitutions: ["Cable Row","Barbell Row","T-Bar Row","DB Row"],
+    cues: [
+      "Bar on floor between every rep — dead stop",
+      "Torso parallel to floor — this is NOT a bent-over row",
+      "Explosive pull, controlled descent",
+      "Elbows flare slightly — this is a back-dominant movement",
+      "Pull to lower chest/upper abs"
+    ]
+  },
+
+  "Reverse Hyperextension": {
+    // Featured in Alex's programs alongside good mornings and RDLs.
+    // Very low spinal load — the spine stays fixed, hips extend freely.
+    // Great for glute/hamstring hypertrophy and lower back health.
+    primaryMuscle: "glutes", secondaryMuscles: ["hamstrings","lower_back"],
+    movementPattern: "hip_extension", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,25],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Hip Thrust (Smith)","Cable Pull-Through","Glute Bridge"],
+    cues: [
+      "Lie face-down on bench — hips at edge",
+      "Squeeze glutes and raise legs — don't use momentum",
+      "Full hip extension at top",
+      "No spinal flexion — back stays neutral",
+      "High reps work well — 15-25 per set"
+    ]
+  },
+
+  "Preacher Curl": {
+    // Alex's preferred bicep isolation — places the humerus in front of the body,
+    // maximising long head stretch and removing cheat potential.
+    primaryMuscle: "biceps", secondaryMuscles: [],
+    movementPattern: "elbow_flexion", exerciseClass: "isolation",
+    jointStress: "moderate", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [8,15],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Incline DB Curl","Cable Curl","Bayesian Cable Curls"],
+    cues: [
+      "Upper arm flat on pad — don't let it rise at the top",
+      "Full extension at bottom — feel the long head stretch",
+      "Supinate wrist as you curl",
+      "Don't bounce at the bottom — high elbow-stress at full extension",
+      "Alex prefers EZ bar or DB preacher over standing curls"
+    ]
+  },
+
+  "Hack Deadlift": {
+    // One of Alex's notable lifts (655lb). The bar starts BEHIND the legs,
+    // forcing an extremely upright torso — very quad dominant, also traps/yoke.
+    primaryMuscle: "quads", secondaryMuscles: ["glutes","upper_traps"],
+    movementPattern: "squat", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [4,8],
+    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
+    substitutions: ["Hack Squat","Leg Press","Hatfield Squat"],
+    cues: [
+      "Bar starts directly behind your calves — not in front",
+      "Very upright torso — think of it as a squat, not a deadlift",
+      "Knees track over toes throughout",
+      "Requires good ankle mobility — elevate heels if needed",
+      "Start very light — the movement pattern is awkward initially"
+    ]
+  },
+
+  "Standing Cable Crunch": {
+    // Alex's core exercise of choice in his programs. Standing (not kneeling)
+    // puts greater stretch on the abs through the full ROM.
+    primaryMuscle: "abs", secondaryMuscles: [],
+    movementPattern: "spinal_flexion", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,20],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Cable Crunch","Hanging Leg Raise","Ab Rollout"],
+    cues: [
+      "Stand — don't kneel. Standing increases ROM and stretch",
+      "Hinge at the HIPS as you crunch — not just bending forward",
+      "Rope attachment at forehead — don't pull with arms",
+      "Feel the abs elongate at the top before crunching",
+      "Alex programs these at 3x10-20 across all workout days"
+    ]
+  },
+
+  "Overhead Barbell Extension": {
+    // Alex's tricep compound — he recommends this over flat skullcrushers
+    // because it biases the long head (the largest tricep head).
+    // Can be done standing or seated.
+    primaryMuscle: "triceps", secondaryMuscles: [],
+    movementPattern: "elbow_extension", exerciseClass: "isolation",
+    jointStress: "moderate", fatigueCost: "low",
+    progressionType: "load_first", bestRepRange: [6,12],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Cable OH Tricep Extension","EZ Bar Skullcrusher","DB Overhead Tricep Extension"],
+    cues: [
+      "Bar starts behind head — full long head stretch",
+      "Elbows stay pointed at ceiling — don't flare them out",
+      "Lower slowly — the stretch position is the stimulus",
+      "Alex: this is why he avoids flat skullcrushers — no long head stretch",
+      "Seated or standing both valid — seated is more stable"
+    ]
+  },
+
+  // ── END ALEX LEONIDAS EXERCISES ─────────────────────────────────────────
   "Ab Rollout": {
     primaryMuscle: "abs", secondaryMuscles: ["shoulders","lats"],
     movementPattern: "anti_extension", exerciseClass: "compound",
