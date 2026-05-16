@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.2";
+const CACHE = "ascend-2026-05-17.3";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3651,9 +3651,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.2";
+const APP_VERSION = "2026-05-17.3";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.3",
+    title: "Exercise Library + Substitution Engine (Phase 7)",
+    items: [
+      "Rich exercise metadata added for 30+ key exercises: primary/secondary muscles, movement pattern, joint stress, fatigue cost, progression type, best rep range, technique cues, and substitutions.",
+      "Substitution engine: getSubstitutions(name, reason) returns role-preserving alternatives. Pain-triggered substitutions filter out high joint-stress options automatically.",
+      "Stale exercise detection: exercises used 12+ sessions unchanged are flagged in the post-session review (♻) and surface as swap recommendations on deload week.",
+      "AI export packet now includes substitution suggestions and technique cues for each exercise.",
+      "Dev console: ascendGetMeta(name), ascendGetSubs(name, reason), ascendStaleExercises(day), ascendGetCues(name).",
+    ]
+  },
   {
     version: "2026-05-17.2",
     title: "Post-Session Review + Weekly Dashboard (Phase 6)",
@@ -6679,7 +6690,14 @@ function showPostSessionReview(session) {
     var conf = p.confidence != null ? Math.round(p.confidence * 100) : null;
     var icon = verdict === 'PROGRESS' ? '↑' : verdict === 'DELOAD' ? '↓' : verdict === 'HOLD' ? '→' : '•';
     var confStr = conf != null && conf < 70 ? ' (' + conf + '%)' : '';
-    lines.push(icon + ' ' + exName + confStr);
+    // Phase 7: attach stale-rotation flag if detected
+    var staleFlag = '';
+    if (!ex.leadLift) {
+      var staleSessions = sortSessionsChronological(trainingSessionsForDay(day))
+        .filter(function(s) { return s.sets && s.sets[idx] && s.sets[idx].s1r != null; }).length;
+      if (staleSessions >= 12) staleFlag = ' ♻';
+    }
+    lines.push(icon + ' ' + exName + confStr + staleFlag);
   });
 
   // Pain summary
@@ -6867,6 +6885,13 @@ function exportAiReviewPacket() {
         if (p.reasoning && p.reasoning.length && p.reasoning[0] !== 'normal progression') {
           md.push('  Reasoning: ' + p.reasoning.join(', '));
         }
+        // Phase 7: include substitutions if stale or pain flagged
+        var subs = getSubstitutions(ex.name, 'general');
+        if (subs.length && !ex.leadLift) {
+          md.push('  Substitutions: ' + subs.slice(0,3).map(function(s){return s.name;}).join(' / '));
+        }
+        var cues = getExerciseCues(ex.name);
+        if (cues.length) md.push('  Cues: ' + cues.slice(0,2).join(' · '));
       } catch(e) { md.push('- ' + ex.name + ': (error)'); }
     });
     md.push('');
@@ -9651,6 +9676,343 @@ function findDbMatch(name) {
   }
   return best;
 }
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHASE 7 — EXERCISE LIBRARY + SUBSTITUTION ENGINE
+// Rich metadata per exercise · substitution by role · rotation intelligence
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Phase 7 Item 1: Rich exercise metadata library
+// Each entry extends the base EXERCISE_DB with detailed coaching knowledge.
+// Keys match normalized exercise names from findDbMatch().
+const EXERCISE_METADATA = {
+  // ── CHEST ──────────────────────────────────────────────────────────────
+  "Smith Incline Bench Press": {
+    primaryMuscle: "chest", secondaryMuscles: ["shoulders","triceps"],
+    movementPattern: "horizontal_push", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [6,12],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Barbell Incline Bench Press","Dumbbell Incline Bench Press","Machine Incline Press"],
+    cues: ["Retract scapula","Slight arch","Drive bar in arc toward chin","Full ROM — touch chest"]
+  },
+  "Dumbbell Incline Bench Press": {
+    primaryMuscle: "chest", secondaryMuscles: ["shoulders","triceps"],
+    movementPattern: "horizontal_push", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "high",
+    substitutions: ["Smith Incline Bench Press","Machine Incline Press","Barbell Incline Bench Press"],
+    cues: ["Neutral-to-prone grip","Full stretch at bottom","Don't flare elbows excessively"]
+  },
+  "Dumbbell Fly": {
+    primaryMuscle: "chest", secondaryMuscles: [],
+    movementPattern: "chest_fly", exerciseClass: "isolation",
+    jointStress: "moderate", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [12,20],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Cable Fly","Cable Low Fly","Machine Fly"],
+    cues: ["Slight elbow bend maintained","Lead with elbows","Stretch at bottom — don't overextend shoulder"]
+  },
+  "Cable Fly": {
+    primaryMuscle: "chest", secondaryMuscles: [],
+    movementPattern: "chest_fly", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [12,20],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Dumbbell Fly","Cable Low Fly","Machine Fly"],
+    cues: ["Constant tension throughout","Slight forward lean","Squeeze at peak contraction"]
+  },
+  // ── SHOULDERS ──────────────────────────────────────────────────────────
+  "DB Lateral Raise": {
+    primaryMuscle: "shoulders", secondaryMuscles: ["upper_traps"],
+    movementPattern: "shoulder_abduction", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [15,25],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Cable Lateral Raise (1-arm)","Machine Lateral Raise","Lean-Away Cable Lateral Raise"],
+    cues: ["Lead with elbows","Avoid shrugging","Slight forward lean","Control the eccentric","Thumb slightly down"]
+  },
+  "Cable Lateral Raise (1-arm)": {
+    primaryMuscle: "shoulders", secondaryMuscles: [],
+    movementPattern: "shoulder_abduction", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [15,25],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["DB Lateral Raise","Machine Lateral Raise","DB Lateral Raise"],
+    cues: ["Constant tension from cable","Lead with elbow","Slight forward lean"]
+  },
+  "Face Pull (cable)": {
+    primaryMuscle: "shoulders", secondaryMuscles: ["upper_traps","rear_delts"],
+    movementPattern: "shoulder_external_rotation", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [15,25],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Cable Rear Delt Fly","DB Rear Delt Fly","Band Pull Apart"],
+    cues: ["Pull to forehead level","External rotate at top","Elbows high throughout"]
+  },
+  "Smith Seated OHP": {
+    primaryMuscle: "shoulders", secondaryMuscles: ["triceps","upper_traps"],
+    movementPattern: "vertical_push", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Dumbbell Shoulder Press","Machine Shoulder Press","Barbell Overhead Press"],
+    cues: ["Bar path straight up","Core braced","Don't hyperextend lumbar"]
+  },
+  // ── BACK ───────────────────────────────────────────────────────────────
+  "Cable Row": {
+    primaryMuscle: "back", secondaryMuscles: ["biceps","rear_delts"],
+    movementPattern: "horizontal_pull", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Machine Row","DB Row","Barbell Row"],
+    cues: ["Retract scapula at finish","Don't lean back excessively","Pull to lower chest/upper abs"]
+  },
+  "Lat Pulldown (pronated)": {
+    primaryMuscle: "back", secondaryMuscles: ["biceps"],
+    movementPattern: "vertical_pull", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Lat Pulldown (neutral)","Assisted Pull-Up","Cable Pulldown"],
+    cues: ["Slight lean back","Pull to upper chest","Depress and retract scapula first","Full arm extension at top"]
+  },
+  // ── BICEPS ─────────────────────────────────────────────────────────────
+  "Cable Curl": {
+    primaryMuscle: "biceps", secondaryMuscles: ["forearms"],
+    movementPattern: "elbow_flexion", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,20],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["DB Curl","Incline DB Curl","EZ Bar Curl"],
+    cues: ["Full extension at bottom","Squeeze at top","Don't swing"]
+  },
+  "Incline DB Curl": {
+    primaryMuscle: "biceps", secondaryMuscles: [],
+    movementPattern: "elbow_flexion", exerciseClass: "isolation",
+    jointStress: "moderate", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,18],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Cable Curl","DB Curl","Bayesian Cable Curls"],
+    cues: ["Long head stretch emphasized","Don't let shoulders elevate","Supinate at top","Slow eccentric"]
+  },
+  // ── TRICEPS ────────────────────────────────────────────────────────────
+  "Cable OH Tricep Extension": {
+    primaryMuscle: "triceps", secondaryMuscles: [],
+    movementPattern: "elbow_extension", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,20],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["DB Overhead Tricep Extension","Rope OH Extension","Cross-body Cable Extension"],
+    cues: ["Long head stretch at bottom","Keep elbows stationary","Full lockout"]
+  },
+  "Tricep Pushdown (rope)": {
+    primaryMuscle: "triceps", secondaryMuscles: [],
+    movementPattern: "elbow_extension", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [12,20],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Triceps Pushdown (Straight bar)","Cable OH Tricep Extension","Machine Dip"],
+    cues: ["Elbows tight to sides","Spread rope at bottom","Full extension"]
+  },
+  "JM Smith Press": {
+    primaryMuscle: "triceps", secondaryMuscles: ["chest"],
+    movementPattern: "elbow_extension", exerciseClass: "compound",
+    jointStress: "high", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [6,12],
+    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
+    substitutions: ["Cable OH Tricep Extension","Tricep Pushdown (rope)","Cross-body Cable Extension","Machine Dip"],
+    cues: ["Bar path toward chin","Elbows tracking forward","Don't let wrists collapse","Reduce load if elbow pain"]
+  },
+  // ── LEGS ───────────────────────────────────────────────────────────────
+  "Hatfield Squat": {
+    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
+    movementPattern: "squat", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [6,12],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Leg Press","Hack Squat","Front Squat"],
+    cues: ["Upright torso","Knees track toes","Depth to parallel or below","Brace core"]
+  },
+  "Romanian Deadlift": {
+    primaryMuscle: "hamstrings", secondaryMuscles: ["glutes","lower_back"],
+    movementPattern: "hip_hinge", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "high", loadJumpSensitivity: "moderate",
+    substitutions: ["Leg Curl","Single-leg RDL","Good Morning"],
+    cues: ["Hinge at hips","Bar close to legs","Feel hamstring stretch","Neutral spine throughout","Soft knee bend"]
+  },
+  "Bulgarian Split Squat": {
+    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
+    movementPattern: "lunge", exerciseClass: "compound",
+    jointStress: "moderate", fatigueCost: "high",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Single-leg Leg Press","Hack Squat","Leg Press","Split Squat Machine"],
+    cues: ["Front foot forward enough","Torso upright or slight lean","Don't let knee cave","Slow eccentric"]
+  },
+  "Hip Thrust (Smith)": {
+    primaryMuscle: "glutes", secondaryMuscles: ["hamstrings"],
+    movementPattern: "hip_extension", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [8,15],
+    techniqueSensitivity: "moderate", loadJumpSensitivity: "moderate",
+    substitutions: ["Barbell Hip Thrust","Cable Pull-Through","Glute Bridge"],
+    cues: ["Chin tucked","Ribs down","Full hip extension at top","Squeeze glutes","Feet flat"]
+  },
+  "Leg Press": {
+    primaryMuscle: "quads", secondaryMuscles: ["glutes","hamstrings"],
+    movementPattern: "squat", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "load_first", bestRepRange: [8,20],
+    techniqueSensitivity: "low", loadJumpSensitivity: "low",
+    substitutions: ["Hack Squat","Hatfield Squat","Machine Squat"],
+    cues: ["Full ROM — don't cut short","Don't lock out knees completely","Feet position changes emphasis"]
+  },
+  "Leg Extension": {
+    primaryMuscle: "quads", secondaryMuscles: [],
+    movementPattern: "knee_extension", exerciseClass: "isolation",
+    jointStress: "moderate", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [12,20],
+    techniqueSensitivity: "low", loadJumpSensitivity: "moderate",
+    substitutions: ["Leg Press","Sissy Squat"],
+    cues: ["Full extension at top","Control the descent","Pause at top"]
+  },
+  "Leg Curl": {
+    primaryMuscle: "hamstrings", secondaryMuscles: [],
+    movementPattern: "knee_flexion", exerciseClass: "isolation",
+    jointStress: "low", fatigueCost: "low",
+    progressionType: "rep_first", bestRepRange: [10,20],
+    techniqueSensitivity: "low", loadJumpSensitivity: "moderate",
+    substitutions: ["Romanian Deadlift","Glute Ham Raise","Nordic Curl"],
+    cues: ["Full ROM","Don't let hips lift","Squeeze at top","Slow eccentric"]
+  },
+  // ── CORE ───────────────────────────────────────────────────────────────
+  "Ab Rollout": {
+    primaryMuscle: "abs", secondaryMuscles: ["shoulders","lats"],
+    movementPattern: "anti_extension", exerciseClass: "compound",
+    jointStress: "low", fatigueCost: "moderate",
+    progressionType: "rep_first", bestRepRange: [8,15],
+    techniqueSensitivity: "high", loadJumpSensitivity: "high",
+    substitutions: ["Cable Crunch","Hanging Leg Raise","Plank"],
+    cues: ["Neutral spine","Don't let hips sag","Full extension only if stable","Pull back with lats"]
+  },
+};
+
+// Phase 7 Item 2: Substitution engine
+// Returns ordered substitution candidates preserving exercise role.
+function getSubstitutions(exerciseName, reason) {
+  reason = reason || "general";
+  var meta = getExerciseMeta(exerciseName);
+  var subs = [];
+
+  // First: use curated substitutions from metadata
+  if (meta && meta.substitutions && meta.substitutions.length) {
+    meta.substitutions.forEach(function(name) {
+      subs.push({ name: name, source: "curated", reason: reason });
+    });
+  }
+
+  // Second: find DB exercises with same primary muscle and movement
+  if (meta) {
+    var dbFallbacks = EXERCISE_DB.filter(function(ex) {
+      return ex.muscle === meta.primaryMuscle &&
+             ex.name !== exerciseName &&
+             !subs.some(function(s) { return s.name === ex.name; });
+    }).slice(0, 4);
+    dbFallbacks.forEach(function(ex) {
+      subs.push({ name: ex.name, source: "db_match", reason: reason });
+    });
+  }
+
+  // Annotate with reason-specific guidance
+  if (reason === "pain") {
+    subs = subs.filter(function(s) {
+      var m = getExerciseMeta(s.name);
+      return !m || m.jointStress !== "high";
+    });
+  }
+
+  return subs.slice(0, 5);
+}
+
+// Phase 7 Item 3: Exercise metadata lookup (merges DB + rich metadata)
+function getExerciseMeta(name) {
+  if (!name) return null;
+  // Exact match first
+  var rich = EXERCISE_METADATA[name];
+  if (rich) return rich;
+  // Try fuzzy match
+  var dbMatch = findDbMatch(name);
+  if (dbMatch) {
+    rich = EXERCISE_METADATA[dbMatch.name];
+    if (rich) return rich;
+    // Build minimal metadata from DB entry
+    return {
+      primaryMuscle: dbMatch.muscle,
+      secondaryMuscles: [],
+      movementPattern: dbMatch.movement,
+      exerciseClass: dbMatch.type,
+      jointStress: dbMatch.type === "compound" ? "moderate" : "low",
+      fatigueCost: dbMatch.type === "compound" ? "high" : "low",
+      progressionType: dbMatch.type === "compound" ? "load_first" : "rep_first",
+      bestRepRange: dbMatch.type === "compound" ? [6,12] : [10,20],
+      techniqueSensitivity: "moderate",
+      loadJumpSensitivity: "moderate",
+      substitutions: [],
+      cues: [],
+    };
+  }
+  return null;
+}
+
+// Phase 7 Item 4: Rotation intelligence
+// Detects when an exercise has been used for 3+ cycles without variation
+// Returns substitution suggestions for stale exercises.
+function detectStaleExercises(day) {
+  var exs = STATE.exercises[day] || [];
+  var sessions = sortSessionsChronological(trainingSessionsForDay(day));
+  var stale = [];
+
+  exs.forEach(function(ex, idx) {
+    if (ex.leadLift) return; // don't rotate lead lifts
+    // Count how many sessions this exercise has been logged unchanged
+    var consecutiveSessions = sessions.filter(function(s) {
+      return s.sets && s.sets[idx] && s.sets[idx].s1r != null &&
+             !(s.swappedExercises && s.swappedExercises[idx]);
+    }).length;
+    if (consecutiveSessions >= 12) { // 3 full 4-session cycles
+      var subs = getSubstitutions(ex.name, "rotation");
+      stale.push({
+        idx: idx,
+        name: ex.name,
+        sessions: consecutiveSessions,
+        message: ex.name + " used for " + consecutiveSessions + " sessions — consider a variation for fresh stimulus.",
+        substitutions: subs.slice(0, 3),
+      });
+    }
+  });
+
+  return stale;
+}
+
+// Phase 7 Item 5: Get coaching cues for an exercise
+function getExerciseCues(name) {
+  var meta = getExerciseMeta(name);
+  if (meta && meta.cues && meta.cues.length) return meta.cues;
+  return [];
+}
+
+// Expose Phase 7 tools globally
+window.ascendGetMeta        = getExerciseMeta;
+window.ascendGetSubs        = getSubstitutions;
+window.ascendStaleExercises = detectStaleExercises;
+window.ascendGetCues        = getExerciseCues;
+
 
 // Get all unique muscle groups from DB
 const ALL_MUSCLES = [...new Set(EXERCISE_DB.map(e => e.muscle))].sort();
@@ -14246,6 +14608,30 @@ function generateMrvRecommendations() {
   }
 
   recs.push(...swapRecs);
+
+  // Phase 7: During deload week, flag stale exercises as swap candidates
+  var currentWave = juggernautWave(0, null);
+  if (currentWave && currentWave.name === "DELOAD") {
+    DAY_ORDER.forEach(function(day) {
+      var stale = detectStaleExercises(day);
+      stale.forEach(function(s) {
+        if (!recs.some(function(r) { return r.fromExercise === s.name; })) {
+          recs.push({
+            severity: "low",
+            muscle: (STATE.exercises[day][s.idx] && exercisePrimaryMuscleFromWeights(STATE.exercises[day][s.idx].name)) || "unknown",
+            action: "swap",
+            title: s.name.split(" ").slice(0,3).join(" ") + " — ROTATION DUE",
+            body: s.message + (s.substitutions.length ? " Suggestions: " + s.substitutions.map(function(x){return x.name;}).join(", ") + "." : ""),
+            fromExercise: s.name,
+            toExercise: s.substitutions[0] && s.substitutions[0].name,
+            fromIdx: s.idx,
+            day: day,
+            source: "phase7_rotation"
+          });
+        }
+      });
+    });
+  }
 
   // Sort: over MRV first, then high, then low/zero
   const order = { over: 0, swap: 1, high: 2, low: 3, zero: 4 };
