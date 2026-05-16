@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.1";
+const CACHE = "ascend-2026-05-17.2";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -2557,7 +2557,8 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
         <div style="font-size:11px;font-weight:700;color:var(--good);letter-spacing:0.1em;">SESSION LOGGED TODAY</div>
         <div class="muted" style="font-size:11px;margin-top:2px;" id="today-session-done-meta">—</div>
       </div>
-      <div id="today-readiness" style="display:none; margin-top:10px; padding:10px 14px; background:var(--bg-elev-2); border-radius:10px; border-left:3px solid var(--ink-dim);">
+      <div id="today-weekly-dashboard"></div>
+    <div id="today-readiness" style="display:none; margin-top:10px; padding:10px 14px; background:var(--bg-elev-2); border-radius:10px; border-left:3px solid var(--ink-dim);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:10px;font-weight:700;color:var(--ink-dim);letter-spacing:0.12em;">READINESS</span>
           <span id="today-readiness-score" style="font-family:var(--f-mono); font-weight:900; font-size:14px; letter-spacing:0.06em;">—</span>
@@ -3395,6 +3396,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
       <div class="setting-row">
         <div><div class="lbl">Export backup</div><div class="meta">Save your data as JSON</div></div>
         <button class="btn ghost sm" id="btn-export">EXPORT</button>
+        <button class="btn ghost sm" id="btn-ai-export">AI PACKET</button>
       </div>
       <div class="setting-row">
         <div><div class="lbl">Import backup</div><div class="meta">Restore from JSON file</div></div>
@@ -3649,9 +3651,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.1";
+const APP_VERSION = "2026-05-17.2";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.2",
+    title: "Post-Session Review + Weekly Dashboard (Phase 6)",
+    items: [
+      "After saving a session, a review sheet appears showing next-session prescriptions with confidence scores, pain warnings, and enjoyment notes.",
+      "Today tab now shows a weekly dashboard: completed days (PU/PL/AR/LE chips), session count, avg duration, wave position, and muscle volume bars.",
+      "New AI PACKET button in Profile exports a structured Markdown review file for ChatGPT/Claude analysis including all prescriptions, reasoning, and flags.",
+      "ascendCoachDebug(day, exIdx) in the dev console shows the full decision breakdown for any exercise.",
+      "ascendExportAiPacket() in the dev console triggers the AI packet export.",
+    ]
+  },
   {
     version: "2026-05-16.9",
     title: "Data Quality Layer (Phase 4) + User Feedback (Phase 5)",
@@ -6639,6 +6652,264 @@ function goTab(tab) {
 $$(".tab").forEach(t => t.addEventListener("click", () => goTab(t.dataset.tab)));
 
 // ───────── 6. TODAY PAGE ─────────
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHASE 6 — PRODUCT/UX LAYER
+// Post-session review · Weekly dashboard · AI export packet · Coach debug
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ── Phase 6 Item 1: Post-session review ──────────────────────────────────
+function showPostSessionReview(session) {
+  if (!session) return;
+  const day = session.day;
+  const exercises = STATE.exercises[day] || [];
+  const wave = juggernautWaveForSession(session);
+  const vol = sessionVolume(session);
+  const dur = session.durationSec ? Math.round(session.durationSec / 60) : null;
+  const fb  = session.feedback || {};
+
+  // Build per-exercise summary
+  const lines = [];
+  exercises.forEach(function(ex, idx) {
+    var s = session.sets && session.sets[idx];
+    if (!s || s.s1r == null) return;
+    var p = progressionFor(day, idx);
+    var exName = ex.name.split(' ').slice(0, 3).join(' ');
+    var verdict = p.verdict;
+    var conf = p.confidence != null ? Math.round(p.confidence * 100) : null;
+    var icon = verdict === 'PROGRESS' ? '↑' : verdict === 'DELOAD' ? '↓' : verdict === 'HOLD' ? '→' : '•';
+    var confStr = conf != null && conf < 70 ? ' (' + conf + '%)' : '';
+    lines.push(icon + ' ' + exName + confStr);
+  });
+
+  // Pain summary
+  var painParts = [];
+  if (fb.painScores) {
+    Object.entries(fb.painScores).forEach(function(e) {
+      if (e[1] >= 2) painParts.push(e[0] + ' ' + e[1] + '/5');
+    });
+  }
+
+  // Build review HTML for sheet
+  var html = '<h3 style="margin-bottom:12px;">' + day + ' \u2014 Session Review</h3>';
+
+  // Stats row
+  html += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
+  if (dur) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">DURATION</div><strong>' + dur + 'min</strong></div>';
+  if (vol > 0) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">VOLUME</div><strong>' + (vol/1000).toFixed(1) + 't</strong></div>';
+  html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">WAVE</div><strong>' + wave.name + '</strong></div>';
+  if (fb.techniqueScore) html += '<div style="background:var(--bg-elev-2);border-radius:8px;padding:8px 12px;font-size:12px;"><div style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">TECHNIQUE</div><strong>' + fb.techniqueScore + '/5</strong></div>';
+  html += '</div>';
+
+  // Next-session prescriptions
+  if (lines.length) {
+    html += '<div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.15em;color:var(--ink-dim);margin-bottom:6px;">NEXT SESSION</div>';
+    html += '<div style="background:var(--bg-elev-1);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.9;">';
+    html += lines.join('<br>');
+    html += '</div>';
+  }
+
+  // Pain warnings
+  if (painParts.length) {
+    html += '<div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;">';
+    html += '<span style="color:var(--bad);">\u26a0\ufe0f Pain flagged: ' + painParts.join(' \xb7 ') + '. Optional extras suppressed next session.</span>';
+    html += '</div>';
+  }
+
+  // Enjoyment note
+  if (fb.enjoyment && fb.enjoyment <= 2) {
+    html += '<div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--warn);">';
+    html += 'Low enjoyment logged \u2014 if repeated, the app may suggest exercise swaps.';
+    html += '</div>';
+  }
+
+  // Override reasons
+  if (fb.overrideReasons && fb.overrideReasons.length) {
+    html += '<div style="font-size:11px;color:var(--ink-dim);margin-bottom:12px;">';
+    html += 'Override: ' + fb.overrideReasons.join(' \xb7 ');
+    html += '</div>';
+  }
+
+  html += '<button class="btn ghost" onclick="closeSheet()" style="width:100%;margin-top:4px;">GOT IT \u2192</button>';
+
+  document.getElementById('sheet-body').innerHTML = html;
+  openSheet();
+}
+
+// ── Phase 6 Item 2: Weekly dashboard card ────────────────────────────────
+function buildWeeklyDashboardHTML() {
+  var today = todayISO();
+  var vol = weeklyVolumeByMuscle(7);
+  var gate = completedFullRotation();
+  var wave = juggernautWave(0, 'PUSH'); // representative wave
+  var sessions7 = (STATE.sessions || []).filter(function(s) {
+    return daysBetween(s.date, today) <= 7;
+  });
+
+  // Muscle volume strip
+  var muscles = ['chest','shoulders','back','biceps','triceps','quads','hamstrings','glutes'];
+  var muscleHTML = muscles.map(function(m) {
+    var lm = (typeof VOLUME_LANDMARKS !== 'undefined' ? VOLUME_LANDMARKS[m] : null) || { mev: 4, mav: 12, mrv: 20 };
+    var sets = vol[m] || 0;
+    var pct = Math.min(100, Math.round((sets / lm.mrv) * 100));
+    var color = sets === 0 ? 'var(--line)' : sets >= lm.mrv ? 'var(--bad)' : sets >= lm.mav ? 'var(--good)' : sets >= lm.mev ? 'var(--accent)' : 'var(--warn)';
+    return '<div style="flex:1;min-width:0;">'
+      + '<div style="font-size:8px;color:var(--ink-dim);font-family:var(--f-mono);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + m.slice(0,4).toUpperCase() + '</div>'
+      + '<div style="height:32px;background:var(--bg-elev-2);border-radius:4px;overflow:hidden;position:relative;">'
+      + '<div style="position:absolute;bottom:0;left:0;right:0;height:' + pct + '%;background:' + color + ';border-radius:4px;transition:height 0.3s;"></div>'
+      + '</div>'
+      + '<div style="font-size:9px;text-align:center;margin-top:2px;color:var(--ink-dim);">' + sets + '</div>'
+      + '</div>';
+  }).join('');
+
+  // Sessions completed this week
+  var completedDays = new Set(sessions7.map(function(s) { return s.day; }));
+  var dayOrder = ['PUSH','PULL','ARMS','LEGS'];
+  var dayColors = { PUSH: 'var(--push)', PULL: 'var(--pull)', ARMS: 'var(--arms)', LEGS: 'var(--legs)' };
+  var dayChips = dayOrder.map(function(d) {
+    var done = completedDays.has(d);
+    return '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;'
+      + 'background:' + (done ? dayColors[d] : 'var(--bg-elev-2)') + ';'
+      + 'color:' + (done ? 'white' : 'var(--ink-dim)') + ';">' + d.slice(0,2) + '</div>';
+  }).join('');
+
+  // Avg session duration this week
+  var durs = sessions7.filter(function(s) { return s.durationSec; }).map(function(s) { return Math.round(s.durationSec/60); });
+  var avgDur = durs.length ? Math.round(durs.reduce(function(a,b){return a+b;},0)/durs.length) : null;
+
+  return '<div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">'
+    + '<div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-dim);margin-bottom:10px;">WEEKLY OVERVIEW</div>'
+    // Day chips
+    + '<div style="display:flex;gap:6px;margin-bottom:12px;">' + dayChips + '</div>'
+    // Stats row
+    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">'
+    + '<div style="font-size:11px;color:var(--ink-mid);">' + sessions7.length + ' session' + (sessions7.length!==1?'s':'') + ' this week</div>'
+    + (avgDur ? '<div style="font-size:11px;color:var(--ink-mid);">\xb7 avg ' + avgDur + 'min</div>' : '')
+    + '<div style="font-size:11px;color:var(--ink-mid);">\xb7 ' + wave.name + ' week ' + wave.waveWeek + '/4</div>'
+    + (!gate ? '<div style="font-size:11px;color:var(--warn);">\xb7 Baseline mode active</div>' : '')
+    + '</div>'
+    // Volume bars
+    + '<div style="display:flex;gap:4px;align-items:flex-end;">' + muscleHTML + '</div>'
+    + '</div>';
+}
+
+// ── Phase 6 Item 3: AI review packet export ──────────────────────────────
+function exportAiReviewPacket() {
+  var today = todayISO();
+  var wave = juggernautWave(0, 'PUSH');
+  var vol = weeklyVolumeByMuscle(7);
+  var recentSessions = sortSessionsChronological(STATE.sessions || []).slice(-8);
+  var profile = STATE.profile || {};
+  var md = [];
+
+  md.push('# Ascend AI Review Packet');
+  md.push('Generated: ' + today + '  |  App: v' + APP_VERSION);
+  md.push('');
+  md.push('## Athlete Profile');
+  md.push('- Name: ' + (profile.name || 'Unknown'));
+  md.push('- Bodyweight: ' + (profile.bodyweight || '?') + 'kg');
+  md.push('- Goal: ' + (STATE.cut && STATE.cut.mode ? STATE.cut.mode : 'unknown'));
+  md.push('- Experience: ' + (profile.experienceLevel || 'unknown'));
+  md.push('- Program start: ' + (profile.trainingProgramStartedAt || profile.programStart || 'unknown'));
+  md.push('- Baseline rotation complete: ' + completedFullRotation());
+  md.push('');
+  md.push('## Current Training Block');
+  md.push('- Wave: ' + wave.name + ' (week ' + wave.waveWeek + '/4, cycle ' + wave.cycleNum + ')');
+  md.push('- Sessions total: ' + (STATE.sessions || []).length);
+  md.push('');
+  md.push('## Lead Lift Working Maxes');
+  ['PUSH','PULL','ARMS','LEGS'].forEach(function(day) {
+    var exs = STATE.exercises[day] || [];
+    var li = exs.findIndex(function(e) { return e.leadLift; });
+    if (li < 0) li = 0;
+    var ex = exs[li];
+    var wm = getWorkingMax(day, li);
+    if (ex) md.push('- ' + day + ' (' + ex.name + '): TM = ' + (wm ? wm + 'kg' : 'not set'));
+  });
+  md.push('');
+  md.push('## Weekly Volume (last 7 days, weighted sets)');
+  ['chest','shoulders','back','biceps','triceps','quads','hamstrings','glutes','abs','calves'].forEach(function(m) {
+    var sets = vol[m] || 0;
+    if (sets > 0) md.push('- ' + m + ': ' + sets + ' sets');
+  });
+  md.push('');
+  md.push('## Recent Sessions (last 8)');
+  recentSessions.forEach(function(s) {
+    var wv = juggernautWaveForSession(s);
+    var vol2 = sessionVolume(s);
+    var dur = s.durationSec ? Math.round(s.durationSec/60) + 'min' : '?';
+    var fb = s.feedback || {};
+    md.push('### ' + s.day + ' \u2014 ' + s.date + ' (' + wv.name + ')');
+    md.push('Duration: ' + dur + '  |  Volume: ' + (vol2/1000).toFixed(1) + 't');
+    if (fb.techniqueScore) md.push('Technique: ' + fb.techniqueScore + '/5');
+    if (fb.enjoyment) md.push('Enjoyment: ' + fb.enjoyment + '/5');
+    if (fb.maxPain && fb.maxPain >= 2) md.push('Max pain: ' + fb.maxPain + '/5');
+    if (fb.overrideReasons && fb.overrideReasons.length) md.push('Override: ' + fb.overrideReasons.join(', '));
+    // Lead lift
+    var exs = STATE.exercises[s.day] || [];
+    var li = exs.findIndex(function(e) { return e.leadLift; });
+    if (li < 0) li = 0;
+    var leadSet = s.sets && s.sets[li];
+    if (leadSet && leadSet.s1r != null) {
+      md.push('Lead lift: ' + (exs[li]&&exs[li].name||'?') + ' ' + (leadSet.s1w||0) + 'kg \xd7 ' + leadSet.s1r + ', ' + (leadSet.s2r||'?'));
+    }
+    md.push('');
+  });
+  md.push('## Next Session Prescriptions');
+  ['PUSH','PULL','ARMS','LEGS'].forEach(function(day) {
+    md.push('### ' + day);
+    var exs = STATE.exercises[day] || [];
+    exs.forEach(function(ex, idx) {
+      try {
+        var p = progressionFor(day, idx);
+        var conf = p.confidence != null ? ' [' + Math.round(p.confidence*100) + '%]' : '';
+        md.push('- ' + ex.name + ': ' + p.weight + 'kg \xd7 ' + p.reps + ' (' + p.verdict + ')' + conf);
+        if (p.reasoning && p.reasoning.length && p.reasoning[0] !== 'normal progression') {
+          md.push('  Reasoning: ' + p.reasoning.join(', '));
+        }
+      } catch(e) { md.push('- ' + ex.name + ': (error)'); }
+    });
+    md.push('');
+  });
+  md.push('## Known Issues / Flags');
+  var stateIssues = validateState(STATE);
+  if (stateIssues.length === 0) md.push('- No data quality issues detected');
+  else stateIssues.forEach(function(i) { md.push('- ' + i); });
+  md.push('');
+  md.push('---');
+  md.push('*Paste this packet into ChatGPT or Claude for coaching review.*');
+
+  var blob = new Blob([md.join('\n')], { type: 'text/markdown' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'ascend-ai-review-' + today + '.md';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('AI REVIEW PACKET EXPORTED');
+}
+
+// ── Phase 6 Item 4: Coach/debug mode ─────────────────────────────────────
+function showCoachDebug(day, exIdx) {
+  var ex = STATE.exercises[day] && STATE.exercises[day][exIdx];
+  if (!ex) { console.log('Exercise not found'); return; }
+  var p = progressionFor(day, exIdx);
+  var gate = phase2RestraintGate();
+  console.group('Coach Debug: ' + day + '[' + exIdx + '] ' + ex.name);
+  console.log('Verdict:', p.verdict);
+  console.log('Weight:', p.weight + 'kg, Reps:', p.reps);
+  if (p.confidence != null) console.log('Confidence:', Math.round(p.confidence * 100) + '%');
+  if (p.reasoning) console.log('Reasoning:', p.reasoning);
+  console.log('Note:', p.note);
+  console.log('Wave:', p.wavePhase);
+  console.log('Restraint gate:', gate);
+  console.groupEnd();
+  return p;
+}
+window.ascendCoachDebug = showCoachDebug;
+window.ascendExportAiPacket = exportAiReviewPacket;
+
+
 function renderToday() {
   const today = todayISO();
   const start = STATE.profile.programStart;
@@ -6647,6 +6918,9 @@ function renderToday() {
   const phase = currentPhase(dayNum);
 
   $("#today-eyebrow").textContent = `${phaseName(phase)} · WEEK ${weekNum} · DAY ${dayNum}`;
+  // Phase 6: Inject weekly dashboard card
+  const weeklyDashEl = document.getElementById("today-weekly-dashboard");
+  if (weeklyDashEl) weeklyDashEl.innerHTML = buildWeeklyDashboardHTML();
   $("#today-date").textContent = formatDate(today);
 
   // Readiness score
@@ -10212,6 +10486,8 @@ $("#btn-save-session").addEventListener("click", () => {
     toast("SESSION UPDATED");
   } else {
     toast(`${LIFT_DRAFT.day} SAVED${durStr}${volStr}${prStr}`);
+    // Phase 6: post-session review
+    setTimeout(() => showPostSessionReview(session), 1800);
 
     // Juggernaut: after Realization week, recalculate working max from AMRAP performance
     const saveWave = juggernautWaveForSession(session);
@@ -12322,6 +12598,9 @@ function openProgramCalibrationSheet() {
   });
 }
 
+document.getElementById("btn-ai-export").addEventListener("click", function() {
+  exportAiReviewPacket();
+});
 $("#btn-export").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
