@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.4";
+const CACHE = "ascend-2026-05-16.5";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3529,7 +3529,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.4";
+const APP_VERSION = "2026-05-16.5";
 
 const CHANGELOG = [
   {
@@ -11926,16 +11926,16 @@ function openImportSheet() {
   $("#sheet-body").innerHTML = `
     <h3>Import Backup</h3>
     <p class="muted" style="font-size:13px;line-height:1.45;margin:0 0 14px;">
-      Choose a backup JSON file, or paste the JSON text below. Import replaces the current app data on this device.
+      Tap below to open your files app and select a backup JSON. Or paste the JSON text directly.
     </p>
-    <div class="input">
-      <label>Backup file</label>
-      <input id="import-file-picker" type="file" accept=".json,application/json,text/plain" />
-    </div>
-    <button class="btn primary" id="import-file-now" style="width:100%;margin-top:10px;">IMPORT SELECTED FILE</button>
+    <button class="btn primary" id="import-pick-file-btn" style="width:100%;margin-bottom:8px;">
+      CHOOSE FILE FROM PHONE
+    </button>
+    <div id="import-file-name" class="muted" style="font-size:12px;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+    <button class="btn primary" id="import-file-now" style="width:100%;margin-top:2px;display:none;">IMPORT SELECTED FILE</button>
     <div class="input" style="margin-top:16px;">
-      <label>Paste backup JSON</label>
-      <textarea id="import-json-paste" rows="7" placeholder="{...}"></textarea>
+      <label>Or paste backup JSON</label>
+      <textarea id="import-json-paste" rows="6" placeholder="{...}" style="font-size:11px;"></textarea>
     </div>
     <button class="btn ghost" id="import-paste-now" style="width:100%;margin-top:10px;">IMPORT PASTED JSON</button>
     <div id="import-status" class="muted" style="min-height:20px;margin-top:12px;font-size:12px;line-height:1.4;"></div>
@@ -11943,22 +11943,46 @@ function openImportSheet() {
   `;
   openSheet();
 
-  const statusEl = document.getElementById("import-status");
-  const fileInput = document.getElementById("import-file-picker");
+  const statusEl  = document.getElementById("import-status");
+  const nameEl    = document.getElementById("import-file-name");
+  const importBtn = document.getElementById("import-file-now");
+
+  // Use the persistent #file-import input already in the DOM at page load.
+  // Dynamically-created file inputs are unreliable on Samsung Android WebView.
+  const fileInput = document.getElementById("file-import");
+  try { fileInput.value = ""; } catch (_) {}
+
+  let selectedFile = null;
+
+  function onFileSelected(e) {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    selectedFile = f;
+    const sizeStr = f.size > 1024 ? Math.round(f.size / 1024) + " KB" : f.size + " B";
+    nameEl.textContent = f.name + " (" + sizeStr + ")";
+    importBtn.style.display = "block";
+    statusEl.textContent = "Tap IMPORT SELECTED FILE to restore.";
+    fileInput.removeEventListener("change", onFileSelected);
+  }
+  fileInput.addEventListener("change", onFileSelected);
+
+  // Programmatic .click() on the real persistent DOM input — most reliable on Android
+  document.getElementById("import-pick-file-btn").addEventListener("click", () => {
+    try { fileInput.click(); }
+    catch (e) { statusEl.textContent = "Could not open file picker: " + e.message; }
+  });
+
   document.getElementById("import-file-now").addEventListener("click", async () => {
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) {
-      statusEl.textContent = "Choose a backup file first.";
-      return;
-    }
+    if (!selectedFile) { statusEl.textContent = "Choose a file first."; return; }
     try {
       statusEl.textContent = "Reading file...";
-      if (file.size > 50 * 1024 * 1024) {
+      importBtn.style.display = "none";
+      if (selectedFile.size > 50 * 1024 * 1024) {
         statusEl.textContent = "IMPORT FAILED - file too large (max 50MB)";
         toast("IMPORT FAILED - file too large");
         return;
       }
-      const text = await readImportFile(file);
+      const text = await readImportFile(selectedFile);
       if (!text || text.trim().length === 0) {
         statusEl.textContent = "IMPORT FAILED - file appears empty";
         toast("IMPORT FAILED - file appears empty");
@@ -11967,23 +11991,18 @@ function openImportSheet() {
       await importBackupPayload(text, statusEl);
     } catch (err) {
       console.error("Import file read failed:", err);
-      const msg = "IMPORT FAILED - " + (err.message || "could not read file");
-      statusEl.textContent = msg;
-      toast(msg);
+      statusEl.textContent = "IMPORT FAILED - " + (err.message || "could not read file");
+      toast("IMPORT FAILED - " + (err.message || "could not read file"));
     }
   });
+
   document.getElementById("import-paste-now").addEventListener("click", async () => {
     const text = document.getElementById("import-json-paste").value.trim();
-    if (!text) {
-      statusEl.textContent = "Paste backup JSON first.";
-      return;
-    }
+    if (!text) { statusEl.textContent = "Paste backup JSON first."; return; }
     await importBackupPayload(text, statusEl);
   });
   document.getElementById("import-cancel").addEventListener("click", closeSheet);
-}
-
-$("#btn-import").addEventListener("click", openImportSheet);
+}("#btn-import").addEventListener("click", openImportSheet);
 $("#file-import").addEventListener("change", async (e) => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
