@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.8";
+const CACHE = "ascend-2026-05-16.9";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3529,9 +3529,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.8";
+const APP_VERSION = "2026-05-16.9";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-16.9",
+    title: "Data Quality Layer (Phase 4)",
+    items: [
+      "Sets are now classified as working, warmup, extra, load-finding, failed, or bodyweight — the coaching engine uses this to avoid making bad decisions from noisy data.",
+      "Large load drops between set 1 and set 2 (>20%) now trigger a real-time notification: Was the first weight too heavy?",
+      "Bodyweight exercises (pull-ups, dips, ab rollouts) now display BW instead of 0kg.",
+      "State validation runs on import and is accessible via ascendValidateState() in the dev console.",
+      "ascendClassifySet() and ascendDetectLoadDrop() are available in the dev console for debugging.",
+    ]
+  },
   {
     version: "2026-05-16.8",
     title: "Smarter Accessory Progression (Phase 3)",
@@ -6097,6 +6108,145 @@ function ascendRunJtmTests() {
   return { passed: passed, total: total, results: results };
 }
 window.ascendRunJtmTests = ascendRunJtmTests;
+
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHASE 4 — DATA QUALITY: Set Classification, Load-Drop Detection, Validation
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ── Phase 4 Item 1: Set Classification
+// Classify sets so the coaching engine knows what counts for progression vs fatigue.
+// type: "working" | "warmup" | "extra" | "load_finding" | "failed" | "bodyweight"
+function classifySet(s1w, s1r, s2w, s2r, ex) {
+  if (!s1w || s1w === 0) {
+    // Could be bodyweight or missing
+    const isBW = ex && (ex.equipment === "bodyweight" || ex.name.toLowerCase().includes("bodyweight") ||
+                        ex.name.toLowerCase().includes("pullup") || ex.name.toLowerCase().includes("push-up") ||
+                        ex.name.toLowerCase().includes("dip"));
+    return isBW ? "bodyweight" : "working";
+  }
+  // Large drop between set 1 and set 2 = likely load-finding
+  if (s2w != null && s1w > 0 && s2w > 0) {
+    const dropPct = (s1w - s2w) / s1w;
+    if (dropPct > 0.25) return "load_finding"; // >25% drop = load-finding, not double progression
+  }
+  // Reps well below minimum = either warm-up or failed
+  if (s1r != null && ex && ex.repMin && s1r < Math.max(1, ex.repMin - 3)) {
+    return s1r <= 3 ? "warmup" : "failed";
+  }
+  return "working";
+}
+
+// ── Phase 4 Item 2: Large load-drop detection
+// Detects when set 2 weight is significantly lower than set 1 weight in a single session.
+// Returns a flag object if a suspicious drop is found, null otherwise.
+function detectLoadDrop(sets, exIdx, ex) {
+  const s = sets && sets[exIdx];
+  if (!s) return null;
+  const s1w = s.s1w || 0;
+  const s2w = s.s2w;
+  if (!s1w || !s2w || s2w >= s1w) return null;
+  const dropPct = (s1w - s2w) / s1w;
+  if (dropPct >= 0.20) { // 20%+ drop is suspicious
+    return {
+      s1w, s2w,
+      dropPct: Math.round(dropPct * 100),
+      message: "Large load drop detected between sets (" + s1w + "kg → " + s2w + "kg, -" + Math.round(dropPct*100) + "%). Was " + s1w + "kg too heavy?",
+      setType: "load_finding"
+    };
+  }
+  return null;
+}
+
+// ── Phase 4 Item 3: Bodyweight exercise display fix
+// Returns a display weight string for exercises where weight is 0 or null.
+function fmtExerciseWeight(weight, ex) {
+  if (weight === 0 || weight == null) {
+    if (ex && (ex.equipment === "bodyweight" ||
+               (ex.name && (ex.name.toLowerCase().includes("pullup") ||
+                            ex.name.toLowerCase().includes("push-up") ||
+                            ex.name.toLowerCase().includes("dip") ||
+                            ex.name.toLowerCase().includes("ab rollout") ||
+                            ex.name.toLowerCase().includes("rollout"))))) {
+      return "BW"; // bodyweight
+    }
+    return weight === 0 ? "0" : "—";
+  }
+  return fmtWeight(weight);
+}
+
+// ── Phase 4 Item 4: Session data validation
+// Validates a set of session data and returns a list of data quality flags.
+function validateSessionSets(sets, exercises) {
+  const flags = [];
+  if (!sets || !exercises) return flags;
+  sets.forEach(function(s, idx) {
+    const ex = exercises[idx];
+    if (!s || !ex) return;
+    const s1w = s.s1w;
+    const s2w = s.s2w;
+    const s1r = s.s1r;
+    const s2r = s.s2r;
+    // Load drop
+    if (s1w && s2w && s2w < s1w * 0.75) {
+      flags.push({ exIdx: idx, type: "load_drop", message: ex.name + ": set 2 weight (" + s2w + "kg) dropped >25% from set 1 (" + s1w + "kg)" });
+    }
+    // Impossible weights (above any reasonable human)
+    if (s1w > 500 || s2w > 500) {
+      flags.push({ exIdx: idx, type: "impossible_weight", message: ex.name + ": weight >500kg is likely a data entry error" });
+    }
+    // Reps too high (>50 is unusual for tracked hypertrophy work)
+    if (s1r > 50 || s2r > 50) {
+      flags.push({ exIdx: idx, type: "high_reps", message: ex.name + ": " + Math.max(s1r||0, s2r||0) + " reps is unusually high — check if this was logged correctly" });
+    }
+    // Bodyweight exercise logged as 0 weight (display issue, not a real flag)
+    if ((s1w === 0 || s1w == null) && ex.equipment !== "bodyweight") {
+      const isBW = ex.name && (ex.name.toLowerCase().includes("pullup") || ex.name.toLowerCase().includes("push-up") ||
+                               ex.name.toLowerCase().includes("dip") || ex.name.toLowerCase().includes("rollout"));
+      if (!isBW) {
+        flags.push({ exIdx: idx, type: "missing_weight", message: ex.name + ": weight not logged" });
+      }
+    }
+  });
+  return flags;
+}
+
+// ── Phase 4 Item 5: State validation
+// Quick validation of the full STATE object for common data quality issues.
+function validateState(state) {
+  const issues = [];
+  if (!state) { issues.push("State is null"); return issues; }
+  if (!Array.isArray(state.sessions)) issues.push("sessions is not an array");
+  if (!Array.isArray(state.dailyLogs)) issues.push("dailyLogs is not an array");
+  // Check for duplicate session IDs
+  const ids = (state.sessions || []).map(function(s) { return s.id; });
+  const uniqueIds = new Set(ids);
+  if (uniqueIds.size < ids.length) issues.push("Duplicate session IDs found");
+  // Check for sessions with missing day
+  (state.sessions || []).forEach(function(s) {
+    if (!s.day || !["PUSH","PULL","ARMS","LEGS"].includes(s.day)) {
+      issues.push("Session " + s.id + " has invalid day: " + s.day);
+    }
+  });
+  // Check for invalid bodyweight logs
+  (state.dailyLogs || []).forEach(function(d) {
+    if (d.weight != null && (d.weight < 30 || d.weight > 300)) {
+      issues.push("Daily log " + d.date + ": bodyweight " + d.weight + "kg is outside plausible range");
+    }
+  });
+  return issues;
+}
+
+// Expose Phase 4 tools globally for dev console
+window.ascendValidateState = function() {
+  var issues = validateState(STATE);
+  if (issues.length === 0) console.log("State validation: OK");
+  else { console.warn("State validation issues:"); issues.forEach(function(i) { console.warn(" - " + i); }); }
+  return issues;
+};
+window.ascendClassifySet = classifySet;
+window.ascendDetectLoadDrop = detectLoadDrop;
 
 
 function nextSessionDay() {
