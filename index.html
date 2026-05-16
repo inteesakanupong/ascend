@@ -12002,7 +12002,9 @@ function openImportSheet() {
     await importBackupPayload(text, statusEl);
   });
   document.getElementById("import-cancel").addEventListener("click", closeSheet);
-}("#btn-import").addEventListener("click", openImportSheet);
+}
+
+$("#btn-import").addEventListener("click", openImportSheet);
 $("#file-import").addEventListener("change", async (e) => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
