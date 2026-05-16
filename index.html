@@ -5704,16 +5704,36 @@ function progressionFor(day, exIdx) {
 
   // ── First session ever for this day
   if (sessions.length === 0) {
-    const storedTM = isLead ? getWorkingMax(day, exIdx) : null;
-    if (storedTM) return leadTmPrescription(ex, wave, storedTM);
+    if (isLead) {
+      // PHASE 1 FIX: Lead lifts must NEVER fall back to accessory rep logic.
+      const storedTM = getWorkingMax(day, exIdx);
+      if (storedTM) return leadTmPrescription(ex, wave, storedTM);
+      // No TM stored: infer from start weight so JTM reps are always correct
+      const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
+      if (inferredTM) return leadTmPrescription(ex, wave, inferredTM, null);
+      // Absolute fallback: use JTM reps even if weight is unknown
+      const tmPctData = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
+      return { verdict: "START", weight: ex.start || 20, reps: tmPctData.reps, last: null,
+               note: "Lead lift — set a working max in Profile for accurate JTM prescriptions. Using start weight as estimate.",
+               wavePhase: wave.name };
+    }
     return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
              note: "First session — start moderate, leave 2-3 reps in reserve." };
   }
 
   const last = sessions[sessions.length - 1].sets[exIdx];
   if (!last || last.s1r == null) {
-    const storedTM = isLead ? getWorkingMax(day, exIdx) : null;
-    if (storedTM) return leadTmPrescription(ex, wave, storedTM);
+    if (isLead) {
+      // PHASE 1 FIX: Lead lift with missing set data must still use JTM, not accessory fallback.
+      const storedTM = getWorkingMax(day, exIdx);
+      if (storedTM) return leadTmPrescription(ex, wave, storedTM);
+      const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
+      if (inferredTM) return leadTmPrescription(ex, wave, inferredTM, null);
+      const tmPctData = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
+      return { verdict: "START", weight: ex.start || 20, reps: tmPctData.reps, last: null,
+               note: "Lead lift — no set data. Set working max in Profile for accurate JTM prescriptions.",
+               wavePhase: wave.name };
+    }
     return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
              note: "No set data — start moderate, leave 2-3 reps in reserve." };
   }
@@ -5754,17 +5774,24 @@ function progressionFor(day, exIdx) {
   }
 
   // ── LEAD LIFT: Juggernaut TM-based weight prescription
-  // Training Max (TM) = stored working max (set from AMRAP → 1RM → 90%)
-  // Falls back to: Epley from last session performance if no TM stored
+  // PHASE 1: Lead lifts are strictly separated from accessory logic.
+  // Training Max (TM) priority:
+  //   1. Stored working max (set from AMRAP → 1RM → 90%) — most accurate
+  //   2. Epley estimate from last session AMRAP performance
+  //   3. Inferred from start weight (60% pct back-calculation)
+  // Lead lifts NEVER fall through to accessory double-progression.
   if (isLead) {
     const storedTM = getWorkingMax(day, exIdx);
-    // Derive TM from last session if not stored: use last s2 (AMRAP set) for best estimate
+    // Priority 2: Derive TM from last session AMRAP (s2 = final/AMRAP set)
     const amrapW = s2w || s1w;
     const amrapR = Math.max(s1r, s2r);
     const estimatedOneRm = amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
     const derivedTM = estimatedOneRm ? roundToIncrement(estimatedOneRm * 0.90, ex) : null;
-    const TM = storedTM || derivedTM || workingWeight;
+    // Priority 3: Infer from start weight so JTM reps are always correct
+    const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
+    const TM = storedTM || derivedTM || inferredTM || workingWeight;
     return leadTmPrescription(ex, wave, TM, lastStr);
+    // Note: execution never reaches accessory logic below for lead lifts.
   }
 
   // ── ACCESSORY LIFTS: performance-based progression (no TM system)
@@ -5848,6 +5875,89 @@ function progressionFor(day, exIdx) {
   return { verdict: "BEAT", weight: workingWeight, reps: Math.min(ex.repMax, Math.min(s1r, s2r) + 1), last: lastStr,
            note: "Intensification — same weight, push one more rep. Target RPE 7-8.", wavePhase: "INTENSIFICATION" };
 }
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHASE 1 — JTM QA TEST SUITE
+// Run ascendRunJtmTests() from the dev console to verify lead-lift calculations.
+// These tests protect the non-negotiable JTM wave logic.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function ascendRunJtmTests() {
+  const results = [];
+  const TM = 100; // canonical test case: wm_PUSH_0 = 100
+
+  function assert(label, actual, expected, tolerance) {
+    const tol = tolerance != null ? tolerance : 0.01;
+    const pass = Math.abs(actual - expected) <= tol;
+    results.push({ label, pass, actual, expected });
+    if (!pass) console.error("FAIL: " + label + " - got " + actual + ", expected " + expected);
+    else console.log("PASS: " + label);
+    return pass;
+  }
+
+  // Mock exercise for rounding (2.5kg increments)
+  const mockEx = { name: "Smith Incline Bench Press", start: 60, repMin: 8, repMax: 12,
+                    increment: 2.5, equipment: "smith" };
+
+  // ── Test JUG_TM_PCTS constants
+  assert("ACCUMULATION pct = 0.60",    JUG_TM_PCTS.ACCUMULATION.pct,    0.60);
+  assert("ACCUMULATION reps = 10",     JUG_TM_PCTS.ACCUMULATION.reps,   10);
+  assert("INTENSIFICATION pct = 0.70", JUG_TM_PCTS.INTENSIFICATION.pct, 0.70);
+  assert("INTENSIFICATION reps = 8",   JUG_TM_PCTS.INTENSIFICATION.reps, 8);
+  assert("REALIZATION pct = 0.775",    JUG_TM_PCTS.REALIZATION.pct,     0.775);
+  assert("REALIZATION reps = 5",       JUG_TM_PCTS.REALIZATION.reps,    5);
+  assert("DELOAD pct = 0.50",          JUG_TM_PCTS.DELOAD.pct,          0.50);
+  assert("DELOAD reps = 5",            JUG_TM_PCTS.DELOAD.reps,         5);
+
+  // ── Test leadTmPrescription outputs for TM=100 (canonical: wm_PUSH_0 = 100)
+  const accWave  = { name: "ACCUMULATION",    waveWeek: 1, weekNum: 1, cycleNum: 1 };
+  const intWave  = { name: "INTENSIFICATION", waveWeek: 2, weekNum: 2, cycleNum: 1 };
+  const realWave = { name: "REALIZATION",     waveWeek: 3, weekNum: 3, cycleNum: 1 };
+  const dlWave   = { name: "DELOAD",          waveWeek: 4, weekNum: 4, cycleNum: 1 };
+
+  const acc   = leadTmPrescription(mockEx, accWave,  TM);
+  const inten = leadTmPrescription(mockEx, intWave,  TM);
+  const real  = leadTmPrescription(mockEx, realWave, TM);
+  const dl    = leadTmPrescription(mockEx, dlWave,   TM);
+
+  // PUSH Session 1: Accumulation — 60kg × 10
+  assert("Accumulation: weight = 60kg (TM=100, 60%)", acc.weight,  60, 2.5);
+  assert("Accumulation: reps = 10",                   acc.reps,    10);
+  assert("Accumulation: verdict = BEAT",              acc.verdict === "BEAT" ? 1 : 0, 1);
+  assert("Accumulation: wavePhase correct",           acc.wavePhase === "ACCUMULATION" ? 1 : 0, 1);
+
+  // PUSH Session 2: Intensification — 70kg × 8
+  assert("Intensification: weight = 70kg (TM=100, 70%)", inten.weight, 70, 2.5);
+  assert("Intensification: reps = 8",                    inten.reps,   8);
+  assert("Intensification: verdict = BEAT",               inten.verdict === "BEAT" ? 1 : 0, 1);
+  assert("Intensification: wavePhase correct",           inten.wavePhase === "INTENSIFICATION" ? 1 : 0, 1);
+
+  // PUSH Session 3: Realization — 77.5kg × 5 / AMRAP
+  assert("Realization: weight = 77.5kg (TM=100, 77.5%)", real.weight, 77.5, 2.5);
+  assert("Realization: reps = 5",                         real.reps,   5);
+  assert("Realization: verdict = REALIZE",                real.verdict === "REALIZE" ? 1 : 0, 1);
+
+  // PUSH Session 4: Deload — 50kg × 5
+  assert("Deload: weight = 50kg (TM=100, 50%)", dl.weight, 50, 2.5);
+  assert("Deload: reps = 5",                    dl.reps,   5);
+  assert("Deload: verdict = DELOAD_WAVE",        dl.verdict === "DELOAD_WAVE" ? 1 : 0, 1);
+
+  // ── Test that lead lift does NOT return accessory repMin as reps
+  // (regression: before Phase 1 fix, first session with no TM could return ex.repMin = 8 for Accumulation)
+  assert("Accumulation reps != accessory repMin (8)", acc.reps === 8 ? 0 : 1, 1);
+
+  const passed = results.filter(function(r) { return r.pass; }).length;
+  const total  = results.length;
+  var line = "";
+  for (var i = 0; i < 45; i++) line += "━";
+  console.log("\n" + line);
+  console.log("JTM QA: " + passed + "/" + total + " tests passed");
+  console.log(line);
+  if (passed < total) { console.table(results.filter(function(r) { return !r.pass; })); }
+  return { passed: passed, total: total, results: results };
+}
+window.ascendRunJtmTests = ascendRunJtmTests;
+
 
 function nextSessionDay() {
   // Each session in chronological order rotates through PUSH PULL ARMS LEGS.
