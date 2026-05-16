@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.6";
+const CACHE = "ascend-2026-05-16.7";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3529,9 +3529,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.6";
+const APP_VERSION = "2026-05-16.7";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-16.7",
+    title: "Baseline Mode + Restraint Layer (Phase 2)",
+    items: [
+      "Extra sets and drop sets / rest-pause techniques are now suppressed until the first full rotation (PUSH → PULL → ARMS → LEGS) is completed.",
+      "MRV add-volume and untrained-muscle recommendations are suppressed during baseline mode — the app now observes before intervening.",
+      "Extra sets are suppressed in sessions running over 60 minutes to prevent sessions from growing too long.",
+      "Extra sets are suppressed when cutting aggressively (>0.8kg/wk loss) or when readiness score is poor.",
+      "All restraint decisions use a shared gate so the rules are consistent across the app.",
+    ]
+  },
   {
     version: "2026-05-16.4",
     title: "JTM Engine Hardening (Phase 1)",
@@ -4813,6 +4824,67 @@ const HABIT_DEFS = [
 ];
 
 const DAY_ORDER = ["PUSH", "PULL", "ARMS", "LEGS"];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 2 — BASELINE MODE: First Full Rotation Detection
+// A full rotation = at least one completed session for each of PUSH/PULL/ARMS/LEGS
+// Before this is achieved, the app observes rather than intervenes aggressively.
+// ─────────────────────────────────────────────────────────────────────────────
+function completedFullRotation() {
+  const programStart = STATE.profile.trainingProgramStartedAt || STATE.profile.programStart;
+  return DAY_ORDER.every(day => {
+    const sessions = (STATE.sessions || []).filter(s =>
+      s.day === day && (!programStart || s.date >= programStart)
+    );
+    return sessions.length >= 1;
+  });
+}
+
+// Returns a restraint gate object used by extra-set, MRV, and technique logic
+function phase2RestraintGate() {
+  const hasRotation  = completedFullRotation();
+  const wave         = typeof LIFT_DAY !== "undefined" ? juggernautWave(0, LIFT_DAY) : null;
+  const isDeload     = wave && wave.name === "DELOAD";
+  const isCutting    = (STATE.cut?.mode === "cut");
+  const weightDiag   = typeof weightDiagnostic === "function" ? weightDiagnostic() : null;
+  const aggCut       = isCutting && weightDiag && weightDiag.rate != null && weightDiag.rate > 0.8;
+  const readiness    = typeof calculateReadiness === "function" ? calculateReadiness(
+    typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0,10)
+  ) : { score: null };
+  const poorReadiness = readiness.score != null && readiness.score <= 2;
+
+  // Session duration (minutes) from current live session start time
+  let sessionMinutes = 0;
+  if (typeof LIFT_START_TIME !== "undefined" && LIFT_START_TIME) {
+    sessionMinutes = Math.round((Date.now() - LIFT_START_TIME) / 60000);
+  }
+
+  const canAddStress =
+    hasRotation &&
+    !isDeload &&
+    !aggCut &&
+    !poorReadiness &&
+    sessionMinutes < 75;
+
+  const suppressReason = !hasRotation  ? "baseline mode — first full rotation not yet complete" :
+                         isDeload      ? "deload week" :
+                         aggCut        ? "cutting aggressively (>0.8kg/wk)" :
+                         poorReadiness ? "poor readiness today" :
+                         sessionMinutes >= 75 ? "session too long (75+ min)" :
+                         null;
+
+  return {
+    canAddStress,
+    suppressReason,
+    hasRotation,
+    isDeload,
+    isCutting,
+    aggCut,
+    poorReadiness,
+    sessionMinutes,
+  };
+}
+
 
 // ───────── 2. STATE I/O ─────────
 // Dual storage: IndexedDB (primary, survives Chrome restarts on Android)
@@ -7579,7 +7651,12 @@ function extraSetSuggestion(exIdx) {
   const s2reps = LIFT_DRAFT.sets[exIdx]?.s2r;
   const s1w    = LIFT_DRAFT.sets[exIdx]?.s1w;
 
-  // Never suggest extra sets on deload week
+  // PHASE 2: Apply full restraint gate before any extra set logic
+  const esGate = phase2RestraintGate();
+  if (!esGate.canAddStress) {
+    // On deload always suppress silently; otherwise allow the gate reason to surface
+    return null;
+  }
   const esWave = juggernautWave(0, LIFT_DAY);
   if (esWave.name === "DELOAD") return null;
 
@@ -7598,6 +7675,11 @@ function extraSetSuggestion(exIdx) {
   const isLeadExercise = isLeadLift(LIFT_DAY, exIdx);
   // Position-aware: how far through the session are we? (0 = start, 1 = end)
   const sessionProgress = exIdx / totalExercises;
+
+  // PHASE 2: Session duration protection
+  // 60+ min: no extra sets — protect the session from growing too long
+  const esDurationGate = phase2RestraintGate();
+  if (esDurationGate.sessionMinutes >= 60) return null;
 
   // Never suggest if avg RPE ≥ 9
   if (avgRpe >= 9) return null;
@@ -8183,6 +8265,9 @@ function renderLiftExercises() {
   }
 
   function intensityTechniqueCard(idx, ex) {
+    // PHASE 2: Advanced techniques locked behind restraint gate
+    const itGate = phase2RestraintGate();
+    if (!itGate.canAddStress) return ""; // suppress before full rotation / deload / poor readiness
     if (!LIFT_SESSION_ACTIVE) return "";
     if (LIFT_TECHNIQUES[idx]) return "";
     if (isLeadLift(LIFT_DAY, idx)) return "";
@@ -13345,6 +13430,11 @@ function generateMrvSwapRecommendations(vol = weeklyVolumeByMuscle(7)) {
 function generateMrvRecommendations() {
   const vol = weeklyVolumeByMuscle(7);
   const recs = [];
+
+  // PHASE 2: Before the first full rotation, only surface OVER-MRV warnings.
+  // The app has not yet seen all muscle groups trained, so under-volume signals
+  // are not meaningful yet — suppress add/swap actions until rotation is complete.
+  const mrvGate = completedFullRotation();
   const swapRecs = generateMrvSwapRecommendations(vol);
   const swapMuscles = new Set(swapRecs.map(r => r.muscle));
 
@@ -13387,7 +13477,7 @@ function generateMrvRecommendations() {
         exercise: null,
         day,
       });
-    } else if (sets < lm.mev && sets > 0 && !swapMuscles.has(muscle)) {
+    } else if (sets < lm.mev && sets > 0 && !swapMuscles.has(muscle) && mrvGate) {  // PHASE 2: suppress before full rotation
       // BELOW MEV — need more volume
       // Suggest the exercise not already in program, or a second set of existing one
       const alreadyHave = new Set(programExsForMuscle.map(e => e.name));
@@ -13407,7 +13497,7 @@ function generateMrvRecommendations() {
         exercise: suggestion?.name || null,
         day,
       });
-    } else if (sets === 0 && !swapMuscles.has(muscle)) {
+    } else if (sets === 0 && !swapMuscles.has(muscle) && mrvGate) {  // PHASE 2: suppress before full rotation (muscle may not have been trained yet)
       // UNTRAINED this week
       const suggestion = suggestions[0];
       recs.push({
