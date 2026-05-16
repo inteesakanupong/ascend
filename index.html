@@ -3656,9 +3656,18 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.6";
+const APP_VERSION = "2026-05-17.7";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.7",
+    title: "Automatic Targeted Warm-Up Selection",
+    items: [
+      "Targeted Warm-Up now chooses activation movements from the programmed training day and lead exercise automatically.",
+      "The manual main-lift selector was removed because Ascend already knows the day, lead lift, and muscle groups being trained.",
+      "Warm-up setup still lets you adjust readiness, time, context, and joint feedback without changing workout prescriptions.",
+    ]
+  },
   {
     version: "2026-05-17.6",
     title: "Workout Mode Stability (Phase 9)",
@@ -7437,6 +7446,59 @@ const TARGETED_WARMUP_DEFAULTS = {
   },
 };
 
+const TARGETED_WARMUP_DAY_DEFAULTS = {
+  PUSH: {
+    label: "Push",
+    rampSets: "2-4 easy press ramp sets before the first working set.",
+    movements: [
+      { id: "push_triceps_pressdown", name: "Triceps Pressdown", prescription: "15-25 reps", purpose: "Elbow-friendly triceps pump before pressing." },
+      { id: "push_face_pull", name: "Face Pull / Band Pull-Apart", prescription: "15-25 reps", purpose: "Upper-back and rear-delt activation for pressing stability." },
+      { id: "push_external_rotation", name: "DB External Rotation / Scap Push-Up", prescription: "10-15 reps", purpose: "Shoulder control and scapular movement before loading." },
+    ],
+  },
+  PULL: {
+    label: "Pull",
+    rampSets: "2-4 easy row or pulldown ramp sets before the first working set.",
+    movements: [
+      { id: "pull_straight_arm_pulldown", name: "Straight-Arm Pulldown", prescription: "12-20 reps", purpose: "Lat activation before rows and pulldowns." },
+      { id: "pull_face_pull", name: "Face Pull / Band Pull-Apart", prescription: "15-25 reps", purpose: "Rear-delt, trap, and scapular control before pulling." },
+      { id: "pull_curl", name: "Cable Curl / DB Curl", prescription: "12-20 reps", purpose: "Easy elbow flexor warm-up without fatigue." },
+    ],
+  },
+  ARMS: {
+    label: "Arms",
+    rampSets: "1-3 easy ramp sets on the first arm exercise before working sets.",
+    movements: [
+      { id: "arms_pressdown", name: "Triceps Pressdown", prescription: "15-25 reps", purpose: "Elbow-friendly triceps blood flow before extensions." },
+      { id: "arms_curl", name: "Cable Curl / DB Curl", prescription: "12-20 reps", purpose: "Biceps and elbow flexor warm-up before heavier arm work." },
+      { id: "arms_wrist", name: "Reverse Curl / Wrist Extension", prescription: "12-20 reps", purpose: "Forearm and elbow preparation for curls and extensions." },
+    ],
+  },
+  LEGS: {
+    label: "Legs",
+    rampSets: "2-4 easy squat or hinge ramp sets before the first working set.",
+    movements: [
+      { id: "legs_hamstring_curl", name: "Hamstring Curl", prescription: "15-25 reps", purpose: "Posterior-chain activation to prepare knees and hips." },
+      { id: "legs_reverse_hyper", name: "Reverse Hyper / Back Extension", prescription: "15-20 reps", purpose: "Glutes, low back, and hips. Easy pump, no fatigue." },
+      { id: "legs_brace", name: "Ab Pulldown / Dead Bug", prescription: "10-15 reps", purpose: "Trunk bracing before loading the lower body." },
+    ],
+  },
+};
+
+const TARGETED_WARMUP_MUSCLE_OPTIONS = {
+  chest:      { id: "muscle_chest_scap_pushup", name: "Scap Push-Up / Cable Fly Warm-Up", prescription: "10-15 reps", purpose: "Chest and scapular control before pressing." },
+  shoulders:  { id: "muscle_shoulders_face_pull", name: "Face Pull / Band Pull-Apart", prescription: "15-25 reps", purpose: "Shoulder position and rear-delt activation." },
+  triceps:    { id: "muscle_triceps_pressdown", name: "Triceps Pressdown", prescription: "15-25 reps", purpose: "Elbow-friendly triceps pump before pressing or extensions." },
+  back:       { id: "muscle_back_straight_arm", name: "Straight-Arm Pulldown", prescription: "12-20 reps", purpose: "Lat and upper-back activation before pulling." },
+  biceps:     { id: "muscle_biceps_curl", name: "Cable Curl / DB Curl", prescription: "12-20 reps", purpose: "Elbow flexor warm-up before curls and pulling." },
+  forearms:   { id: "muscle_forearms_reverse_curl", name: "Reverse Curl / Wrist Extension", prescription: "12-20 reps", purpose: "Forearm and elbow preparation." },
+  quads:      { id: "muscle_quads_leg_extension", name: "Leg Extension / Terminal Knee Extension", prescription: "15-25 reps", purpose: "Quad and knee preparation before squats or presses." },
+  hamstrings: { id: "muscle_hamstrings_curl", name: "Hamstring Curl", prescription: "15-25 reps", purpose: "Hamstring activation before squats and hinges." },
+  glutes:     { id: "muscle_glutes_reverse_hyper", name: "Reverse Hyper / Back Extension", prescription: "15-20 reps", purpose: "Glutes, low back, and hips. Easy pump, no fatigue." },
+  calves:     { id: "muscle_calves_raise", name: "Calf Raise / Tibialis Raise", prescription: "12-20 reps", purpose: "Ankle and lower-leg preparation." },
+  abs:        { id: "muscle_abs_brace", name: "Ab Pulldown / Dead Bug", prescription: "10-15 reps", purpose: "Trunk bracing before loaded movement." },
+};
+
 function inferMainLiftType(day = LIFT_DAY) {
   const ex = STATE.exercises?.[day]?.[getLeadLiftIdx(day)] || {};
   const name = normalizeExerciseName(ex.name || "");
@@ -7446,7 +7508,57 @@ function inferMainLiftType(day = LIFT_DAY) {
   if (name.includes("squat") || name.includes("leg press")) return "squat";
   if (day === "PUSH") return "bench";
   if (day === "LEGS") return "squat";
+  if (day === "PULL") return "pull";
+  if (day === "ARMS") return "arms";
   return "squat";
+}
+
+function targetedWarmupDayProfile(day = LIFT_DAY) {
+  const exercises = STATE.exercises?.[day] || [];
+  const muscleTotals = {};
+  exercises.forEach((ex, idx) => {
+    const weights = exerciseWeightedMuscles(ex);
+    Object.entries(weights).forEach(([muscle, rawWeight]) => {
+      let weight = rawWeight;
+      if (idx === getLeadLiftIdx(day)) weight *= 1.25;
+      muscleTotals[muscle] = (muscleTotals[muscle] || 0) + weight;
+    });
+  });
+  const rankedMuscles = Object.entries(muscleTotals)
+    .sort((a, b) => b[1] - a[1])
+    .map(([muscle]) => muscle);
+  const mainLift = inferMainLiftType(day);
+  const fallback = TARGETED_WARMUP_DAY_DEFAULTS[day] || TARGETED_WARMUP_DEFAULTS[mainLift] || TARGETED_WARMUP_DEFAULTS.squat;
+  const leadName = exercises[getLeadLiftIdx(day)]?.name || day || "Session";
+  return { day, mainLift, leadName, rankedMuscles, fallback };
+}
+
+function automaticTargetedWarmupMovements(day = LIFT_DAY, mainLift = inferMainLiftType(day)) {
+  const profile = targetedWarmupDayProfile(day);
+  const fallback = profile.fallback;
+  const picks = [];
+  const add = (movement) => {
+    if (!movement || picks.some(p => p.name === movement.name)) return;
+    picks.push({ ...movement });
+  };
+
+  (profile.rankedMuscles || []).forEach(muscle => add(TARGETED_WARMUP_MUSCLE_OPTIONS[muscle]));
+  (fallback.movements || []).forEach(add);
+
+  if (mainLift === "bench" || mainLift === "overhead") {
+    add(TARGETED_WARMUP_MUSCLE_OPTIONS.triceps);
+    add(TARGETED_WARMUP_MUSCLE_OPTIONS.shoulders);
+  }
+  if (mainLift === "squat" || mainLift === "deadlift") {
+    add(TARGETED_WARMUP_MUSCLE_OPTIONS.hamstrings);
+    add(TARGETED_WARMUP_MUSCLE_OPTIONS.glutes);
+    add(TARGETED_WARMUP_MUSCLE_OPTIONS.abs);
+  }
+
+  return picks.slice(0, 3).map((m, idx) => ({
+    ...m,
+    id: `${day.toLowerCase()}_${idx + 1}_${m.id}`,
+  }));
 }
 
 function targetedWarmupReadinessDefault() {
@@ -7474,8 +7586,12 @@ function targetedWarmupMode(inputs) {
 }
 
 function buildTargetedWarmup(inputs = {}) {
+  const autoProfile = targetedWarmupDayProfile(LIFT_DAY);
   const normalized = {
-    mainLift: inputs.mainLift || inferMainLiftType(),
+    mainLift: autoProfile.mainLift,
+    dayFocus: autoProfile.day,
+    leadExercise: autoProfile.leadName,
+    rankedMuscles: autoProfile.rankedMuscles,
     readiness: inputs.readiness || targetedWarmupReadinessDefault(),
     sessionTime: inputs.sessionTime || "normal",
     trainingContext: inputs.trainingContext || targetedWarmupTrainingContext(),
@@ -7484,8 +7600,8 @@ function buildTargetedWarmup(inputs = {}) {
   };
   const mode = targetedWarmupMode(normalized);
   const rounds = mode === "minimal" ? 2 : 3;
-  const base = TARGETED_WARMUP_DEFAULTS[normalized.mainLift] || TARGETED_WARMUP_DEFAULTS.squat;
-  const movements = base.movements.map(m => ({
+  const base = autoProfile.fallback;
+  const movements = automaticTargetedWarmupMovements(LIFT_DAY, normalized.mainLift).map(m => ({
     ...m,
     prescription: mode === "pain_adjusted" ? `${m.prescription} easy, comfortable range` : m.prescription,
     effort: mode === "pain_adjusted" ? "Stop if symptoms worsen." : "Easy pump only. No fatigue.",
@@ -7497,6 +7613,9 @@ function buildTargetedWarmup(inputs = {}) {
     date: LIFT_DRAFT?.date || todayISO(),
     day: LIFT_DAY,
     mainLift: normalized.mainLift,
+    dayFocus: normalized.dayFocus,
+    leadExercise: normalized.leadExercise,
+    rankedMuscles: normalized.rankedMuscles,
     mode,
     rounds,
     estimatedMin: mode === "minimal" ? "6-8" : mode === "complete" ? "10-14" : "8-12",
@@ -7541,6 +7660,9 @@ function savedTargetedWarmup(warmup) {
     date: warmup.date,
     day: warmup.day,
     mainLift: warmup.mainLift,
+    dayFocus: warmup.dayFocus,
+    leadExercise: warmup.leadExercise,
+    rankedMuscles: Array.isArray(warmup.rankedMuscles) ? [...warmup.rankedMuscles] : [],
     mode: warmup.mode,
     rounds: warmup.rounds,
     estimatedMin: warmup.estimatedMin,
@@ -7755,6 +7877,12 @@ function renderTargetedWarmupPage() {
   const isComplete = targetedWarmupComplete(warmup);
   const warn = targetedWarmupWarning(warmup);
   const modeLabel = warmup.mode.replace(/_/g, " ").toUpperCase();
+  const dayDefault = TARGETED_WARMUP_DAY_DEFAULTS[warmup.dayFocus || LIFT_DAY];
+  const focusLabel = dayDefault?.label || (TARGETED_WARMUP_DEFAULTS[warmup.mainLift] || {}).label || warmup.mainLift || LIFT_DAY;
+  const rankedLabels = (warmup.rankedMuscles || [])
+    .slice(0, 4)
+    .map(m => MUSCLE_LABELS[m] || m)
+    .join(" / ");
   const roundBtns = (movementId) => Array.from({ length: warmup.rounds }, (_, i) => {
     const round = i + 1;
     const item = warmup.completion.find(c => c.movementId === movementId && c.round === round);
@@ -7788,17 +7916,27 @@ function renderTargetedWarmupPage() {
     </div>
 
     <div class="card">
-      <div class="card-head"><div class="card-label">Today's Setup</div><div class="card-meta">${escapeHtml((TARGETED_WARMUP_DEFAULTS[warmup.mainLift] || {}).label || warmup.mainLift)}</div></div>
+      <div class="card-head"><div class="card-label">Today's Setup</div><div class="card-meta">AUTO · ${escapeHtml(focusLabel)}</div></div>
+      <div style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-elev-2);margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <div class="muted" style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Auto-selected from today's session</div>
+            <div style="font-family:var(--f-display);font-size:21px;font-weight:900;margin-top:3px;">${escapeHtml(warmup.dayFocus || LIFT_DAY)} · ${escapeHtml(warmup.leadExercise || "Lead exercise")}</div>
+          </div>
+        </div>
+        <div class="muted" style="font-size:12px;line-height:1.45;margin-top:8px;">
+          Primary warm-up targets: ${escapeHtml(rankedLabels || "session muscle groups")}. Exercise selection updates from the programmed day, not a manual selector.
+        </div>
+      </div>
       <div class="input-grid">
-        ${select("tw-main-lift", "Main lift", warmup.inputs.mainLift, [["squat","Squat"],["bench","Bench"],["deadlift","Deadlift"],["overhead","Overhead"]])}
         ${select("tw-readiness", "Readiness", warmup.inputs.readiness, [["low","Low"],["normal","Normal"],["high","High"]])}
-      </div>
-      <div class="input-grid" style="margin-top:10px;">
         ${select("tw-time", "Session time", warmup.inputs.sessionTime, [["short","Short"],["normal","Normal"],["long","Long"]])}
-        ${select("tw-context", "Context", warmup.inputs.trainingContext, [["normal","Normal"],["cutting","Cutting"],["deload","Deload"],["cutting_deload","Cutting + deload"]])}
       </div>
       <div class="input-grid" style="margin-top:10px;">
+        ${select("tw-context", "Context", warmup.inputs.trainingContext, [["normal","Normal"],["cutting","Cutting"],["deload","Deload"],["cutting_deload","Cutting + deload"]])}
         ${select("tw-pain-area", "Joint feedback", warmup.inputs.painArea, [["none","None"],["shoulder","Shoulder"],["elbow","Elbow"],["low_back","Low back"],["hip","Hip"],["knee","Knee"],["ankle","Ankle"]])}
+      </div>
+      <div class="input-grid" style="margin-top:10px;">
         ${select("tw-pain-level", "Pain level", String(warmup.inputs.painLevel), [["0","0"],["1","1"],["2","2"],["3","3"]])}
       </div>
     </div>
@@ -11521,11 +11659,10 @@ document.getElementById("btn-start-lift").addEventListener("click", () => {
 
 document.addEventListener("change", function(e) {
   if (!TARGETED_WARMUP_ACTIVE || !LIFT_DRAFT?.targetedWarmup) return;
-  const ids = ["tw-main-lift", "tw-readiness", "tw-time", "tw-context", "tw-pain-area", "tw-pain-level"];
+  const ids = ["tw-readiness", "tw-time", "tw-context", "tw-pain-area", "tw-pain-level"];
   if (!ids.includes(e.target.id)) return;
   const current = LIFT_DRAFT.targetedWarmup.inputs || {};
   const nextInputs = {
-    mainLift: document.getElementById("tw-main-lift")?.value || current.mainLift,
     readiness: document.getElementById("tw-readiness")?.value || current.readiness,
     sessionTime: document.getElementById("tw-time")?.value || current.sessionTime,
     trainingContext: document.getElementById("tw-context")?.value || current.trainingContext,
