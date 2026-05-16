@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.5";
+const CACHE = "ascend-2026-05-16.6";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3529,7 +3529,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.5";
+const APP_VERSION = "2026-05-16.6";
 
 const CHANGELOG = [
   {
@@ -11870,55 +11870,60 @@ async function persistImportedState(nextState) {
 }
 
 async function importBackupPayload(payload, statusEl) {
+  // PHASE 1.5: full error surface so Android crashes show details
+  function showErr(stage, err) {
+    const detail = err && err.message ? err.message : String(err);
+    const msg = "IMPORT FAILED [" + stage + "] - " + detail;
+    console.error("IMPORT FAILED at stage:", stage, err);
+    if (statusEl) {
+      statusEl.style.color = "var(--bad)";
+      statusEl.textContent = msg;
+    }
+    try { toast(msg.slice(0, 80)); } catch (_) {}
+    return false;
+  }
   try {
     if (statusEl) statusEl.textContent = "Reading backup...";
     let incoming;
-    try {
-      incoming = normalizeImportedState(payload);
-    } catch (parseErr) {
-      console.error("Import parse/shape error:", parseErr);
-      const msg = parseErr instanceof SyntaxError ? "IMPORT FAILED - file is not valid JSON" : "IMPORT FAILED - backup format not recognized";
-      if (statusEl) statusEl.textContent = msg;
-      toast(msg);
-      return false;
+    try { incoming = normalizeImportedState(payload); }
+    catch (e) {
+      return showErr(e instanceof SyntaxError ? "JSON parse" : "shape check", e);
     }
 
     if (statusEl) {
-      statusEl.textContent = `Backup found: ${incoming.sessions.length} sessions, ${incoming.dailyLogs.length} daily logs. Importing...`;
+      statusEl.textContent = "Backup found: " + incoming.sessions.length + " sessions, " + incoming.dailyLogs.length + " daily logs. Importing...";
     }
 
-    try { STATE = migrateState(incoming); }
-    catch (migrateErr) {
-      console.error("migrateState failed:", migrateErr);
-      const msg = "IMPORT FAILED - data migration error";
-      if (statusEl) statusEl.textContent = msg;
-      toast(msg);
-      return false;
+    let nextState;
+    try { nextState = migrateState(incoming); }
+    catch (e) { return showErr("migrate", e); }
+
+    if (!nextState || typeof nextState !== "object") {
+      return showErr("migrate-empty", new Error("migration returned no state"));
     }
 
-    try { STATE.lifterAnalysis = buildLifterAnalysis(); } catch (_) {}
-    try { updateAdaptiveStateSnapshot("import"); } catch (_) {}
+    // Replace STATE only after migration succeeded
+    STATE = nextState;
+
+    try { STATE.lifterAnalysis = buildLifterAnalysis(); }
+    catch (e) { console.warn("buildLifterAnalysis failed (non-fatal):", e); }
+
+    try { updateAdaptiveStateSnapshot("import"); }
+    catch (e) { console.warn("updateAdaptiveStateSnapshot failed (non-fatal):", e); }
 
     try { await persistImportedState(STATE); }
-    catch (persistErr) {
-      console.error("Import save failed:", persistErr);
-      const msg = "IMPORT FAILED - could not save backup";
-      if (statusEl) statusEl.textContent = msg;
-      toast(msg);
-      return false;
-    }
+    catch (e) { return showErr("persist", e); }
 
-    const msg = `IMPORTED - ${STATE.sessions.length} sessions loaded`;
-    if (statusEl) statusEl.textContent = msg + ". Reloading...";
-    toast(msg);
-    setTimeout(() => location.reload(), 500);
+    const msg = "IMPORTED - " + STATE.sessions.length + " sessions loaded";
+    if (statusEl) {
+      statusEl.style.color = "var(--good)";
+      statusEl.textContent = msg + ". Reloading...";
+    }
+    try { toast(msg); } catch (_) {}
+    setTimeout(() => { try { location.reload(); } catch (_) { location.href = location.href; } }, 600);
     return true;
   } catch (err) {
-    console.error("Import error:", err);
-    const msg = "IMPORT FAILED - " + (err.message || "unknown error");
-    if (statusEl) statusEl.textContent = msg;
-    toast(msg);
-    return false;
+    return showErr("outer", err);
   }
 }
 
