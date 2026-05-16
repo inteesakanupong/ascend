@@ -2805,6 +2805,9 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
       </div>
     </div>
 
+    <!-- Phase 8: Targeted Warm-Up page (shown before actual workout starts) -->
+    <div id="targeted-warmup-page" style="display:none;"></div>
+
     <!-- Session active bar (shown after START is tapped) -->
     <div class="session-active-bar" id="session-active-bar">
       <span id="session-duration" style="font-family:var(--f-mono); font-weight:900; font-size:14px; letter-spacing:0.06em;">0:00</span>
@@ -3651,9 +3654,19 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.4";
+const APP_VERSION = "2026-05-17.5";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.5",
+    title: "Targeted Warm-Up Engine (Phase 8)",
+    items: [
+      "START SESSION now opens a dedicated Targeted Warm-Up page before working sets.",
+      "Warm-up mode adapts to readiness, session time, training context, and joint feedback without changing prescriptions.",
+      "Start Actual Workout stays locked until activation rounds, ramp sets, and warm-up feedback are complete.",
+      "Warm-up data is saved as session context only and does not count toward volume, training max, deload, or progression logic.",
+    ]
+  },
   {
     version: "2026-05-17.4",
     title: "Alex Leonidas Exercise Library (Phase 7 Extended)",
@@ -7366,9 +7379,296 @@ let LIFT_SET_RPE  = [];
 let LIFT_EXTRA_SETS = [];
 let LIFT_TECHNIQUES = [];
 let LIFT_DISMISSED_BANNERS = new Set(); // "exIdx-setNum" dismissed by user this session
+let TARGETED_WARMUP_ACTIVE = false;
+
+const TARGETED_WARMUP_METHOD = "targeted_warmup";
+const TARGETED_WARMUP_DEFAULTS = {
+  squat: {
+    label: "Squat",
+    rampSets: "2-4 easy squat ramp sets before the first working set.",
+    movements: [
+      { id: "squat_hamstring_curl", name: "Hamstring Curl", prescription: "15-25 reps", purpose: "Posterior-chain activation to prepare knees and hips before squatting." },
+      { id: "squat_reverse_hyper", name: "Reverse Hyper / Back Extension", prescription: "15-20 reps", purpose: "Glutes, low back, and hips. Easy pump, no fatigue." },
+      { id: "squat_brace", name: "Ab Pulldown / Dead Bug", prescription: "10-15 reps", purpose: "Trunk bracing before loading the squat pattern." },
+    ],
+  },
+  bench: {
+    label: "Bench",
+    rampSets: "2-4 easy bench ramp sets before the first working set.",
+    movements: [
+      { id: "bench_triceps", name: "Triceps Pressdown", prescription: "15-25 reps", purpose: "Elbow-friendly triceps pump before pressing." },
+      { id: "bench_upper_back", name: "Face Pull / Band Pull-Apart", prescription: "15-25 reps", purpose: "Upper-back and rear-delt activation for a stable press." },
+      { id: "bench_shoulder_control", name: "DB External Rotation / Scap Push-Up", prescription: "10-15 reps", purpose: "Shoulder control and scapular movement before loading." },
+    ],
+  },
+  deadlift: {
+    label: "Deadlift",
+    rampSets: "2-4 easy deadlift ramp sets before the first working set.",
+    movements: [
+      { id: "deadlift_hamstring_curl", name: "Hamstring Curl", prescription: "15-25 reps", purpose: "Hamstring activation before hip hinging." },
+      { id: "deadlift_reverse_hyper", name: "Reverse Hyper / Back Extension", prescription: "15-20 reps", purpose: "Glutes, low back, and hips. Easy pump, no fatigue." },
+      { id: "deadlift_brace", name: "Ab Pulldown / Plank", prescription: "10-15 reps or 20-30 sec", purpose: "Brace rehearsal before pulling from the floor." },
+    ],
+  },
+  overhead: {
+    label: "Overhead",
+    rampSets: "2-4 easy overhead press ramp sets before the first working set.",
+    movements: [
+      { id: "overhead_triceps", name: "Triceps Pressdown", prescription: "15-25 reps", purpose: "Elbow-friendly triceps pump before pressing overhead." },
+      { id: "overhead_upper_back", name: "Face Pull / Band Pull-Apart", prescription: "15-25 reps", purpose: "Upper-back and rear-delt activation for shoulder position." },
+      { id: "overhead_shoulder", name: "Lateral Raise / Wall Slide", prescription: "10-15 reps", purpose: "Easy shoulder warm-up without fatigue." },
+    ],
+  },
+};
+
+function inferMainLiftType(day = LIFT_DAY) {
+  const ex = STATE.exercises?.[day]?.[getLeadLiftIdx(day)] || {};
+  const name = normalizeExerciseName(ex.name || "");
+  if (name.includes("deadlift") || name.includes("rdl")) return "deadlift";
+  if (name.includes("overhead") || name.includes("ohp") || name.includes("shoulder press")) return "overhead";
+  if (name.includes("bench") || name.includes("press")) return "bench";
+  if (name.includes("squat") || name.includes("leg press")) return "squat";
+  if (day === "PUSH") return "bench";
+  if (day === "LEGS") return "squat";
+  return "squat";
+}
+
+function targetedWarmupReadinessDefault() {
+  const readiness = calculateReadiness(todayISO());
+  if (readiness.score != null && readiness.score <= 2) return "low";
+  if (readiness.score != null && readiness.score >= 4) return "high";
+  return "normal";
+}
+
+function targetedWarmupTrainingContext(day = LIFT_DAY) {
+  const wave = juggernautWave(0, day);
+  const cutting = (STATE.cut?.mode || "cut") === "cut";
+  const deload = wave.name === "DELOAD";
+  if (cutting && deload) return "cutting_deload";
+  if (deload) return "deload";
+  if (cutting) return "cutting";
+  return "normal";
+}
+
+function targetedWarmupMode(inputs) {
+  if (inputs.painArea !== "none" || Number(inputs.painLevel) > 0) return "pain_adjusted";
+  if (inputs.sessionTime === "short" || inputs.trainingContext === "deload" || inputs.trainingContext === "cutting_deload") return "minimal";
+  if (inputs.readiness === "low" || inputs.trainingContext === "cutting") return "complete";
+  return "standard";
+}
+
+function buildTargetedWarmup(inputs = {}) {
+  const normalized = {
+    mainLift: inputs.mainLift || inferMainLiftType(),
+    readiness: inputs.readiness || targetedWarmupReadinessDefault(),
+    sessionTime: inputs.sessionTime || "normal",
+    trainingContext: inputs.trainingContext || targetedWarmupTrainingContext(),
+    painArea: inputs.painArea || "none",
+    painLevel: Number(inputs.painLevel || 0),
+  };
+  const mode = targetedWarmupMode(normalized);
+  const rounds = mode === "minimal" ? 2 : 3;
+  const base = TARGETED_WARMUP_DEFAULTS[normalized.mainLift] || TARGETED_WARMUP_DEFAULTS.squat;
+  const movements = base.movements.map(m => ({
+    ...m,
+    prescription: mode === "pain_adjusted" ? `${m.prescription} easy, comfortable range` : m.prescription,
+    effort: mode === "pain_adjusted" ? "Stop if symptoms worsen." : "Easy pump only. No fatigue.",
+  }));
+  return {
+    type: "warmup",
+    method: TARGETED_WARMUP_METHOD,
+    id: `tw-${Date.now()}`,
+    date: LIFT_DRAFT?.date || todayISO(),
+    day: LIFT_DAY,
+    mainLift: normalized.mainLift,
+    mode,
+    rounds,
+    estimatedMin: mode === "minimal" ? "6-8" : mode === "complete" ? "10-14" : "8-12",
+    inputs: normalized,
+    movements,
+    completion: movements.flatMap(m => Array.from({ length: rounds }, (_, i) => ({
+      movementId: m.id,
+      round: i + 1,
+      completed: false,
+    }))),
+    rampSets: base.rampSets,
+    rampCompleted: false,
+    feedback: { postWarmupReadiness: null, jointResponse: null, saved: false },
+  };
+}
+
+function ensureTargetedWarmupDraft() {
+  if (!LIFT_DRAFT) return null;
+  if (!LIFT_DRAFT.targetedWarmup) LIFT_DRAFT.targetedWarmup = buildTargetedWarmup();
+  return LIFT_DRAFT.targetedWarmup;
+}
+
+function targetedWarmupComplete(warmup) {
+  if (!warmup) return false;
+  const roundsDone = (warmup.completion || []).every(c => c.completed);
+  const feedbackDone = !!warmup.feedback?.saved && !!warmup.feedback?.postWarmupReadiness && !!warmup.feedback?.jointResponse;
+  return roundsDone && !!warmup.rampCompleted && feedbackDone;
+}
+
+function targetedWarmupWarning(warmup) {
+  if (!warmup?.feedback?.saved) return "";
+  if (warmup.feedback.postWarmupReadiness !== "more_tired" && warmup.feedback.jointResponse !== "worse") return "";
+  return "Readiness or joint response worsened. You can still proceed, but keep the session conservative and avoid adding extra volume. No prescription was changed automatically.";
+}
+
+function savedTargetedWarmup(warmup) {
+  if (!warmup) return null;
+  return {
+    type: "warmup",
+    method: TARGETED_WARMUP_METHOD,
+    id: warmup.id,
+    date: warmup.date,
+    day: warmup.day,
+    mainLift: warmup.mainLift,
+    mode: warmup.mode,
+    rounds: warmup.rounds,
+    estimatedMin: warmup.estimatedMin,
+    inputs: { ...(warmup.inputs || {}) },
+    movements: (warmup.movements || []).map(m => ({ ...m })),
+    completion: (warmup.completion || []).map(c => ({ ...c })),
+    rampSets: warmup.rampSets,
+    rampCompleted: !!warmup.rampCompleted,
+    feedback: { ...(warmup.feedback || {}) },
+  };
+}
+
+function renderTargetedWarmupPage() {
+  const warmup = ensureTargetedWarmupDraft();
+  const wrap = document.getElementById("targeted-warmup-page");
+  if (!warmup || !wrap) return;
+  const isComplete = targetedWarmupComplete(warmup);
+  const warn = targetedWarmupWarning(warmup);
+  const modeLabel = warmup.mode.replace(/_/g, " ").toUpperCase();
+  const roundBtns = (movementId) => Array.from({ length: warmup.rounds }, (_, i) => {
+    const round = i + 1;
+    const item = warmup.completion.find(c => c.movementId === movementId && c.round === round);
+    return `<button class="btn sm ${item?.completed ? "primary" : "ghost"}" data-tw-round="${round}" data-tw-movement="${escapeHtml(movementId)}">R${round}</button>`;
+  }).join("");
+  const select = (id, label, value, options) => `
+    <div class="input">
+      <label>${label}</label>
+      <select id="${id}">
+        ${options.map(o => `<option value="${o[0]}" ${value === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}
+      </select>
+    </div>`;
+
+  wrap.innerHTML = `
+    <div class="card" style="border-left:3px solid var(--accent);">
+      <div class="card-head">
+        <div>
+          <div class="card-label">Workout Mode · Phase 8</div>
+          <div style="font-family:var(--f-display);font-size:28px;font-weight:900;letter-spacing:0.02em;margin-top:3px;">Targeted Warm-Up</div>
+        </div>
+        <div class="card-meta">${escapeHtml(modeLabel)} · ${warmup.estimatedMin} MIN</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;">
+        <div class="tag" style="justify-content:center;">Load Today's Session</div>
+        <div class="tag" style="justify-content:center;color:var(--accent);border-color:var(--accent);">Targeted Warm-Up</div>
+        <div class="tag" style="justify-content:center;${isComplete ? "color:var(--good);border-color:var(--good);" : ""}">Start Workout</div>
+      </div>
+      <div class="muted" style="font-size:12px;line-height:1.5;margin-top:12px;">
+        Complete the activation circuit, ramp the main lift, then save feedback. This page does not change workout prescriptions or volume targets.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-label">Today's Setup</div><div class="card-meta">${escapeHtml((TARGETED_WARMUP_DEFAULTS[warmup.mainLift] || {}).label || warmup.mainLift)}</div></div>
+      <div class="input-grid">
+        ${select("tw-main-lift", "Main lift", warmup.inputs.mainLift, [["squat","Squat"],["bench","Bench"],["deadlift","Deadlift"],["overhead","Overhead"]])}
+        ${select("tw-readiness", "Readiness", warmup.inputs.readiness, [["low","Low"],["normal","Normal"],["high","High"]])}
+      </div>
+      <div class="input-grid" style="margin-top:10px;">
+        ${select("tw-time", "Session time", warmup.inputs.sessionTime, [["short","Short"],["normal","Normal"],["long","Long"]])}
+        ${select("tw-context", "Context", warmup.inputs.trainingContext, [["normal","Normal"],["cutting","Cutting"],["deload","Deload"],["cutting_deload","Cutting + deload"]])}
+      </div>
+      <div class="input-grid" style="margin-top:10px;">
+        ${select("tw-pain-area", "Joint feedback", warmup.inputs.painArea, [["none","None"],["shoulder","Shoulder"],["elbow","Elbow"],["low_back","Low back"],["hip","Hip"],["knee","Knee"],["ankle","Ankle"]])}
+        ${select("tw-pain-level", "Pain level", String(warmup.inputs.painLevel), [["0","0"],["1","1"],["2","2"],["3","3"]])}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-label">Activation Circuit</div><div class="card-meta">${warmup.rounds} ROUNDS</div></div>
+      <div style="display:grid;gap:10px;">
+        ${warmup.movements.map((m, idx) => `
+          <div style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-elev-2);">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+              <div>
+                <div style="font-family:var(--f-mono);font-size:9px;letter-spacing:0.14em;color:var(--ink-dim);font-weight:700;">0${idx + 1}</div>
+                <div style="font-family:var(--f-display);font-size:20px;font-weight:900;">${escapeHtml(m.name)}</div>
+              </div>
+              <div class="tag">${escapeHtml(m.prescription)}</div>
+            </div>
+            <div class="muted" style="font-size:12px;line-height:1.45;margin-top:6px;">${escapeHtml(m.purpose)} ${escapeHtml(m.effort || "")}</div>
+            <div style="display:flex;gap:6px;margin-top:10px;">${roundBtns(m.id)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-label">Main-Lift Ramp</div><div class="card-meta">${warmup.rampCompleted ? "DONE" : "REQUIRED"}</div></div>
+      <div style="font-size:13px;line-height:1.5;color:var(--ink-mid);">${escapeHtml(warmup.rampSets)}</div>
+      <button class="btn ${warmup.rampCompleted ? "primary" : "ghost"} full" style="margin-top:10px;" data-tw-ramp="1">${warmup.rampCompleted ? "RAMP SETS DONE" : "MARK RAMP SETS DONE"}</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-label">Post Warm-Up Feedback</div><div class="card-meta">${warmup.feedback.saved ? "SAVED" : "REQUIRED"}</div></div>
+      <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:7px;">READINESS</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px;">
+        ${[["more_ready","MORE READY"],["same","SAME"],["more_tired","MORE TIRED"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.postWarmupReadiness === v ? "primary" : "ghost"}" data-tw-feedback="postWarmupReadiness" data-val="${v}">${l}</button>`).join("")}
+      </div>
+      <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:7px;">JOINT RESPONSE</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;">
+        ${[["better","BETTER"],["same","SAME"],["worse","WORSE"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.jointResponse === v ? "primary" : "ghost"}" data-tw-feedback="jointResponse" data-val="${v}">${l}</button>`).join("")}
+      </div>
+      <button class="btn ghost full" style="margin-top:12px;" data-tw-save-feedback="1">SAVE WARM-UP FEEDBACK</button>
+      ${warn ? `<div style="margin-top:10px;padding:10px;border-radius:9px;border-left:3px solid #d4a017;background:rgba(212,160,23,0.08);font-size:12px;line-height:1.45;color:var(--ink);">${escapeHtml(warn)}</div>` : ""}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:12px;">
+      <button class="btn ghost" data-tw-back="1">BACK</button>
+      <button class="btn primary" data-tw-start="1" ${isComplete ? "" : "disabled"} style="${isComplete ? "" : "opacity:0.45;"}">START ACTUAL WORKOUT</button>
+    </div>
+  `;
+}
+
+function openTargetedWarmupPage() {
+  if (!LIFT_DRAFT) return;
+  TARGETED_WARMUP_ACTIVE = true;
+  const gate = document.getElementById("lift-start-gate");
+  const warmupPage = document.getElementById("targeted-warmup-page");
+  const exWrap = document.getElementById("lift-exercises");
+  const saveBtn = document.getElementById("btn-save-session");
+  const activeBar = document.getElementById("session-active-bar");
+  const feedback = document.getElementById("session-feedback-panel");
+  if (gate) gate.style.display = "none";
+  if (warmupPage) warmupPage.style.display = "";
+  if (exWrap) exWrap.style.display = "none";
+  if (saveBtn) saveBtn.style.display = "none";
+  if (activeBar) activeBar.classList.remove("visible");
+  if (feedback) feedback.style.display = "none";
+  renderTargetedWarmupPage();
+  window.scrollTo(0, 0);
+}
+
+function closeTargetedWarmupPage() {
+  TARGETED_WARMUP_ACTIVE = false;
+  const gate = document.getElementById("lift-start-gate");
+  const warmupPage = document.getElementById("targeted-warmup-page");
+  if (gate) gate.style.display = "";
+  if (warmupPage) warmupPage.style.display = "none";
+  window.scrollTo(0, 0);
+}
 
 function activateLiftSession() {
   LIFT_SESSION_ACTIVE = true;
+  TARGETED_WARMUP_ACTIVE = false;
   LIFT_SESSION_START_MS = Date.now();
   LIFT_SET_DONE = STATE.exercises[LIFT_DAY].map(() => ({ s1: false, s2: false }));
   LIFT_SET_RPE  = STATE.exercises[LIFT_DAY].map(() => ({ s1: null, s2: null }));
@@ -7378,10 +7678,12 @@ function activateLiftSession() {
 
   // Hide gate, show exercises + save btn + active bar
   const gate = document.getElementById("lift-start-gate");
+  const warmupPage = document.getElementById("targeted-warmup-page");
   const exWrap = document.getElementById("lift-exercises");
   const saveBtn = document.getElementById("btn-save-session");
   const activeBar = document.getElementById("session-active-bar");
   if (gate) gate.style.display = "none";
+  if (warmupPage) warmupPage.style.display = "none";
   if (exWrap) exWrap.style.display = "";
   if (saveBtn) saveBtn.style.display = "";
   if (activeBar) activeBar.classList.add("visible");
@@ -7847,6 +8149,7 @@ function selectLiftDay(day) {
   LIFT_DAY = day;
   LIFT_EDITING_ID = null;
   LIFT_SESSION_ACTIVE = false;
+  TARGETED_WARMUP_ACTIVE = false;
   LIFT_SESSION_START_MS = null;
   LIFT_SET_DONE = [];
   LIFT_SET_RPE = [];
@@ -7865,6 +8168,7 @@ function selectLiftDay(day) {
     }),
     swappedExercises: {},
     notes: null,
+    targetedWarmup: null,
   };
   $("#lift-date").value = todayD;
   const liftNotesEl = document.getElementById("lift-notes");
@@ -7873,9 +8177,11 @@ function selectLiftDay(day) {
 
   // Show START gate, hide exercises / save btn / active bar
   const gate = document.getElementById("lift-start-gate");
+  const warmupPage = document.getElementById("targeted-warmup-page");
   const exWrap = document.getElementById("lift-exercises");
   const saveBtn = document.getElementById("btn-save-session");
   const activeBar = document.getElementById("session-active-bar");
+  const feedbackPanel = document.getElementById("session-feedback-panel");
   if (gate) {
     gate.style.display = "";
     const lsgDay = document.getElementById("lsg-day-label");
@@ -8032,9 +8338,11 @@ function selectLiftDay(day) {
       rEl.style.display = "none";
     }
   }
+  if (warmupPage) warmupPage.style.display = "none";
   if (exWrap) exWrap.style.display = "none";
   if (saveBtn) saveBtn.style.display = "none";
   if (activeBar) activeBar.classList.remove("visible");
+  if (feedbackPanel) feedbackPanel.style.display = "none";
 
   renderLiftHistory();
 }
@@ -8046,6 +8354,7 @@ function loadDraftFromSession(sessionId) {
   LIFT_DAY = s.day;
   LIFT_EDITING_ID = sessionId;
   LIFT_SESSION_ACTIVE = true;   // editing skips the gate
+  TARGETED_WARMUP_ACTIVE = false;
   $$(".day-tab").forEach(t => t.classList.toggle("active", t.dataset.day === s.day));
   LIFT_DRAFT = {
     id: s.id,
@@ -8054,6 +8363,7 @@ function loadDraftFromSession(sessionId) {
     sets: s.sets.map(set => ({ ...set })),
     swappedExercises: { ...(s.swappedExercises || {}) },
     notes: s.notes ?? null,
+    targetedWarmup: s.warmup ? savedTargetedWarmup(s.warmup) : null,
   };
   LIFT_SET_DONE = STATE.exercises[s.day].map(() => ({ s1: false, s2: false }));
   // Migrate per-exercise rpe (legacy) → per-set rpe
@@ -8079,10 +8389,12 @@ function loadDraftFromSession(sessionId) {
 
   // Hide gate, show exercises and save
   const gate = document.getElementById("lift-start-gate");
+  const warmupPage = document.getElementById("targeted-warmup-page");
   const exWrap = document.getElementById("lift-exercises");
   const saveBtn = document.getElementById("btn-save-session");
   const activeBar = document.getElementById("session-active-bar");
   if (gate) gate.style.display = "none";
+  if (warmupPage) warmupPage.style.display = "none";
   if (exWrap) exWrap.style.display = "";
   if (saveBtn) saveBtn.style.display = "";
   if (activeBar) activeBar.classList.remove("visible"); // no timer when editing
@@ -8136,6 +8448,7 @@ function countSessions(day) {
 function renderLift() {
   if (!LIFT_DAY) selectLiftDay(nextSessionDay());
   else {
+    if (TARGETED_WARMUP_ACTIVE) renderTargetedWarmupPage();
     if (LIFT_SESSION_ACTIVE) renderLiftExercises();
     renderLiftHistory();
   }
@@ -10976,12 +11289,88 @@ document.getElementById("btn-exercise-library")?.addEventListener("click", openE
 document.getElementById("btn-settings-library")?.addEventListener("click", openExerciseLibrary);
 
 $$(".day-tab").forEach(t => t.addEventListener("click", () => selectLiftDay(t.dataset.day)));
-$("#lift-date").addEventListener("change", (e) => { LIFT_DRAFT.date = e.target.value; });
+$("#lift-date").addEventListener("change", (e) => {
+  LIFT_DRAFT.date = e.target.value;
+  if (LIFT_DRAFT.targetedWarmup) LIFT_DRAFT.targetedWarmup.date = e.target.value;
+});
 $("#btn-new-pass").addEventListener("click", () => selectLiftDay(LIFT_DAY));
 
-// v14: START SESSION button on lift page
+// Phase 8: START SESSION opens Targeted Warm-Up before actual workout starts.
 document.getElementById("btn-start-lift").addEventListener("click", () => {
-  activateLiftSession();
+  openTargetedWarmupPage();
+});
+
+document.addEventListener("change", function(e) {
+  if (!TARGETED_WARMUP_ACTIVE || !LIFT_DRAFT?.targetedWarmup) return;
+  const ids = ["tw-main-lift", "tw-readiness", "tw-time", "tw-context", "tw-pain-area", "tw-pain-level"];
+  if (!ids.includes(e.target.id)) return;
+  const current = LIFT_DRAFT.targetedWarmup.inputs || {};
+  const nextInputs = {
+    mainLift: document.getElementById("tw-main-lift")?.value || current.mainLift,
+    readiness: document.getElementById("tw-readiness")?.value || current.readiness,
+    sessionTime: document.getElementById("tw-time")?.value || current.sessionTime,
+    trainingContext: document.getElementById("tw-context")?.value || current.trainingContext,
+    painArea: document.getElementById("tw-pain-area")?.value || current.painArea,
+    painLevel: Number(document.getElementById("tw-pain-level")?.value || current.painLevel || 0),
+  };
+  LIFT_DRAFT.targetedWarmup = buildTargetedWarmup(nextInputs);
+  renderTargetedWarmupPage();
+});
+
+document.addEventListener("click", function(e) {
+  if (!TARGETED_WARMUP_ACTIVE || !LIFT_DRAFT?.targetedWarmup) return;
+  const warmup = LIFT_DRAFT.targetedWarmup;
+
+  const roundBtn = e.target.closest("[data-tw-round][data-tw-movement]");
+  if (roundBtn) {
+    const movementId = roundBtn.dataset.twMovement;
+    const round = Number(roundBtn.dataset.twRound);
+    const item = warmup.completion.find(c => c.movementId === movementId && c.round === round);
+    if (item) item.completed = !item.completed;
+    renderTargetedWarmupPage();
+    return;
+  }
+
+  if (e.target.closest("[data-tw-ramp]")) {
+    warmup.rampCompleted = !warmup.rampCompleted;
+    renderTargetedWarmupPage();
+    return;
+  }
+
+  const feedbackBtn = e.target.closest("[data-tw-feedback]");
+  if (feedbackBtn) {
+    const field = feedbackBtn.dataset.twFeedback;
+    warmup.feedback[field] = feedbackBtn.dataset.val;
+    warmup.feedback.saved = false;
+    renderTargetedWarmupPage();
+    return;
+  }
+
+  if (e.target.closest("[data-tw-save-feedback]")) {
+    if (!warmup.feedback.postWarmupReadiness || !warmup.feedback.jointResponse) {
+      toast("SAVE READINESS + JOINT RESPONSE");
+      return;
+    }
+    warmup.feedback.saved = true;
+    renderTargetedWarmupPage();
+    toast("WARM-UP FEEDBACK SAVED");
+    return;
+  }
+
+  if (e.target.closest("[data-tw-back]")) {
+    closeTargetedWarmupPage();
+    return;
+  }
+
+  if (e.target.closest("[data-tw-start]")) {
+    if (!targetedWarmupComplete(warmup)) {
+      toast("COMPLETE WARM-UP + FEEDBACK FIRST");
+      return;
+    }
+    const warn = targetedWarmupWarning(warmup);
+    if (warn) toast("PROCEED CONSERVATIVELY");
+    activateLiftSession();
+  }
 });
 
 // Energy rating buttons on lift gate
@@ -11122,6 +11511,10 @@ $("#btn-save-session").addEventListener("click", () => {
     // Compute max pain for quick gate checks
     maxPain: Math.max(0, ...Object.values(P5_FEEDBACK.painScores)),
   } : (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.feedback ?? null);
+  const existingSession = isEditing ? STATE.sessions.find(x => x.id === LIFT_EDITING_ID) : null;
+  const warmupData = !isEditing
+    ? savedTargetedWarmup(LIFT_DRAFT.targetedWarmup)
+    : (existingSession?.warmup ?? null);
 
   const session = {
     id: isEditing ? LIFT_EDITING_ID : `s-${Date.now()}`,
@@ -11135,8 +11528,9 @@ $("#btn-save-session").addEventListener("click", () => {
     techniques: LIFT_TECHNIQUES.map(t => (t && t !== "skipped") ? t : null),
     energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null,
     feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
+    warmup: warmupData, // Phase 8: Targeted Warm-Up context only; ignored by volume/progression.
     durationSec: isEditing
-      ? (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.durationSec ?? null)
+      ? (existingSession?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
   };
 
