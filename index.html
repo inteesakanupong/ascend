@@ -9629,16 +9629,16 @@ const EXERCISE_DB_RAW = [
   ["Hack Deadlift","quads","legs","barbell","compound"],
   // Alex Leonidas unconventional — upper body
   ["AD Press","shoulders","push","barbell","compound"],
-  ["Chest Expander Pull-Apart","shoulders","pull","other","isolation"],
+  ["Chest Expander Pull-Apart","shoulders","pull","cable","isolation"],
   ["Dual Rope Pushdown","triceps","push","cable","isolation"],
   ["Pendlay Row","back","pull","barbell","compound"],
   ["Weighted Pull-Up","back","pull","bodyweight","compound"],
   ["Overhead Barbell Extension","triceps","push","barbell","isolation"],
   ["Standing Cable Crunch","abs","core","cable","isolation"],
   ["Preacher Curl","biceps","pull","barbell","isolation"],
-  // Yoke / neck
-  ["Neck Curl","neck","pull","bodyweight","isolation"],
-  ["Neck Extension","neck","push","bodyweight","isolation"],
+  // Yoke / neck (mapped to upper_traps for volume tracking)
+  ["Neck Curl","upper_traps","pull","bodyweight","isolation"],
+  ["Neck Extension","upper_traps","push","bodyweight","isolation"],
   ["Good Morning (for hamstrings)","hamstrings","legs","barbell","compound"],
   // ── GLUTES ───────────────────────────────────────────────────────────────
   ["Hip Thrust","glutes","legs","barbell","compound"],
@@ -9985,7 +9985,7 @@ const EXERCISE_METADATA = {
     // A signature Alex Leonidas / yoke exercise. He advocates neck training
     // heavily — a thick neck and traps is central to the 'Naturally Enhanced' look.
     // 90lb x100 reps is one of his noted lifts.
-    primaryMuscle: "neck", secondaryMuscles: [],
+    primaryMuscle: "upper_traps", secondaryMuscles: [],
     movementPattern: "neck_flexion", exerciseClass: "isolation",
     jointStress: "low", fatigueCost: "low",
     progressionType: "rep_first", bestRepRange: [15,30],
@@ -10001,7 +10001,7 @@ const EXERCISE_METADATA = {
   },
 
   "Neck Extension": {
-    primaryMuscle: "neck", secondaryMuscles: ["upper_traps"],
+    primaryMuscle: "upper_traps", secondaryMuscles: [],
     movementPattern: "neck_extension", exerciseClass: "isolation",
     jointStress: "low", fatigueCost: "low",
     progressionType: "rep_first", bestRepRange: [15,30],
