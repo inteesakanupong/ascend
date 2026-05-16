@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.2";
+const CACHE = "ascend-2026-05-16.4";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3529,9 +3529,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.3";
+const APP_VERSION = "2026-05-16.4";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-16.4",
+    title: "JTM Engine Hardening (Phase 1)",
+    items: [
+      "Lead lifts now always use JTM wave prescriptions — Accumulation 10 reps, Intensification 8 reps, Realization 5/AMRAP, Deload 5 reps.",
+      "Fixed a bug where a lead lift with no stored working max could silently fall back to accessory rep ranges.",
+      "Training Max now resolves from stored WM → AMRAP estimate → start-weight inference — lead lifts never fall through to accessory logic.",
+      "Added ascendRunJtmTests() QA suite in the dev console to verify wave calculations.",
+      "Fixed file import crash on Samsung Galaxy S23 Ultra and other Android devices.",
+    ]
+  },
   {
     version: "2026-05-12.1",
     title: "Program Calibration v1",
@@ -11806,15 +11817,37 @@ function normalizeImportedState(raw) {
 
 async function readImportFile(file) {
   if (!file) throw new Error("no file selected");
-  if (file.text) {
-    try { return await file.text(); }
-    catch (_) {}
+  // Samsung/Android WebView safe read — try multiple methods with explicit error capture
+  // Method 1: file.text() (modern, fast) — may throw on some Android WebViews
+  if (typeof file.text === "function") {
+    try {
+      const txt = await file.text();
+      if (txt && txt.length > 0) return txt;
+    } catch (e) {
+      console.warn("readImportFile: file.text() failed, trying FileReader", e);
+    }
   }
+  // Method 2: FileReader with explicit UTF-8 encoding (most compatible)
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("could not read file"));
-    reader.readAsText(file);
+    try {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const result = ev.target ? ev.target.result : reader.result;
+          resolve(String(result || ""));
+        } catch (e) {
+          reject(new Error("FileReader result extraction failed: " + e.message));
+        }
+      };
+      reader.onerror = (ev) => {
+        const err = (ev.target ? ev.target.error : reader.error) || new Error("FileReader error");
+        reject(err);
+      };
+      reader.onabort = () => reject(new Error("FileReader aborted"));
+      reader.readAsText(file, "UTF-8");
+    } catch (e) {
+      reject(new Error("FileReader init failed: " + e.message));
+    }
   });
 }
 
@@ -11919,11 +11952,22 @@ function openImportSheet() {
       return;
     }
     try {
+      statusEl.textContent = "Reading file...";
+      if (file.size > 50 * 1024 * 1024) {
+        statusEl.textContent = "IMPORT FAILED - file too large (max 50MB)";
+        toast("IMPORT FAILED - file too large");
+        return;
+      }
       const text = await readImportFile(file);
+      if (!text || text.trim().length === 0) {
+        statusEl.textContent = "IMPORT FAILED - file appears empty";
+        toast("IMPORT FAILED - file appears empty");
+        return;
+      }
       await importBackupPayload(text, statusEl);
     } catch (err) {
       console.error("Import file read failed:", err);
-      const msg = "IMPORT FAILED - could not read file";
+      const msg = "IMPORT FAILED - " + (err.message || "could not read file");
       statusEl.textContent = msg;
       toast(msg);
     }
@@ -11941,12 +11985,24 @@ function openImportSheet() {
 
 $("#btn-import").addEventListener("click", openImportSheet);
 $("#file-import").addEventListener("change", async (e) => {
-  const f = e.target.files[0]; if (!f) return;
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
   try {
+    if (f.size > 50 * 1024 * 1024) { // 50MB sanity cap
+      toast("IMPORT FAILED - file too large (max 50MB)");
+      return;
+    }
     const text = await readImportFile(f);
+    if (!text || text.trim().length === 0) {
+      toast("IMPORT FAILED - file appears empty");
+      return;
+    }
     await importBackupPayload(text);
+  } catch (err) {
+    console.error("File import change handler error:", err);
+    toast("IMPORT FAILED - " + (err.message || "could not read file"));
   } finally {
-    e.target.value = "";
+    try { e.target.value = ""; } catch (_) {}
   }
 });
 $("#btn-reset").addEventListener("click", () => {
