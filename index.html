@@ -10746,6 +10746,85 @@ function _openCustomExerciseEditor(name) {
   });
 }
 
+
+function showExerciseDetail(name) {
+  const db   = EXERCISE_DB.find(function(e) { return e.name === name; }) || findDbMatch(name);
+  const meta = getExerciseMeta(name);
+  const cues = getExerciseCues(name);
+  const subs = getSubstitutions(name, "general");
+
+  var html = "";
+
+  // Header
+  html += "<h3 style=\"margin-bottom:4px;\">" + escapeHtml(name) + "</h3>";
+
+  // Tags row
+  if (db) {
+    html += "<div style=\"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;\">";
+    html += "<span class=\"ex-tag tm\">" + (MUSCLE_LABELS[db.muscle] || db.muscle) + "</span>";
+    html += "<span class=\"ex-tag mv\">" + db.movement + "</span>";
+    html += "<span class=\"ex-tag eq\">" + db.equipment + "</span>";
+    html += "<span class=\"ex-tag\" style=\"background:var(--bg-elev-2);\">" + db.type + "</span>";
+    html += "</div>";
+  }
+
+  // Rich metadata
+  if (meta) {
+    html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;\">";
+    html += "<div style=\"background:var(--bg-elev-1);border-radius:8px;padding:10px;\">";
+    html += "<div style=\"font-family:var(--f-mono);font-size:9px;color:var(--ink-dim);margin-bottom:4px;\">JOINT STRESS</div>";
+    var jsColor = meta.jointStress === "high" ? "var(--bad)" : meta.jointStress === "moderate" ? "var(--warn)" : "var(--good)";
+    html += "<div style=\"font-size:13px;font-weight:600;color:" + jsColor + ";\">" + (meta.jointStress || "—") + "</div>";
+    html += "</div>";
+    html += "<div style=\"background:var(--bg-elev-1);border-radius:8px;padding:10px;\">";
+    html += "<div style=\"font-family:var(--f-mono);font-size:9px;color:var(--ink-dim);margin-bottom:4px;\">FATIGUE COST</div>";
+    html += "<div style=\"font-size:13px;font-weight:600;\">" + (meta.fatigueCost || "—") + "</div>";
+    html += "</div>";
+    html += "<div style=\"background:var(--bg-elev-1);border-radius:8px;padding:10px;\">";
+    html += "<div style=\"font-family:var(--f-mono);font-size:9px;color:var(--ink-dim);margin-bottom:4px;\">PROGRESSION</div>";
+    html += "<div style=\"font-size:13px;font-weight:600;\">" + (meta.progressionType === "rep_first" ? "Rep-first" : "Load-first") + "</div>";
+    html += "</div>";
+    html += "<div style=\"background:var(--bg-elev-1);border-radius:8px;padding:10px;\">";
+    html += "<div style=\"font-family:var(--f-mono);font-size:9px;color:var(--ink-dim);margin-bottom:4px;\">BEST RANGE</div>";
+    html += "<div style=\"font-size:13px;font-weight:600;\">" + (meta.bestRepRange ? meta.bestRepRange[0] + "–" + meta.bestRepRange[1] + " reps" : "—") + "</div>";
+    html += "</div>";
+    html += "</div>";
+  }
+
+  // Technique cues
+  if (cues && cues.length) {
+    html += "<div style=\"font-family:var(--f-mono);font-size:10px;letter-spacing:0.15em;color:var(--ink-dim);margin-bottom:8px;\">TECHNIQUE CUES</div>";
+    html += "<div style=\"background:var(--bg-elev-1);border-radius:8px;padding:12px;margin-bottom:14px;\">";
+    cues.forEach(function(cue) {
+      html += "<div style=\"font-size:13px;line-height:1.6;padding:4px 0;border-bottom:1px solid var(--line);\">";
+      html += "<span style=\"color:var(--accent);margin-right:6px;\">→</span>" + escapeHtml(cue);
+      html += "</div>";
+    });
+    html += "</div>";
+  }
+
+  // Substitutions
+  if (subs && subs.length) {
+    html += "<div style=\"font-family:var(--f-mono);font-size:10px;letter-spacing:0.15em;color:var(--ink-dim);margin-bottom:8px;\">SUBSTITUTIONS</div>";
+    html += "<div style=\"display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;\">";
+    subs.slice(0, 4).forEach(function(s) {
+      html += "<span style=\"background:var(--bg-elev-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;\">" + escapeHtml(s.name) + "</span>";
+    });
+    html += "</div>";
+  }
+
+  // No metadata fallback
+  if (!meta && !cues.length) {
+    html += "<div style=\"color:var(--ink-dim);font-size:13px;margin-bottom:14px;\">Basic exercise — no detailed metadata yet.</div>";
+  }
+
+  html += "<button class=\"btn ghost\" onclick=\"closeSheet()\" style=\"width:100%;margin-top:4px;\">CLOSE</button>";
+
+  document.getElementById("sheet-body").innerHTML = html;
+  openSheet();
+}
+
+
 function _applyExerciseSelection(name) {
   const isDbEntry = EXERCISE_DB.some(e => e.name === name);
   const dbMatch = isDbEntry ? EXERCISE_DB.find(e => e.name === name) : null;
@@ -10753,7 +10832,8 @@ function _applyExerciseSelection(name) {
   const equipment = dbMatch ? dbMatch.equipment : null;
 
   if (_exSelExIdx == null && !_exSelCallback) {
-    closeExerciseSelector();
+    // Library browse mode — show exercise detail sheet
+    showExerciseDetail(name);
     return;
   }
 
