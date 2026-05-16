@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-16.9";
+const CACHE = "ascend-2026-05-17.1";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -2480,6 +2480,42 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 .prog-day-label .prog-day-arrow { font-size: 10px; transition: transform 150ms; margin-right: 4px; }
 .prog-day-label.collapsed .prog-day-arrow { transform: rotate(-90deg); }
 .prog-ex-list.collapsed { display: none; }
+.p5-btn {
+  width: 44px; height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.p5-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.p5-text-btn {
+  width: auto;
+  font-family: var(--f-mono);
+  font-size: 10px !important;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+.p5-text-btn.selected {
+  color: white;
+}
+.p5-pain-btn.selected {
+  background: var(--bad) !important;
+  border-color: var(--bad) !important;
+  color: white;
+}
+.p5-pain-btn[data-val="0"].selected {
+  background: var(--good) !important;
+  border-color: var(--good) !important;
+}
 .lsg-energy-btn {
   width: 44px; height: 44px; font-size: 22px; background: var(--bg-elev-2);
   border: 2px solid var(--line); border-radius: 12px; cursor: pointer;
@@ -2778,6 +2814,90 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
     <div id="lift-exercises" style="display:none;"></div>
 
     <button class="btn primary full" style="margin-top:18px; display:none;" id="btn-save-session">SAVE SESSION</button>
+
+    <!-- PHASE 5: Post-session feedback panel (shown after exercises, before save) -->
+    <div id="session-feedback-panel" style="display:none; margin-top:14px;">
+      <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-dim);margin-bottom:10px;">SESSION FEEDBACK</div>
+
+      <!-- Enjoyment / Sustainability -->
+      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">How was this session?</div>
+        <div style="display:flex;gap:8px;justify-content:center;" id="p5-enjoyment-btns">
+          <button class="p5-btn" data-field="enjoyment" data-val="1" title="Terrible">😤</button>
+          <button class="p5-btn" data-field="enjoyment" data-val="2" title="Poor">😞</button>
+          <button class="p5-btn" data-field="enjoyment" data-val="3" title="OK">😐</button>
+          <button class="p5-btn" data-field="enjoyment" data-val="4" title="Good">😊</button>
+          <button class="p5-btn" data-field="enjoyment" data-val="5" title="Great">💪</button>
+        </div>
+        <div id="p5-enjoyment-label" style="font-size:10px;color:var(--ink-dim);text-align:center;margin-top:4px;height:14px;font-family:var(--f-mono);"></div>
+      </div>
+
+      <!-- Session duration felt -->
+      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Session length felt…</div>
+        <div style="display:flex;gap:6px;justify-content:center;" id="p5-duration-btns">
+          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="short" style="font-size:10px;padding:6px 10px;">Too short</button>
+          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="good" style="font-size:10px;padding:6px 10px;">About right</button>
+          <button class="p5-btn p5-text-btn" data-field="sessionLengthFelt" data-val="long" style="font-size:10px;padding:6px 10px;">Too long</button>
+        </div>
+      </div>
+
+      <!-- Pain / joint stress -->
+      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Any joint pain or discomfort? <span style="font-size:10px;font-weight:400;color:var(--ink-dim);">(0 = none)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="p5-pain-grid">
+          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Shoulder</div>
+            <div style="display:flex;gap:4px;" id="p5-pain-shoulder">
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="shoulder" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
+            </div>
+          </div>
+          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Elbow</div>
+            <div style="display:flex;gap:4px;" id="p5-pain-elbow">
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="elbow" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
+            </div>
+          </div>
+          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Lower back</div>
+            <div style="display:flex;gap:4px;" id="p5-pain-lowerback">
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="lowerback" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
+            </div>
+          </div>
+          <div><div style="font-size:10px;color:var(--ink-dim);margin-bottom:4px;">Knee</div>
+            <div style="display:flex;gap:4px;" id="p5-pain-knee">
+              ${[0,1,2,3,4,5].map(n=>`<button class="p5-pain-btn" data-joint="knee" data-val="${n}" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;flex:1;">${n}</button>`).join("")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technique quality -->
+      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Overall technique quality</div>
+        <div style="display:flex;gap:8px;justify-content:center;" id="p5-technique-btns">
+          <button class="p5-btn" data-field="techniqueScore" data-val="1" title="Poor">1</button>
+          <button class="p5-btn" data-field="techniqueScore" data-val="2" title="Inconsistent">2</button>
+          <button class="p5-btn" data-field="techniqueScore" data-val="3" title="Acceptable">3</button>
+          <button class="p5-btn" data-field="techniqueScore" data-val="4" title="Good">4</button>
+          <button class="p5-btn" data-field="techniqueScore" data-val="5" title="Excellent">5</button>
+        </div>
+        <div id="p5-technique-label" style="font-size:10px;color:var(--ink-dim);text-align:center;margin-top:4px;height:14px;font-family:var(--f-mono);">
+          1=poor · 3=ok · 5=excellent
+        </div>
+      </div>
+
+      <!-- Manual override reason -->
+      <div style="background:var(--bg-elev-1);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Override reason <span style="font-size:10px;font-weight:400;color:var(--ink-dim);">(optional)</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="p5-override-btns">
+          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="warmups_felt_strong" style="font-size:10px;padding:5px 9px;">Warmups felt strong</button>
+          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="deload_early" style="font-size:10px;padding:5px 9px;">Taking early deload</button>
+          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="pushed_through" style="font-size:10px;padding:5px 9px;">Pushed through fatigue</button>
+          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="technique_focus" style="font-size:10px;padding:5px 9px;">Technique focus day</button>
+          <button class="p5-btn p5-text-btn p5-multi" data-field="overrideReasons" data-val="submax_day" style="font-size:10px;padding:5px 9px;">Intentionally submaximal</button>
+        </div>
+      </div>
+
+    </div><!-- /session-feedback-panel -->
+
     <div class="input" style="margin-top:10px;">
       <label>Session notes <span class="muted" style="text-transform:none;letter-spacing:0;">(optional)</span></label>
       <textarea id="lift-notes" rows="2" placeholder="How it felt, what to try next…" style="font-size:13px;"></textarea>
@@ -3529,9 +3649,20 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-16.9";
+const APP_VERSION = "2026-05-17.1";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-16.9",
+    title: "Data Quality Layer (Phase 4) + User Feedback (Phase 5)",
+    items: [
+      "After each session, rate enjoyment (1–5 emoji), session length, technique quality (1–5), and any joint pain (shoulder/elbow/lower back/knee, 0–5 each).",
+      "Optional override reasons: warmups felt strong, early deload, technique focus day, etc.",
+      "Pain scores ≥3 now suppress optional extra sets and intensity techniques via the restraint gate.",
+      "All feedback is saved with the session and available in exports and the dev console.",
+      "Set classification (Phase 4): load-finding, warmup, failed, bodyweight now properly labeled.",
+    ]
+  },
   {
     version: "2026-05-16.9",
     title: "Data Quality Layer (Phase 4)",
@@ -4876,6 +5007,14 @@ function phase2RestraintGate() {
   ) : { score: null };
   const poorReadiness = readiness.score != null && readiness.score <= 2;
 
+  // Phase 5: Check most recent session pain score
+  const recentSession = STATE.sessions && STATE.sessions.length
+    ? sortSessionsChronological(STATE.sessions).slice(-1)[0]
+    : null;
+  const recentMaxPain = recentSession && recentSession.feedback
+    ? (recentSession.feedback.maxPain || 0) : 0;
+  const highPain = recentMaxPain >= 3; // pain 3+ = suppress optional stress
+
   // Session duration (minutes) from current live session start time
   let sessionMinutes = 0;
   if (typeof LIFT_START_TIME !== "undefined" && LIFT_START_TIME) {
@@ -4887,6 +5026,7 @@ function phase2RestraintGate() {
     !isDeload &&
     !aggCut &&
     !poorReadiness &&
+    !highPain &&
     sessionMinutes < 75;
 
   const suppressReason = !hasRotation  ? "baseline mode — first full rotation not yet complete" :
@@ -9896,6 +10036,93 @@ document.getElementById("btn-start-lift").addEventListener("click", () => {
 
 // Energy rating buttons on lift gate
 let _lsgEnergy = null;
+
+// ── PHASE 5: Post-session feedback state ──
+const P5_FEEDBACK = {
+  enjoyment: null,
+  sessionLengthFelt: null,
+  techniqueScore: null,
+  painScores: { shoulder: 0, elbow: 0, lowerback: 0, knee: 0 },
+  overrideReasons: [],
+};
+
+function p5Reset() {
+  P5_FEEDBACK.enjoyment = null;
+  P5_FEEDBACK.sessionLengthFelt = null;
+  P5_FEEDBACK.techniqueScore = null;
+  P5_FEEDBACK.painScores = { shoulder: 0, elbow: 0, lowerback: 0, knee: 0 };
+  P5_FEEDBACK.overrideReasons = [];
+  document.querySelectorAll(".p5-btn, .p5-pain-btn").forEach(b => b.classList.remove("selected"));
+  const techLabel = document.getElementById("p5-technique-label");
+  if (techLabel) techLabel.textContent = "1=poor · 3=ok · 5=excellent";
+  const enjLabel = document.getElementById("p5-enjoyment-label");
+  if (enjLabel) enjLabel.textContent = "";
+}
+
+function p5ShowPanel() {
+  const panel = document.getElementById("session-feedback-panel");
+  if (panel) panel.style.display = "block";
+}
+
+function p5HidePanel() {
+  const panel = document.getElementById("session-feedback-panel");
+  if (panel) panel.style.display = "none";
+  p5Reset();
+}
+
+// Wire feedback buttons
+document.addEventListener("click", function(e) {
+  // Single-select buttons
+  const btn = e.target.closest(".p5-btn:not(.p5-multi)");
+  if (btn) {
+    const field = btn.dataset.field;
+    const val = btn.dataset.val;
+    if (!field || val === undefined) return;
+    // Deselect siblings
+    const parent = btn.parentElement;
+    parent.querySelectorAll(".p5-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    P5_FEEDBACK[field] = isNaN(+val) ? val : +val;
+    // Update labels
+    if (field === "techniqueScore") {
+      const labels = ["", "Poor — major compensation", "Inconsistent", "Acceptable", "Good form", "Excellent — full ROM"];
+      const el = document.getElementById("p5-technique-label");
+      if (el) el.textContent = labels[+val] || "";
+    }
+    if (field === "enjoyment") {
+      const labels = ["", "Terrible", "Poor", "OK", "Good", "Great!"];
+      const el = document.getElementById("p5-enjoyment-label");
+      if (el) el.textContent = labels[+val] || "";
+    }
+  }
+
+  // Multi-select override reasons
+  const multiBtn = e.target.closest(".p5-btn.p5-multi");
+  if (multiBtn) {
+    const val = multiBtn.dataset.val;
+    if (!val) return;
+    const isSelected = multiBtn.classList.contains("selected");
+    if (isSelected) {
+      multiBtn.classList.remove("selected");
+      P5_FEEDBACK.overrideReasons = P5_FEEDBACK.overrideReasons.filter(r => r !== val);
+    } else {
+      multiBtn.classList.add("selected");
+      P5_FEEDBACK.overrideReasons.push(val);
+    }
+  }
+
+  // Pain buttons
+  const painBtn = e.target.closest(".p5-pain-btn");
+  if (painBtn) {
+    const joint = painBtn.dataset.joint;
+    const val = +(painBtn.dataset.val || 0);
+    if (!joint) return;
+    const row = document.getElementById("p5-pain-" + joint);
+    if (row) row.querySelectorAll(".p5-pain-btn").forEach(b => b.classList.remove("selected"));
+    painBtn.classList.add("selected");
+    P5_FEEDBACK.painScores[joint] = val;
+  }
+});
 const ENERGY_LABELS = { 1: "Very low energy", 2: "Below average", 3: "Average", 4: "Feeling good", 5: "Peak energy 🔥" };
 document.querySelectorAll(".lsg-energy-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -9935,6 +10162,17 @@ $("#btn-save-session").addEventListener("click", () => {
 
   // Build session object
   const isEditing = !!LIFT_EDITING_ID;
+  // Phase 5: Build feedback object from P5_FEEDBACK state
+  const p5data = !isEditing ? {
+    enjoyment:         P5_FEEDBACK.enjoyment,
+    sessionLengthFelt: P5_FEEDBACK.sessionLengthFelt,
+    techniqueScore:    P5_FEEDBACK.techniqueScore,
+    painScores:        { ...P5_FEEDBACK.painScores },
+    overrideReasons:   P5_FEEDBACK.overrideReasons.length ? [...P5_FEEDBACK.overrideReasons] : null,
+    // Compute max pain for quick gate checks
+    maxPain: Math.max(0, ...Object.values(P5_FEEDBACK.painScores)),
+  } : (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.feedback ?? null);
+
   const session = {
     id: isEditing ? LIFT_EDITING_ID : `s-${Date.now()}`,
     day: LIFT_DRAFT.day,
@@ -9945,9 +10183,9 @@ $("#btn-save-session").addEventListener("click", () => {
     rpe: LIFT_SET_RPE.map(r => ({ s1: r.s1, s2: r.s2 })),
     extraSets: LIFT_EXTRA_SETS.map(e => ({ sets: (e?.sets || []).filter(s => s.done) })),
     techniques: LIFT_TECHNIQUES.map(t => (t && t !== "skipped") ? t : null),
-    energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null, // only save completed extra sets
+    energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null,
+    feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
     durationSec: isEditing
-      // preserve existing duration if editing
       ? (STATE.sessions.find(x => x.id === LIFT_EDITING_ID)?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
   };
@@ -10007,6 +10245,8 @@ $("#btn-save-session").addEventListener("click", () => {
       }
     }
   }
+  // Phase 5: hide feedback panel and reset state
+  p5HidePanel();
   // Reset draft (back to a fresh recommendation for the same day)
   selectLiftDay(LIFT_DRAFT.day);
 });
