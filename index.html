@@ -3725,13 +3725,10 @@ function buildWeeklyDashboardHTML(scheduledDay) {
   var dayChips = dayOrder.map(function(d) {
     var done = completedDays.has(d);
     var scheduled = scheduledDay === d;
-    // scheduled: solid filled, white text
-    // done (not scheduled): faint border only, dim text with checkmark — clearly passive
-    // neither: grey border, faintest text
     var border = scheduled ? dayColors[d] : 'var(--line)';
     var bg = scheduled ? dayColors[d] : 'var(--bg-elev-2)';
     var color = scheduled ? 'white' : done ? 'var(--ink-mid)' : 'var(--ink-faint)';
-    var label = done && !scheduled ? '✓ ' + d : d;
+    var label = done && !scheduled ? '&#x2713; ' + d : d;
     return '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid ' + border + ';font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;'
       + 'background:' + bg + ';'
       + 'color:' + color + ';">' + label + '</div>';
@@ -9588,4 +9585,12 @@ try {
       <div style="max-width:420px;border:1px solid #dddcd7;background:#fff;padding:22px;">
         <h1 style="margin:0 0 8px;font-size:24px;line-height:1.1;">Ascend startup failed</h1>
         <p style="margin:0 0 12px;color:#5a5a55;line-height:1.45;">Ascend caught a startup error instead of staying blank. Open <strong>recovery.html</strong> once to clear the old cached build, then reload Ascend.</p>
-        <pre style="white-space:pre-wrap;overflow:auto;background:#eeede9;padding:10px;fon
+        <pre style="white-space:pre-wrap;overflow:auto;background:#eeede9;padding:10px;font-size:12px;line-height:1.35;">${String(e && (e.stack || e.message) || e).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]))}</pre>
+      </div>
+    </div>
+  `;
+}
+</script>
+
+</body>
+</html>

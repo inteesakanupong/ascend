@@ -3497,4 +3497,6 @@ function openSessionSheet(id) {
     saveState();
     closeSheet();
     selectLiftDay(LIFT_DAY);
-    
+    toast("DELETED");
+  });
+}
