@@ -3281,34 +3281,7 @@ document.addEventListener("click", function(e) {
     P5_FEEDBACK.painScores[joint] = val;
   }
 });
-const ENERGY_LABELS = { 1: "Very low energy", 2: "Below average", 3: "Average", 4: "Feeling good", 5: "Peak energy 🔥" };
-document.querySelectorAll(".lsg-energy-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    _lsgEnergy = +btn.dataset.energy;
-    document.querySelectorAll(".lsg-energy-btn").forEach(b => b.classList.toggle("selected", +b.dataset.energy === _lsgEnergy));
-    const label = document.getElementById("lsg-energy-label");
-    if (label) label.textContent = ENERGY_LABELS[_lsgEnergy] || "";
-    // Also update readiness adjustment incorporating energy
-    if (LIFT_DRAFT && _lsgEnergy <= 2) {
-      const energyAdj = _lsgEnergy === 1 ? -0.10 : -0.05;
-      LIFT_DRAFT.energyRating = _lsgEnergy;
-      // Re-apply adjustment
-      const day = LIFT_DAY;
-      const wave = juggernautWave(0, day);
-      if (wave.name !== "DELOAD") {
-        LIFT_DRAFT.sets = STATE.exercises[day].map((_, idx) => {
-          const ex = STATE.exercises[day][idx];
-          const p = progressionFor(day, idx);
-          const adjW = roundToIncrement(p.weight * (1 + energyAdj), ex);
-          return { s1w: adjW, s1r: p.reps, s2w: adjW, s2r: p.reps };
-        });
-        toast(`Low energy — weights reduced ${Math.round(Math.abs(energyAdj)*100)}%`);
-      }
-    } else if (LIFT_DRAFT) {
-      LIFT_DRAFT.energyRating = _lsgEnergy;
-    }
-  });
-});
+// Energy quick-tap removed — energy is sourced from morning check-in only
 
 $("#btn-save-session").addEventListener("click", () => {
   if (!LIFT_DRAFT) return;
@@ -3345,7 +3318,7 @@ $("#btn-save-session").addEventListener("click", () => {
     rpe: LIFT_SET_RPE.map(r => ({ s1: r.s1, s2: r.s2 })),
     extraSets: LIFT_EXTRA_SETS.map(e => ({ sets: (e?.sets || []).filter(s => s.done) })),
     techniques: LIFT_TECHNIQUES.map(t => (t && t !== "skipped") ? t : null),
-    energyRating: LIFT_DRAFT.energyRating ?? _lsgEnergy ?? null,
+    energyRating: null, // sourced from morning log, not lift gate
     feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
     warmup: warmupData, // Phase 8: Targeted Warm-Up context only; ignored by volume/progression.
     durationSec: isEditing
