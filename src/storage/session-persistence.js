@@ -112,7 +112,13 @@ function renderWorkoutResumeCard() {
   `;
   document.getElementById("btn-resume-workout-draft")?.addEventListener("click", restoreWorkoutDraft);
   document.getElementById("btn-discard-workout-draft")?.addEventListener("click", () => {
+    // Clear from localStorage first
     clearWorkoutDraft();
+    // Reset in-memory state so autosave timer can't re-write the draft
+    LIFT_DRAFT = null;
+    LIFT_SESSION_ACTIVE = false;
+    TARGETED_WARMUP_ACTIVE = false;
+    LIFT_SESSION_START_MS = null;
     renderWorkoutResumeCard();
     toast("DRAFT DISCARDED");
   });

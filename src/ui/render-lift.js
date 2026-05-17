@@ -1782,9 +1782,9 @@ function renderLiftExercises() {
           ${ex.repMin}–${ex.repMax} REPS ·
           <span class="verdict ${verdictCls}" style="margin-left:4px;">${verdictLabel}</span>
           ${eqBadge}
-          <span style="float:right;display:flex;gap:2px;align-items:center;">
-            ${clearSwapBtn}<span class="swap-link" data-ex="${idx}" style="cursor:pointer;color:var(--ink-mid);font-size:10px;text-decoration:underline;letter-spacing:0.06em;padding:4px 6px;margin:-4px -6px;">SWAP</span>
-          </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+          ${clearSwapBtn}<span class="swap-link" data-ex="${idx}" style="cursor:pointer;color:var(--ink-mid);font-size:10px;font-family:var(--f-mono);font-weight:700;letter-spacing:0.1em;text-decoration:underline;padding:4px 0;">SWAP EXERCISE</span>
         </div>
         <div class="prescription">
           <div>
@@ -3497,6 +3497,4 @@ function openSessionSheet(id) {
     saveState();
     closeSheet();
     selectLiftDay(LIFT_DAY);
-    toast("DELETED");
-  });
-}
+    
