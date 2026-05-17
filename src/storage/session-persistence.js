@@ -112,14 +112,13 @@ function renderWorkoutResumeCard() {
   `;
   document.getElementById("btn-resume-workout-draft")?.addEventListener("click", restoreWorkoutDraft);
   document.getElementById("btn-discard-workout-draft")?.addEventListener("click", () => {
-    // Clear from localStorage first
+    // Remove from localStorage and cancel autosave timer
     clearWorkoutDraft();
-    // Reset in-memory state so autosave timer can't re-write the draft
-    LIFT_DRAFT = null;
-    LIFT_SESSION_ACTIVE = false;
-    TARGETED_WARMUP_ACTIVE = false;
-    LIFT_SESSION_START_MS = null;
-    renderWorkoutResumeCard();
+    // Re-initialise the day cleanly — this resets all in-memory lift state
+    // (LIFT_DRAFT, LIFT_SESSION_ACTIVE, TARGETED_WARMUP_ACTIVE, etc.) and
+    // shows the fresh start gate, for any day (PULL, PUSH, ARMS, LEGS).
+    const day = LIFT_DAY || nextSessionDay();
+    selectLiftDay(day);
     toast("DRAFT DISCARDED");
   });
 }
