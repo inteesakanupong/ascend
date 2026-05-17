@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.12";
+const CACHE = "ascend-2026-05-17.13";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -77,6 +77,10 @@ self.addEventListener("install", e => {
           base + "src/storage/migrations.js",
           base + "src/storage/exercise-memory.js",
           base + "src/storage/session-persistence.js",
+          base + "src/ui/navigation.js",
+          base + "src/ui/render-weigh.js",
+          base + "src/ui/render-stats.js",
+          base + "src/ui/render-profile.js",
         ]);
       })
         .catch(() => {})
@@ -1252,6 +1256,12 @@ self.addEventListener("fetch", e => {
 <script src="src/storage/exercise-memory.js"></script>
 <script src="src/storage/session-persistence.js"></script>
 
+<!-- Phase 9.5: UI renderers (Profile, Stats, Weigh, navigation) -->
+<script src="src/ui/navigation.js"></script>
+<script src="src/ui/render-weigh.js"></script>
+<script src="src/ui/render-stats.js"></script>
+<script src="src/ui/render-profile.js"></script>
+
 <script>
 /* =====================================================================
    PPAL — single-file web app
@@ -1262,7 +1272,7 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.12";
+const APP_VERSION = "2026-05-17.13";
 
 const CHANGELOG = [
   {
@@ -3561,19 +3571,6 @@ function weightDiagnostic() {
 }
 
 // ───────── 5. ROUTING ─────────
-function goTab(tab) {
-  $$(".page").forEach(p => p.classList.remove("active"));
-  const page = $(`#page-${tab}`);
-  if (!page) tab = "today";
-  $(`#page-${tab}`)?.classList.add("active");
-  $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
-  if (tab === "today")    renderToday();
-  if (tab === "lift")     renderLift();
-  if (tab === "weigh")    renderWeigh();
-  if (tab === "stats")    renderStats();
-  if (tab === "settings") renderSettings();
-  window.scrollTo(0, 0);
-}
 $$(".tab").forEach(t => t.addEventListener("click", () => goTab(t.dataset.tab)));
 
 // ───────── 6. TODAY PAGE ─────────
@@ -7757,117 +7754,6 @@ function openSessionSheet(id) {
 }
 
 // ───────── 8. WEIGH PAGE ─────────
-function renderWeigh() {
-  const today = todayISO();
-  const log = getDailyLog(today) || { date: today, habits: {} };
-  $("#weigh-date").value = today;
-  $("#weigh-weight").value  = log.weight ?? "";
-  const weighBfEl = document.getElementById("weigh-bodyfat");
-  if (weighBfEl) weighBfEl.value = log.bodyFatPercent ?? log.bodyFatPct ?? "";
-  // Show meal-derived totals if meals exist, otherwise show manually saved values
-  const meals = log.meals || [];
-  const mealsKcal    = meals.reduce((s, m) => s + (m.kcal    || 0), 0);
-  const mealsProtein = meals.reduce((s, m) => s + (m.protein || 0), 0);
-  $("#weigh-kcal").value    = meals.length > 0 ? mealsKcal    : (log.kcal    ?? "");
-  $("#weigh-protein").value = meals.length > 0 ? Math.round(mealsProtein) : (log.protein ?? "");
-  $("#weigh-notes").value   = log.notes ?? "";
-  $("#weigh-steps").value   = log.steps ?? "";
-  $("#weigh-water").value   = log.waterMl ?? "";
-  // Show the goal as a label hint
-  const stepGoalEl = document.getElementById("weigh-step-goal-label");
-  if (stepGoalEl) stepGoalEl.textContent = `· goal ${(STATE.profile.stepGoal || 10000).toLocaleString()}`;
-  // Recovery slider needs special handling (default to 5 if not logged)
-  // Recovery is logged on TODAY page — show it here as read-only
-  const recVal = log.recovery ?? null;
-  const hiddenRec = document.getElementById("weigh-recovery");
-  if (hiddenRec) hiddenRec.value = recVal ?? "";
-  const recDisplay = document.getElementById("weigh-recovery-display");
-  if (recDisplay) {
-    recDisplay.textContent = recVal != null ? `${recVal}/10` : "—";
-    recDisplay.style.color = recVal == null ? "var(--ink-dim)" : recVal >= 7 ? "var(--good)" : recVal <= 3 ? "var(--bad)" : "var(--accent)";
-  }
-
-  const start = STATE.profile.programStart;
-  const dayNum = Math.max(1, daysBetween(start, today) + 1);
-  const phase = currentPhase(dayNum);
-  const adjKcal = phaseKcalAdjusted(phase);
-  const baseKcal = phaseKcal(phase);
-  const kcalDelta = adjKcal - baseKcal;
-  const deltaNote = kcalDelta !== 0 ? ` <span style="font-size:9px;opacity:0.6;">(${kcalDelta > 0 ? "+" : ""}${kcalDelta} adj)</span>` : "";
-
-  // Mini weight trend chart
-  const trendChartEl = document.getElementById("weigh-trend-chart");
-  const trendMetaEl  = document.getElementById("weigh-trend-meta");
-  const allLogs = [...STATE.dailyLogs].filter(d=>d.weight!=null).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
-  if (trendChartEl) {
-    trendChartEl.innerHTML = allLogs.length >= 2 ? renderWeightChart(allLogs) : `<div style="padding:12px;text-align:center;color:var(--ink-dim);font-size:12px;">Log 2+ weigh-ins to see trend</div>`;
-  }
-  if (trendMetaEl) {
-    const rp = rpDietAnalytics();
-    if (rp.weeklyKgLoss != null) {
-      const rate = parseFloat(rp.weeklyKgLoss);
-      const color = rp.rateStatus === "optimal" ? "var(--good)" : rp.rateStatus === "too_fast" ? "var(--bad)" : "#d4a017";
-      trendMetaEl.innerHTML = `<span style="color:${color};font-weight:700;">${rate >= 0 ? "↓" : "↑"}${Math.abs(rate)}kg/wk</span>`;
-    } else { trendMetaEl.textContent = `${allLogs.length} ENTRIES`; }
-  }
-  $("#weigh-phase").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> · ${adjKcal} KCAL TARGET${deltaNote}`;
-
-  // Habits
-  const hRow = $("#weigh-habits");
-  hRow.innerHTML = HABIT_DEFS.map(h => `
-    <div class="habit ${log.habits && log.habits[h.key] ? 'checked' : ''}" data-habit="${h.key}" style="position:relative;cursor:pointer;">
-      <div class="glyph">${h.glyph}</div>
-      <div class="name">${h.name}</div>
-    </div>
-  `).join("");
-  hRow.querySelectorAll(".habit").forEach(el => {
-    el.addEventListener("click", () => {
-      el.classList.toggle("checked");
-    });
-  });
-
-  renderRecentWeighIns();
-  initWeighMeals();
-
-  // ── Weight Automation Card ───────────────────────────────────────────────
-  const autoCard = document.getElementById("weight-auto-card");
-  const autoBadge = document.getElementById("weight-auto-badge");
-  const autoBody = document.getElementById("weight-auto-body");
-  const autoRate = document.getElementById("weight-auto-rate");
-  const diag = weightDiagnostic();
-  if (autoCard && diag.rate != null) {
-    autoCard.style.display = "";
-    const rate = diag.rate;
-    const rateStr = `${rate > 0 ? "−" : "+"}${Math.abs(rate).toFixed(2)} kg/week`;
-    autoRate.textContent = `Rolling avg: ${diag.avg?.toFixed(2) ?? "—"} kg · Rate: ${rateStr} · Lost: ${diag.lost?.toFixed(1) ?? "—"} kg`;
-
-    const { adj, reason } = phaseKcalAutoAdj();
-    const adjNote = adj !== 0
-      ? ` Auto-adjusted ${adj > 0 ? "+" : ""}${adj} kcal applied to your target.`
-      : "";
-
-    if (diag.verdict === "OK") {
-      autoBadge.textContent = "ON TRACK";
-      autoBadge.style.color = "var(--good)";
-      autoBody.textContent = diag.text;
-    } else if (diag.verdict === "WARN") {
-      autoBadge.textContent = rate > (STATE.cut.fastThreshold ?? 1.2) ? "TOO FAST" : "TOO SLOW";
-      autoBadge.style.color = "var(--warn)";
-      autoBody.textContent = diag.text + adjNote;
-    } else if (diag.verdict === "BAD") {
-      autoBadge.textContent = "GAINING";
-      autoBadge.style.color = "var(--bad)";
-      autoBody.textContent = diag.text;
-    }
-  } else if (autoCard) {
-    autoCard.style.display = "";
-    autoBadge.textContent = "BUILDING DATA";
-    autoBadge.style.color = "var(--ink-dim)";
-    const logged = STATE.dailyLogs.filter(d => d.weight != null).length;
-    autoBody.textContent = `${logged}/8 weigh-ins logged. Keep logging daily weight to unlock rate tracking and calorie recommendations.`;
-    autoRate.textContent = "";
-  }
-}
 
 
 // When user picks a different date in the Weigh log, reload the form
@@ -7918,73 +7804,6 @@ function initWeighMeals() {
   wireMealSearch();
 }
 
-function renderRecentWeighIns() {
-  const wrap = $("#weigh-recent");
-  const recent = [...STATE.dailyLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
-  $("#weigh-recent-meta").textContent = `${STATE.dailyLogs.length} ENTRIES`;
-  if (recent.length === 0) {
-    wrap.innerHTML = `<div class="empty"><div class="glyph">○</div><div class="label">No daily logs yet</div></div>`;
-    return;
-  }
-  wrap.innerHTML = recent.map(d => {
-    const habitsBadge = HABIT_DEFS.map(h => d.habits && d.habits[h.key] ? h.glyph : "").filter(Boolean).join(" ");
-    const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, d.date) + 1);
-    const phase = currentPhase(dayNum);
-    return `
-      <div class="row" data-date="${d.date}">
-        <div class="row-spread">
-          <div>
-            <div style="font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:0.04em;">${formatDate(d.date)}</div>
-            <div class="muted" style="font-size:11px;margin-top:2px;">
-              ${d.bodyFatPercent != null ? `<span class="hl">${Number(d.bodyFatPercent).toFixed(1)}% BF</span> · ` : ""}
-              ${d.weight != null ? `<span class="hl">${fmtWeight(d.weight)}kg</span>` : "—"}
-              ${d.kcal != null ? ` · ${d.kcal} kcal` : ""}
-              ${d.protein != null ? ` · ${d.protein}g P` : ""}
-              ${d.steps != null ? ` · ${d.steps.toLocaleString()} steps` : ""}
-              ${d.waterMl != null ? ` · ${(d.waterMl/1000).toFixed(1)}L` : ""}
-              ${d.recovery != null ? ` · R${d.recovery}` : ""}
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="font-size:14px;">${habitsBadge || "<span class='muted' style='font-size:10px;'>—</span>"}</div>
-            <button class="btn-delete-log" data-date="${d.date}" style="
-              background:none;border:1px solid var(--line-strong);border-radius:6px;
-              color:var(--ink-dim);font-size:11px;padding:4px 8px;cursor:pointer;
-              font-family:var(--f-mono);letter-spacing:0.05em;flex-shrink:0;
-            ">DEL</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  // Wire up delete buttons — first tap turns red + says CONFIRM, second tap deletes
-  wrap.querySelectorAll(".btn-delete-log").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (btn.dataset.confirm !== "1") {
-        btn.dataset.confirm = "1";
-        btn.textContent = "SURE?";
-        btn.style.color = "var(--bad)";
-        btn.style.borderColor = "var(--bad)";
-        setTimeout(() => {
-          if (btn.dataset.confirm === "1") {
-            btn.dataset.confirm = "0";
-            btn.textContent = "DEL";
-            btn.style.color = "var(--ink-dim)";
-            btn.style.borderColor = "var(--line-strong)";
-          }
-        }, 3000);
-      } else {
-        const date = btn.dataset.date;
-        STATE.dailyLogs = STATE.dailyLogs.filter(d => d.date !== date);
-        saveState();
-        toast("DELETED");
-        renderRecentWeighIns();
-        renderToday();
-      }
-    });
-  });
-}
 
 $("#btn-save-weigh").addEventListener("click", () => {
   const date = $("#weigh-date").value;
@@ -8310,79 +8129,6 @@ function buildLifterAnalysis() {
   };
 }
 
-function renderLifterAnalysis() {
-  const wrap = document.getElementById("stats-lifter-analysis");
-  const meta = document.getElementById("stats-calibration-meta");
-  if (!wrap) return;
-  const analysis = buildLifterAnalysis();
-  STATE.lifterAnalysis = analysis;
-  if (meta) meta.textContent = `${String(STATE.athleteProfile?.goal || "cut").toUpperCase()} · MANUAL SIGNALS`;
-  const row = (label, value) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);"><span class="muted" style="font-size:11px;">${label}</span><span style="font-family:var(--f-mono);font-size:11px;font-weight:700;text-align:right;">${value}</span></div>`;
-  const bt = analysis.bodyTrend, diet = analysis.dietOutcome, sb = analysis.strengthBalance, tr = analysis.trainingResponse;
-  wrap.innerHTML = `<div style="padding:12px 14px;">
-    <div class="card-label" style="margin-bottom:7px;">Body Trend</div>
-    ${row("Current weight", bt.currentWeight != null ? `${fmtWeight(bt.currentWeight)}kg` : "—")}
-    ${row("7-day average", bt.avg7 != null ? `${bt.avg7.toFixed(1)}kg` : "—")}
-    ${row("28-day trend", bt.trend28 != null ? `${bt.trend28 > 0 ? "+" : ""}${bt.trend28.toFixed(2)}kg/week` : "—")}
-    ${row("Body fat trend", bt.bfTrend != null ? `${bt.bfTrend.toFixed(1)}%` : "—")}
-    ${row("Lean / fat mass", bt.leanMassKg != null ? `${bt.leanMassKg}kg / ${bt.fatMassKg}kg` : "—")}
-    <div class="card-label" style="margin:14px 0 7px;">Diet Outcome</div>
-    ${row("Calories", diet.kcalAvg != null ? `${diet.kcalAvg} avg / ${diet.targetKcal} target` : "—")}
-    ${row("Protein", diet.proteinAvg != null ? `${diet.proteinAvg}g avg / ${diet.targetProtein}g floor` : "—")}
-    ${row("Adherence", diet.adherence != null ? `${diet.adherence}%` : "—")}
-    <div class="card-label" style="margin:14px 0 7px;">Lifter Profile</div>
-    ${row("Press / pull", `${sb.pressing} / ${sb.pulling}`)}
-    ${row("Squat / hinge", `${sb.squatting} / ${sb.hinge}`)}
-    ${row("OHP / hinge-acc", `${sb.verticalPress} / ${sb.hingeAccessory}`)}
-    <div class="card-label" style="margin:14px 0 7px;">Movement Pattern Balance</div>
-    ${row("Horizontal push/pull", `${sb.pressing} / ${sb.pulling}`)}
-    ${row("Vertical push", `${sb.verticalPress}`)}
-    ${row("Knee-dominant", `${sb.squatting}`)}
-    ${row("Hip-dominant", `${sb.hinge} (primary) · ${sb.hingeAccessory} (acc)`)}
-    ${(() => {
-      const pushPullImbalance = sb.pressing !== "unknown" && sb.pulling !== "unknown" && sb.pressing !== sb.pulling;
-      const hingeNote = sb.hinge === "advanced" ? "High hinge load — monitor spinal fatigue." : "";
-      const note = [pushPullImbalance ? "Push/pull strength imbalance detected." : "", hingeNote].filter(Boolean).join(" ");
-      return note ? `<div style="font-size:11px;color:var(--ink-mid);padding:4px 0 8px;">${note}</div>` : "";
-    })()}
-    <div class="card-label" style="margin:14px 0 7px;">Training Response</div>
-    ${row("Best response", tr.best.length ? tr.best.map(x => escapeHtml(x.name)).join(", ") : "—")}
-    ${row("Stalled", tr.stalled.length ? tr.stalled.map(x => escapeHtml(x.name)).join(", ") : "—")}
-    ${row("High fatigue", tr.highFatigue.length ? tr.highFatigue.map(x => escapeHtml(x.name)).join(", ") : "—")}
-    ${row("Near MRV", tr.nearMrv.length ? tr.nearMrv.join(", ") : "—")}
-    ${row("Below MEV", tr.belowMev.length ? tr.belowMev.join(", ") : "—")}
-    ${row("MEV→MRV range", (() => {
-      const muscles = ["chest","back","quads"];
-      return muscles.map(m => {
-        const lm = VOLUME_LANDMARKS[m];
-        const mrv = analysis.mrvEstimates?.[m];
-        return lm ? `${MUSCLE_LABELS[m]||m} ${lm.mev}→${mrv ?? lm.mrv}` : null;
-      }).filter(Boolean).join(" · ") || "—";
-    })())}
-    ${analysis.wavePosition ? `<div style="margin-top:10px;padding:8px 12px;background:var(--bg-elev-2);border-radius:9px;font-size:11px;font-family:var(--f-mono);letter-spacing:0.05em;">WAVE ${analysis.wavePosition.waveWeek}/4 · ${analysis.wavePosition.name} · CYCLE ${analysis.wavePosition.cycleNum} · ${analysis.wavePosition.intensityNote}</div>` : ""}
-    <div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;font-size:12px;line-height:1.55;"><strong style="color:var(--ink);">Coaching verdict:</strong> ${escapeHtml(analysis.coachingVerdict)}</div>
-    ${(() => {
-      const overlapRisks = (analysis.fatigueRisks || []).filter(r => /overlap|redundan/i.test(r));
-      const rotations = analysis.exerciseRotationSuggestions || [];
-      if (!overlapRisks.length && !rotations.length) return "";
-      let html = "";
-      if (overlapRisks.length) {
-        html += `<div style="margin-top:10px;padding:10px 12px;border-left:3px solid #e8a000;background:var(--bg-elev-2);border-radius:9px;">
-          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);margin-bottom:6px;">STRESSOR OVERLAP</div>
-          ${overlapRisks.map(r => `<div style="font-size:12px;line-height:1.5;margin-bottom:4px;">⚠ ${escapeHtml(r)}</div>`).join("")}
-        </div>`;
-      }
-      if (rotations.length) {
-        html += `<div style="margin-top:10px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--bg-elev-2);border-radius:9px;">
-          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-dim);margin-bottom:6px;">EXERCISE ROTATION — SRN</div>
-          <div style="font-size:11px;color:var(--ink-mid);margin-bottom:8px;">Exercises run 3+ blocks unchanged. Deload week is the ideal time to swap in a variation.</div>
-          ${rotations.map(r => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:12px;"><span>${escapeHtml(r.exerciseName)} <span style="color:var(--ink-dim);font-size:10px;">${r.day}</span></span><span style="font-family:var(--f-mono);font-size:11px;color:var(--accent);">${r.blocksRun} BLOCKS</span></div>`).join("")}
-        </div>`;
-      }
-      return html;
-    })()}
-  </div>`;
-}
 
 function safeRender(label, fn) {
   try {
@@ -8393,346 +8139,9 @@ function safeRender(label, fn) {
   }
 }
 
-function renderStats() {
-  // Calendar + Lift Graph
-  safeRender("stats.calendar", () => Calendar.render());
-  safeRender("stats.liftGraphPills", () => LiftGraph.renderExercisePills());
-  safeRender("stats.liftGraph", () => LiftGraph.drawGraph());
-  safeRender("stats.lifterAnalysis", () => renderLifterAnalysis());
 
-  // Weight chart
-  const logs = STATE.dailyLogs.filter(d => typeof d.weight === "number")
-                              .sort((a, b) => a.date.localeCompare(b.date));
-  $("#stats-weight-meta").textContent = logs.length === 0 ? "NO DATA" : `${logs.length} WEIGH-INS`;
-  $("#stats-chart").innerHTML = renderWeightChart(logs);
 
-  // Volume Landmarks — per muscle group with frequency warnings
-  const vol = weeklyVolumeByMuscle(7);
-  const orderedMuscles = ["chest","back","shoulders","biceps","triceps","quads","hamstrings","glutes","calves","forearms","abs"];
-  const volWrap = document.getElementById("stats-vol-landmarks");
 
-  // Compute per-muscle training frequency (how many distinct days hit each muscle in last 7 days)
-  const cutoff7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
-  const muscleDayHits = {};
-  STATE.sessions.filter(s => s.date >= cutoff7).forEach(s => {
-    (s.sets || []).forEach((_, i) => {
-      const name = sessionExerciseName(s, i);
-      if (!name) return;
-      const weights = exerciseWeightedMuscles(name);
-      Object.keys(weights).forEach(m => {
-        if (!muscleDayHits[m]) muscleDayHits[m] = new Set();
-        muscleDayHits[m].add(s.date);
-      });
-    });
-  });
-
-  const programMode = STATE.athleteProfile?.programMode || "hypertrophy";
-
-  if (volWrap) {
-    // Group muscles for display
-    const muscleGroups = [
-      { label: "UPPER PUSH", muscles: ["chest","shoulders","triceps"] },
-      { label: "UPPER PULL", muscles: ["back","biceps","forearms"] },
-      { label: "LOWER", muscles: ["quads","hamstrings","glutes","calves"] },
-      { label: "CORE", muscles: ["abs"] },
-    ];
-
-    volWrap.innerHTML = muscleGroups.map(group => {
-      const rows = group.muscles.map(m => {
-        const sets = vol[m] || 0;
-        const lm = VOLUME_LANDMARKS[m];
-        if (!lm) return "";
-        const max = lm.mrv * 1.2;
-        const pct = Math.min(100, (sets / max) * 100);
-        const mevPct = (lm.mev / max) * 100;
-        const mavPct = (lm.mav / max) * 100;
-        let status = "under", label = "BELOW MEV";
-        if (sets === 0) { status = "under"; label = "NOT TRAINED"; }
-        else if (sets >= lm.mv && sets < lm.mev) { status = "under"; label = "MAINTENANCE"; }
-        else if (sets >= lm.mev && sets <= lm.mav) { status = "optimal"; label = "IN RANGE"; }
-        else if (sets > lm.mav && sets <= lm.mrv) { status = "high"; label = "NEAR MRV"; }
-        else if (sets > lm.mrv) { status = "over"; label = "OVER MRV"; }
-
-        const freq = muscleDayHits[m]?.size || 0;
-        // For hypertrophy: 2x/week per muscle is ideal per Israetel
-        const freqWarn = programMode === "hypertrophy" && sets > 0 && freq < 2;
-        const freqNote = freqWarn
-          ? `<span style="font-family:var(--f-mono);font-size:9px;color:#d4a017;letter-spacing:0.06em;">⚠ ${freq}×/WK — aim for 2×</span>`
-          : `<span style="font-family:var(--f-mono);font-size:9px;color:var(--ink-faint);letter-spacing:0.06em;">${freq}×/wk</span>`;
-
-        return `
-          <div class="vol-row" style="padding:8px 0;">
-            <div class="vol-row-head" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-              <span class="vol-muscle" style="font-size:12px;font-weight:600;">${MUSCLE_LABELS[m] || m}</span>
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${freqNote}
-                <span class="vol-sets" style="font-family:var(--f-mono);font-size:10px;color:var(--ink-dim);">${sets} sets · MEV ${lm.mev} MAV ${lm.mav}</span>
-              </div>
-            </div>
-            <div class="vol-bar-wrap" style="position:relative;height:6px;background:var(--bg-elev-3);border-radius:3px;overflow:visible;">
-              <div class="vol-bar-fill ${status}" style="width:${pct}%;height:100%;border-radius:3px;"></div>
-              <div class="vol-mev-mark" style="left:${mevPct}%;"></div>
-              <div class="vol-mav-mark" style="left:${mavPct}%;"></div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;margin-top:3px;">
-              <span class="vol-status ${status}" style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.08em;">${label}</span>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      return `
-        <div style="margin-bottom:12px;">
-          <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.14em;color:var(--ink-dim);padding:6px 0 2px;border-bottom:1px solid var(--line);margin-bottom:4px;">${group.label}</div>
-          ${rows}
-        </div>
-      `;
-    }).join("");
-  }
-
-  // Habits
-  const last14 = [...STATE.dailyLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
-  const denom = last14.length;
-  $("#stats-habit-meta").textContent = `${denom}/14 DAYS LOGGED`;
-  $("#stats-habits").innerHTML = HABIT_DEFS.map(h => {
-    const num = last14.filter(d => d.habits && d.habits[h.key]).length;
-    const pct = denom === 0 ? 0 : Math.round((num / denom) * 100);
-    return `
-      <div class="habit-progress">
-        <div>
-          <div class="name">${h.glyph} ${h.name}</div>
-          <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
-        </div>
-        <div class="pct">${pct}%</div>
-      </div>
-    `;
-  }).join("");
-
-  // Lift PRs — best top set per exercise across all sessions
-  const lifts = [];
-  DAY_ORDER.forEach(day => {
-    STATE.exercises[day].forEach((ex, idx) => {
-      const sessions = STATE.sessions.filter(s => s.day === day).sort((a, b) => a.date.localeCompare(b.date));
-      const maxW = sessions.reduce((m, s) => Math.max(m, s.sets[idx]?.s1w ?? 0, s.sets[idx]?.s2w ?? 0), 0);
-      if (sessions.length === 0) return;
-      lifts.push({ day, name: ex.name, start: ex.start, current: maxW, delta: maxW - ex.start });
-    });
-  });
-  if (lifts.length === 0) {
-    $("#stats-lifts").innerHTML = `<div class="empty"><div class="glyph">○</div><div class="label">No lift data yet</div></div>`;
-  } else {
-    $("#stats-lifts").innerHTML = lifts.map(l => `
-      <div class="row" style="padding:10px 12px;">
-        <div class="row-spread">
-          <div>
-            <span class="day-chip ${l.day.toLowerCase()}" style="font-size:9px;padding:2px 8px;">${l.day}</span>
-            <span style="font-weight:600;font-size:13px;margin-left:6px;">${l.name}</span>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-family:var(--f-display);font-weight:800;font-size:18px;">${fmtWeight(l.current)}<span class="muted" style="font-size:10px;">kg</span></div>
-            <div class="muted" style="font-size:10px;font-family:var(--f-mono);">${l.delta >= 0 ? '+' : ''}${l.delta.toFixed(1)} from ${fmtWeight(l.start)}</div>
-          </div>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  // Render the new sections
-  safeRender("stats.personalRecords", () => renderPRs());
-  safeRender("stats.weeklyVolume", () => renderVolume());
-  safeRender("stats.measurements", () => renderMeasurements());
-  safeRender("stats.trainingMax", () => renderTrainingMax());
-  safeRender("stats.mrvRecommendations", () => renderMrvRecommendations());
-}
-
-function renderTrainingMax() {
-  const wrap = document.getElementById("stats-training-max");
-  if (!wrap) return;
-
-  const DAY_COLORS = { PUSH: "var(--push)", PULL: "var(--pull)", ARMS: "var(--arms)", LEGS: "var(--legs)" };
-
-  const rows = DAY_ORDER.map(day => {
-    const leadIdx   = getLeadLiftIdx(day);
-    const ex        = STATE.exercises[day]?.[leadIdx];
-    if (!ex) return null;
-
-    const wm        = getWorkingMax(day, leadIdx);
-    const prescription = progressionFor(day, leadIdx);
-    const lastSess  = STATE.sessions.filter(s => s.day === day)
-                        .sort((a,b) => b.date.localeCompare(a.date))[0];
-    const lastW     = lastSess?.sets?.[leadIdx]?.s1w ?? null;
-    const displayWM = prescription?.weight ?? wm ?? lastW ?? ex.start;
-    const displayReps = prescription?.reps ?? ex.repMin;
-    const sourceLabel = prescription?.verdict === "START" && lastW == null
-      ? "START WEIGHT"
-      : "NEXT PRESCRIPTION";
-
-    // Wave position
-    const wave      = juggernautWave(0, day);
-    const waveColors = { ACCUMULATION: "#4a9eff", INTENSIFICATION: "#d4a017", REALIZATION: "var(--accent)", DELOAD: "var(--good)" };
-    const waveColor  = waveColors[wave.name] || "var(--ink-dim)";
-
-    // Session history for mini sparkline (last 8 sessions)
-    const history = STATE.sessions
-      .filter(s => s.day === day)
-      .sort((a,b) => a.date.localeCompare(b.date))
-      .slice(-8)
-      .map(s => s.sets?.[leadIdx]?.s1w ?? null)
-      .filter(v => v != null);
-
-    // Build sparkline SVG
-    let sparkline = "";
-    if (history.length >= 2) {
-      const W = 80, H = 24, pad = 2;
-      const minV = Math.min(...history);
-      const maxV = Math.max(...history);
-      const range = maxV - minV || 1;
-      const pts = history.map((v, i) => {
-        const x = pad + (i / (history.length - 1)) * (W - pad * 2);
-        const y = H - pad - ((v - minV) / range) * (H - pad * 2);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(" ");
-      sparkline = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;">
-        <polyline points="${pts}" fill="none" stroke="${DAY_COLORS[day]}" stroke-width="1.5" stroke-linejoin="round"/>
-      </svg>`;
-    }
-
-    return { day, ex, displayWM, displayReps, sourceLabel, prescription, wm, lastW, wave, waveColor, sparkline, history };
-  }).filter(Boolean);
-
-  if (rows.every(r => r.history.length === 0)) {
-    wrap.innerHTML = `<div class="empty"><div class="glyph">○</div><div class="label">Log sessions to track training maxes</div></div>`;
-    return;
-  }
-
-  wrap.innerHTML = rows.map(r => `
-    <div style="padding:12px 14px; border-bottom:1px solid var(--line);">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-        <div>
-          <span class="day-chip ${r.day.toLowerCase()}" style="font-size:9px;padding:2px 8px;">${r.day}</span>
-          <span style="font-weight:700;font-size:13px;margin-left:7px;">${r.ex.name}</span>
-          ${r.wm ? `<span style="font-family:var(--f-mono);font-size:9px;color:var(--good);margin-left:5px;letter-spacing:0.06em;">AMRAP MAX SET</span>` : ""}
-        </div>
-        <div style="font-family:var(--f-display);font-weight:900;font-size:24px;line-height:1;letter-spacing:0.01em;">${fmtWeight(r.displayWM)}<span style="font-size:11px;font-weight:400;color:var(--ink-dim);">kg</span></div>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div>
-          <span style="display:inline-block; font-family:var(--f-mono); font-size:9px; font-weight:700; letter-spacing:0.1em; color:${r.waveColor}; padding:2px 7px; background:${r.waveColor}22; border-radius:4px;">
-            CYCLE ${r.wave.cycleNum} · WK ${r.wave.waveWeek}/4 · ${r.wave.name}
-          </span>
-        </div>
-        ${r.sparkline ? `<div>${r.sparkline}</div>` : ""}
-      </div>
-
-      <div style="font-size:11px;color:var(--ink-mid);line-height:1.5;margin-bottom:8px;">
-        <span style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--ink-dim);">${r.sourceLabel}</span>
-        · ${fmtWeight(r.displayWM)}kg × ${r.displayReps}
-        ${r.prescription?.note ? `<div style="margin-top:2px;color:var(--ink-dim);">${escapeHtml(r.prescription.note)}</div>` : ""}
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:4px;">
-        <div style="background:var(--bg-elev-2); border-radius:8px; padding:7px 8px; text-align:center;">
-          <div style="font-family:var(--f-mono);font-size:9px;color:#4a9eff;font-weight:700;letter-spacing:0.1em;">LAST</div>
-          <div style="font-weight:700;font-size:14px;margin-top:2px;">${r.lastW != null ? fmtWeight(r.lastW) : "—"}</div>
-          <div style="font-family:var(--f-mono);font-size:8px;color:var(--ink-dim);">completed</div>
-        </div>
-        <div style="background:var(--bg-elev-2); border-radius:8px; padding:7px 8px; text-align:center;">
-          <div style="font-family:var(--f-mono);font-size:9px;color:#d4a017;font-weight:700;letter-spacing:0.1em;">NEXT</div>
-          <div style="font-weight:700;font-size:14px;margin-top:2px;">${fmtWeight(r.displayWM)}</div>
-          <div style="font-family:var(--f-mono);font-size:8px;color:var(--ink-dim);">Lift tab</div>
-        </div>
-        <div style="background:var(--bg-elev-2); border-radius:8px; padding:7px 8px; text-align:center;">
-          <div style="font-family:var(--f-mono);font-size:9px;color:var(--accent);font-weight:700;letter-spacing:0.1em;">AMRAP MAX</div>
-          <div style="font-weight:700;font-size:14px;margin-top:2px;">${r.wm != null ? fmtWeight(r.wm) : "—"}</div>
-          <div style="font-family:var(--f-mono);font-size:8px;color:var(--ink-dim);">stored</div>
-        </div>
-      </div>
-    </div>
-  `).join("");
-}
-
-function renderPRs() {
-  const wrap = $("#stats-prs");
-  // For each (day, exIdx), find best ever
-  const records = [];
-  DAY_ORDER.forEach(day => {
-    STATE.exercises[day].forEach((ex, idx) => {
-      const pr = personalRecord(day, idx);
-      if (!pr) return;
-      records.push({ day, name: ex.name, exIdx: idx, ...pr });
-    });
-  });
-  // Most recent PRs first
-  records.sort((a, b) => b.date.localeCompare(a.date));
-  $("#stats-prs-meta").textContent = `${records.length} EXERCISE${records.length !== 1 ? 'S' : ''}`;
-  if (records.length === 0) {
-    wrap.innerHTML = `<div class="empty"><div class="glyph">○</div><div class="label">Log a session to set your first PR</div></div>`;
-    return;
-  }
-  wrap.innerHTML = records.map(r => `
-    <div class="row" style="padding:10px 12px;">
-      <div class="row-spread">
-        <div>
-          <span class="day-chip ${r.day.toLowerCase()}" style="font-size:9px;padding:2px 8px;">${r.day}</span>
-          <span style="font-weight:600;font-size:13px;margin-left:6px;">${r.name}</span>
-          <div class="muted" style="font-size:10px;margin-top:2px;font-family:var(--f-mono);">${formatDate(r.date)}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-family:var(--f-display);font-weight:800;font-size:20px;">${fmtWeight(r.w)}<span class="muted" style="font-size:10px;">kg</span></div>
-          <div class="muted" style="font-size:10px;">×${r.r} reps</div>
-        </div>
-      </div>
-    </div>
-  `).join("");
-}
-
-function renderVolume() {
-  const wrap = $("#stats-volume");
-  const v = weeklyVolume(6);
-  // Only show day-types that have at least one non-zero week
-  const activeDays = DAY_ORDER.filter(d => v[d].some(x => x > 0));
-  if (activeDays.length === 0) {
-    wrap.innerHTML = `<div class="empty"><div class="glyph">○</div><div class="label">Log sessions to track tonnage</div></div>`;
-    return;
-  }
-  // Find global max so all bars share scale
-  const allValues = activeDays.flatMap(d => v[d]);
-  const maxVal = Math.max(...allValues, 1);
-
-  wrap.innerHTML = activeDays.map(day => {
-    const weeks = v[day];
-    const bars = weeks.map((val, i) => {
-      const pct = (val / maxVal) * 100;
-      const isThisWeek = i === weeks.length - 1;
-      return `
-        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
-          <div style="height:50px; width:100%; display:flex; align-items:flex-end; justify-content:center; padding: 0 2px;">
-            <div style="
-              width: 100%;
-              height: ${pct}%;
-              background: ${isThisWeek ? `var(--${day.toLowerCase()})` : 'var(--bg-elev-3)'};
-              border-radius: 3px 3px 0 0;
-              min-height: ${val > 0 ? '2px' : '0'};
-              transition: height 400ms;
-            "></div>
-          </div>
-          <div style="font-size:9px; color: var(--ink-dim); font-family: var(--f-mono);">${val > 999 ? (val/1000).toFixed(1) + 'k' : val}</div>
-        </div>
-      `;
-    }).join("");
-    return `
-      <div style="display: grid; grid-template-columns: 60px 1fr; gap: 8px; align-items: center; margin-bottom: 12px;">
-        <div>
-          <div class="day-chip ${day.toLowerCase()}" style="font-size:9px; padding: 2px 8px;">${day}</div>
-        </div>
-        <div style="display: flex; gap: 3px; align-items: flex-end;">
-          ${bars}
-        </div>
-      </div>
-    `;
-  }).join("");
-}
 
 function navyBFpct(sex, neckCm, waistCm, hipCm, heightCm) {
   // US Navy circumference method
@@ -8749,273 +8158,12 @@ function navyBFpct(sex, neckCm, waistCm, hipCm, heightCm) {
   } catch { return null; }
 }
 
-function renderMeasurements() {
-  const wrap = $("#stats-measurements");
-  const list = [...(STATE.measurements || [])].sort((a, b) => b.date.localeCompare(a.date));
-  $("#stats-meas-meta").textContent = list.length === 0 ? "NONE" : `${list.length} ENTR${list.length !== 1 ? 'IES' : 'Y'}`;
-  if (list.length === 0) {
-    wrap.innerHTML = `<div class="empty" style="padding:20px;"><div class="label" style="font-size:11px;">Track waist, neck, hip every 1-2 weeks</div></div>`;
-    return;
-  }
-  // Compute deltas vs first entry (chronologically) for each metric
-  const first = list[list.length - 1];
-  const fmt = (cur, init) => {
-    if (cur == null) return "—";
-    const d = init != null ? cur - init : 0;
-    return `${cur}<span class="muted" style="font-size:10px;font-family:var(--f-mono);">${init != null && cur !== init ? ` (${d>=0?'+':''}${d.toFixed(1)})` : ''}</span>`;
-  };
-  wrap.innerHTML = list.map((m, i) => {
-    const isLatest = i === 0;
-    const sex = STATE.profile.sex || "male";
-    const height = STATE.profile.height;
-    const bf = navyBFpct(sex, m.neck, m.waist, m.hip, height);
-    const bfDelta = i < list.length - 1
-      ? navyBFpct(sex, list[list.length-1].neck, list[list.length-1].waist, list[list.length-1].hip, height)
-      : null;
-    const bfStr = bf != null
-      ? ` · <span style="color:var(--accent);font-weight:700;">${bf}% BF</span>${bfDelta != null ? ` <span class="muted" style="font-size:9px;">(${bf > bfDelta ? "+" : ""}${(bf - bfDelta).toFixed(1)})</span>` : ""}`
-      : "";
-    return `
-      <div class="row tap" data-id="${m.id}" style="padding:10px 12px; ${isLatest ? 'border-color: var(--accent);' : ''}">
-        <div class="row-spread">
-          <div>
-            <div style="font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:0.04em;">${formatDate(m.date)}</div>
-            <div class="muted" style="font-size:11px;margin-top:4px;font-family:var(--f-mono);">
-              N <span class="hl">${fmt(m.neck, first.neck)}</span> ·
-              W <span class="hl">${fmt(m.waist, first.waist)}</span> ·
-              H <span class="hl">${fmt(m.hip, first.hip)}</span>${bfStr}
-            </div>
-          </div>
-          <div class="muted" style="font-size:18px;">›</div>
-        </div>
-      </div>
-    `;
-  }).join("");
-  wrap.querySelectorAll(".row.tap").forEach(el => {
-    el.addEventListener("click", () => openMeasurementSheet(el.dataset.id));
-  });
-}
 
-function openMeasurementSheet(id) {
-  const m = id ? STATE.measurements.find(x => x.id === id) : null;
-  const isNew = !m;
-  const today = todayISO();
-  $("#sheet-body").innerHTML = `
-    <h3>${isNew ? 'New' : 'Edit'} Measurement</h3>
-    <div class="muted" style="font-size:11px;margin-bottom:14px;letter-spacing:0.08em;">CM · NECK / WAIST / HIP</div>
-    <div class="input" style="margin-bottom:10px;">
-      <label>Date</label>
-      <input type="date" id="meas-date" value="${m ? m.date : today}" />
-    </div>
-    <div class="input-grid">
-      <div class="input"><label>Neck (cm)</label><input type="number" step="0.1" id="meas-neck" value="${m?.neck ?? ''}" /></div>
-      <div class="input"><label>Waist (cm)</label><input type="number" step="0.1" id="meas-waist" value="${m?.waist ?? ''}" /></div>
-    </div>
-    <div class="input-grid" style="margin-top:10px;">
-      <div class="input"><label>Hip (cm)</label><input type="number" step="0.1" id="meas-hip" value="${m?.hip ?? ''}" /></div>
-      <div class="input"><label>Other (note)</label><input type="text" id="meas-notes" value="${m?.notes ?? ''}" placeholder="optional" /></div>
-    </div>
-    <div style="display:flex; gap:8px; margin-top:14px;">
-      <button class="btn primary" style="flex:1;" id="btn-meas-save">SAVE</button>
-      ${!isNew ? `<button class="btn danger" id="btn-meas-del">DELETE</button>` : ''}
-    </div>
-  `;
-  openSheet();
-  $("#btn-meas-save").addEventListener("click", () => {
-    const entry = {
-      id: m?.id || `m-${Date.now()}`,
-      date:  $("#meas-date").value,
-      neck:  $("#meas-neck").value === ""  ? null : parseFloat($("#meas-neck").value),
-      waist: $("#meas-waist").value === "" ? null : parseFloat($("#meas-waist").value),
-      hip:   $("#meas-hip").value === ""   ? null : parseFloat($("#meas-hip").value),
-      notes: $("#meas-notes").value || null,
-    };
-    if (entry.neck == null && entry.waist == null && entry.hip == null) {
-      toast("ENTER AT LEAST ONE MEASUREMENT");
-      return;
-    }
-    if (!STATE.measurements) STATE.measurements = [];
-    if (m) {
-      const i = STATE.measurements.findIndex(x => x.id === m.id);
-      if (i >= 0) STATE.measurements[i] = entry;
-    } else {
-      STATE.measurements.push(entry);
-    }
-    saveState();
-    closeSheet();
-    renderMeasurements();
-    toast("SAVED");
-  });
-  const delBtn = document.getElementById("btn-meas-del");
-  if (delBtn) delBtn.addEventListener("click", () => {
-    if (!confirm("Delete this measurement?")) return;
-    STATE.measurements = STATE.measurements.filter(x => x.id !== m.id);
-    saveState();
-    closeSheet();
-    renderMeasurements();
-    toast("DELETED");
-  });
-}
 
-function renderWeightChart(logs) {
-  if (logs.length < 2) {
-    return `<div class="empty"><div class="glyph">○</div><div class="label">Need 2+ weigh-ins for chart</div></div>`;
-  }
-  const W = 360, H = 180, P = 28;
-  const dates = logs.map(d => isoToDate(d.date).getTime());
-  const minDate = Math.min(...dates);
-  const maxDate = Math.max(...dates);
-  const range = maxDate - minDate || 1;
-  // y range: include start weight, all logged weights, and target
-  const allW = [STATE.profile.bodyweight, STATE.cut.p1Target, STATE.cut.p2Target, ...logs.map(l => l.weight)];
-  const minW = Math.floor(Math.min(...allW)) - 0.5;
-  const maxW = Math.ceil(Math.max(...allW)) + 0.5;
-  const wRange = maxW - minW || 1;
-
-  const x = (d) => P + ((d - minDate) / range) * (W - 2 * P);
-  const y = (w) => H - P - ((w - minW) / wRange) * (H - 2 * P);
-
-  // Build polyline for raw daily
-  const rawPts = logs.map(d => `${x(isoToDate(d.date).getTime())},${y(d.weight)}`).join(" ");
-  // 7-day rolling avg points
-  const avgPts = logs.map(d => {
-    const a = rollingAvgAt(d.date);
-    return a == null ? null : `${x(isoToDate(d.date).getTime())},${y(a)}`;
-  }).filter(Boolean).join(" ");
-
-  // Target line: P1 target
-  const yTarget = y(STATE.cut.p1Target);
-
-  // Y-axis grid: 4 gridlines
-  let grid = "";
-  for (let i = 0; i <= 4; i++) {
-    const yi = P + (i / 4) * (H - 2 * P);
-    const wi = maxW - (i / 4) * wRange;
-    grid += `<line class="gridline" x1="${P}" x2="${W - P}" y1="${yi}" y2="${yi}" />`;
-    grid += `<text class="axis-label" x="${P - 4}" y="${yi + 3}" text-anchor="end">${wi.toFixed(1)}</text>`;
-  }
-
-  return `
-    <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
-      ${grid}
-      <line class="target" x1="${P}" x2="${W - P}" y1="${yTarget}" y2="${yTarget}" />
-      <polyline class="raw" points="${rawPts}" />
-      ${logs.map(d => `<circle cx="${x(isoToDate(d.date).getTime())}" cy="${y(d.weight)}" r="2" fill="var(--ink-mid)"/>`).join("")}
-      <polyline class="avg" points="${avgPts}" />
-    </svg>
-  `;
-}
 
 // ───────── 10. SETTINGS ─────────
 // Module-scope set so collapse state survives re-renders and starts collapsed by default
 const _progCollapsed = new Set(["PUSH","PULL","ARMS","LEGS"]);
-function renderSettings() {
-  $("#set-bodyweight").value   = STATE.profile.bodyweight;
-  $("#set-bodyfat").value      = STATE.profile.bodyFatPct ?? STATE.athleteProfile?.bodyFatPercent ?? "";
-  $("#set-start").value        = STATE.profile.programStart;
-  $("#set-name").value         = STATE.profile.name ?? "";
-  $("#set-height").value       = STATE.profile.height ?? "";
-  $("#set-age").value          = STATE.profile.age ?? "";
-  $("#set-sex").value          = STATE.profile.sex ?? "";
-  $("#set-activity").value     = STATE.profile.activityLevel ?? "moderate";
-  $("#set-stepgoal").value     = STATE.profile.stepGoal ?? 10000;
-  updateTDEEDisplay();
-  $("#set-p1-target").value = STATE.cut.p1Target;
-  $("#set-p1-weeks").value  = STATE.cut.p1Weeks;
-  $("#set-db-weeks").value  = STATE.cut.dbWeeks;
-  $("#set-p2-target").value = STATE.cut.p2Target;
-  $("#set-p2-weeks").value  = STATE.cut.p2Weeks;
-  $("#set-p1-kcal").value = STATE.cut.p1Kcal;
-  $("#set-db-kcal").value = STATE.cut.dbKcal;
-  $("#set-p2-kcal").value = STATE.cut.p2Kcal;
-  $("#set-protein").value = STATE.cut.proteinFloor;
-  // Timer (defensive — older state may not have STATE.timer)
-  if (!STATE.timer) STATE.timer = { compoundSec: 180, midSec: 120, isolationSec: 90, sound: true };
-  $("#set-rest-compound").value = STATE.timer.compoundSec;
-  $("#set-rest-mid").value      = STATE.timer.midSec;
-  $("#set-rest-iso").value      = STATE.timer.isolationSec;
-  $("#set-rest-sound").checked  = !!STATE.timer.sound;
-
-  // Exercise program editor
-  const wrap = $("#set-exercises");
-  wrap.innerHTML = DAY_ORDER.map(day => `
-    <div class="prog-day-label" data-prog-day="${day}">
-      <span><span class="prog-day-arrow">▾</span>${day} <span style="color:var(--ink-faint);font-weight:400;">(${STATE.exercises[day].length})</span></span>
-      <button class="prog-add-btn" data-add-day="${day}">+ ADD</button>
-    </div>
-    <div class="prog-ex-list" data-day="${day}">
-      ${STATE.exercises[day].map((ex, idx) => `
-        <div class="prog-ex-row" data-day="${day}" data-idx="${idx}">
-          <div class="prog-drag-handle" title="Hold to reorder">⠿</div>
-          ${ex.leadLift ? `<div class="prog-lead-dot" title="Lead lift"></div>` : ""}
-          <div class="prog-ex-info" data-edit-day="${day}" data-edit-idx="${idx}">
-            <div class="prog-ex-name">${idx+1}. ${ex.name}</div>
-            <div class="prog-ex-meta">${ex.repMin}–${ex.repMax} reps · ${fmtWeight(ex.start)}kg start · ${detectEquipment(ex.name, ex).toUpperCase()}</div>
-          </div>
-          <button class="prog-del-btn" data-del-day="${day}" data-del-idx="${idx}" title="Remove">✕</button>
-        </div>
-      `).join("")}
-    </div>
-  `).join("");
-
-  // Apply persisted collapse state to rendered DOM
-  DAY_ORDER.forEach(day => {
-    if (_progCollapsed.has(day)) {
-      const hdr = wrap.querySelector(`.prog-day-label[data-prog-day="${day}"]`);
-      const list = wrap.querySelector(`.prog-ex-list[data-day="${day}"]`);
-      if (hdr) hdr.classList.add("collapsed");
-      if (list) list.classList.add("collapsed");
-    }
-  });
-
-  // Collapsible day headers
-  wrap.querySelectorAll(".prog-day-label").forEach(hdr => {
-    hdr.addEventListener("click", (e) => {
-      if (e.target.closest(".prog-add-btn")) return; // don't collapse on ADD click
-      const day = hdr.dataset.progDay;
-      const list = wrap.querySelector(`.prog-ex-list[data-day="${day}"]`);
-      const collapsed = hdr.classList.toggle("collapsed");
-      if (list) list.classList.toggle("collapsed", collapsed);
-      if (collapsed) _progCollapsed.add(day); else _progCollapsed.delete(day);
-    });
-  });
-
-  // Wire edit taps
-  wrap.querySelectorAll(".prog-ex-info").forEach(el => {
-    el.addEventListener("click", () => openExerciseSheet(el.dataset.editDay, +el.dataset.editIdx));
-  });
-
-  // Wire delete buttons
-  wrap.querySelectorAll(".prog-del-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const day = btn.dataset.delDay;
-      const idx = +btn.dataset.delIdx;
-      if (STATE.exercises[day].length <= 1) { toast("Need at least 1 exercise"); return; }
-      if (!confirm(`Remove ${STATE.exercises[day][idx].name}?`)) return;
-      STATE.exercises[day].splice(idx, 1);
-      saveState();
-      renderSettings();
-      toast("REMOVED");
-    });
-  });
-
-  // Wire add buttons — opens exercise selector, then prompts for details
-  wrap.querySelectorAll("[data-add-day]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const day = btn.dataset.addDay;
-      openExerciseSelector(null, (name, dbEntry) => {
-        // Open a quick config sheet for rep range
-        closeExerciseSelector();
-        setTimeout(() => openAddExerciseSheet(day, name, dbEntry), 200);
-      });
-    });
-  });
-
-  // Drag-to-reorder
-  _initProgramDrag(wrap);
-  renderCustomFoodsList();
-  renderGeminiSettings();
-}
 
 function openExerciseSheet(day, idx) {
   const ex = STATE.exercises[day][idx];
@@ -10111,18 +9259,6 @@ const DevConsole = (() => {
   return { open, close, wire, addEntry };
 })();
 
-// ───────── 11. MISC UI ─────────
-function openSheet() { $("#scrim").classList.add("open"); $("#sheet").classList.add("open"); }
-function closeSheet() { $("#scrim").classList.remove("open"); $("#sheet").classList.remove("open"); }
-$("#scrim").addEventListener("click", closeSheet);
-
-function toast(msg) {
-  const el = $("#toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove("show"), 1700);
-}
 
 // ───────── 11b. REST TIMER ─────────
 // Uses real timestamps (Date.now) so it stays accurate even when the phone
@@ -13764,17 +12900,6 @@ const AIScanner = (() => {
 })();
 
 // Settings: Gemini key card
-function renderGeminiSettings() {
-  const k = getGeminiKey();
-  const inp = document.getElementById("set-gemini-key-input");
-  const status = document.getElementById("gemini-key-status");
-  if (!inp) return;
-  // Show masked key if set, blank if not
-  inp.value = k ? k : "";
-  inp.placeholder = k ? "\u2022".repeat(12) + " (key set)" : "AIza\u2026";
-  if (status) status.textContent = k ? "\u2713 KEY SET" : "NOT SET";
-  updateGeminiKeyBadge();
-}
 
 document.getElementById("btn-set-gemini-key").addEventListener("click", () => {
   const k = document.getElementById("set-gemini-key-input").value.trim();
