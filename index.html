@@ -5139,6 +5139,8 @@ async function importBackupPayload(payload, statusEl) {
       statusEl.textContent = msg + ". Reloading...";
     }
     try { toast(msg); } catch (_) {}
+    // Always wipe the workout draft on import so stale drafts never survive
+    try { localStorage.removeItem("ascend-active-workout-draft"); } catch (_) {}
     setTimeout(() => { try { location.reload(); } catch (_) { location.href = location.href; } }, 600);
     return true;
   } catch (err) {
