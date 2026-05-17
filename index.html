@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.4";
+const CACHE = "ascend-2026-05-17.8";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -3656,7 +3656,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.7";
+const APP_VERSION = "2026-05-17.8";
 
 const CHANGELOG = [
   {
@@ -7407,6 +7407,381 @@ const WORKOUT_DRAFT_KEY = "ascend-active-workout-draft";
 const WORKOUT_DRAFT_TTL_MS = 36 * 60 * 60 * 1000;
 
 const TARGETED_WARMUP_METHOD = "targeted_warmup";
+
+// ─── Phase 8 v2: Fully Automated Targeted Warm-Up Engine ────────────────────
+// The system reads the user's recent training trends and decides everything:
+// mode, movements, rounds, ramp sets, and substitution pool.
+// User interaction is limited to: tick exercises done, swap a movement
+// (from the auto-generated recommended list only), and post-warm-up assessment.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Movement library with equipment tags for swap matching
+const WARMUP_MOVEMENT_LIBRARY = {
+  // ── LOWER BODY ──
+  hamstring_curl:    { id: "ham_curl",    name: "Hamstring Curl",            prescription: "15-20 reps",    purpose: "Posterior-chain activation before squats and hinges.",  equipment: ["machine","cable"],       muscles: ["hamstrings"] },
+  rdl_light:         { id: "rdl_light",   name: "Light RDL",                 prescription: "12-15 reps",    purpose: "Hip hinge pattern and hamstring warm-up.",              equipment: ["barbell","dumbbell"],    muscles: ["hamstrings","glutes"] },
+  glute_bridge:      { id: "glute_br",    name: "Glute Bridge / Hip Thrust", prescription: "15-20 reps",    purpose: "Glute activation before any lower-body session.",       equipment: ["bodyweight","barbell"],  muscles: ["glutes"] },
+  reverse_hyper:     { id: "rev_hyper",   name: "Back Extension / Rev Hyper",prescription: "15-20 reps",    purpose: "Low back and glute pump, decompresses spine.",          equipment: ["machine","bodyweight"],  muscles: ["glutes","hamstrings"] },
+  leg_extension:     { id: "leg_ext",     name: "Leg Extension",             prescription: "15-20 reps",    purpose: "Quad activation and knee prep before squatting.",       equipment: ["machine"],              muscles: ["quads"] },
+  tke:               { id: "tke",         name: "Terminal Knee Extension",   prescription: "15-20 reps",    purpose: "VMO and knee stability warm-up.",                       equipment: ["cable","band"],          muscles: ["quads"] },
+  calf_raise:        { id: "calf_r",      name: "Calf Raise",                prescription: "15-20 reps",    purpose: "Ankle and lower-leg preparation.",                      equipment: ["machine","bodyweight"],  muscles: ["calves"] },
+  dead_bug:          { id: "dead_bug",    name: "Dead Bug",                   prescription: "8-10 reps/side","purpose": "Trunk anti-extension bracing before loaded hinge.",   equipment: ["bodyweight"],            muscles: ["abs"] },
+  ab_wheel:          { id: "ab_wheel",    name: "Ab Rollout / Plank",        prescription: "10-12 reps",    purpose: "Core bracing before heavy lower-body work.",            equipment: ["bodyweight","machine"],  muscles: ["abs"] },
+  // ── UPPER – PUSH ──
+  triceps_pressdown: { id: "tri_press",   name: "Triceps Pressdown",         prescription: "15-20 reps",    purpose: "Elbow-friendly triceps blood flow before pressing.",    equipment: ["cable","machine"],       muscles: ["triceps"] },
+  band_pull_apart:   { id: "bpa",         name: "Band Pull-Apart",           prescription: "20-25 reps",    purpose: "Rear-delt and scapular activation before pressing.",    equipment: ["band","cable"],          muscles: ["shoulders","back"] },
+  face_pull:         { id: "face_pull",   name: "Face Pull",                 prescription: "15-20 reps",    purpose: "Rear delt and external rotator warm-up.",              equipment: ["cable","machine"],       muscles: ["shoulders","back"] },
+  scap_pushup:       { id: "scap_pu",     name: "Scap Push-Up / Protraction","prescription": "10-15 reps",  purpose: "Scapular mobility and serratus activation.",            equipment: ["bodyweight"],            muscles: ["shoulders","chest"] },
+  ext_rotation:      { id: "ext_rot",     name: "DB External Rotation",      prescription: "12-15 reps/side","purpose": "Rotator cuff activation before overhead or bench.", equipment: ["dumbbell","cable","band"],muscles: ["shoulders"] },
+  lat_raise_light:   { id: "lat_raise",   name: "Light Lateral Raise",       prescription: "15-20 reps",    purpose: "Medial delt pump and shoulder joint prep.",            equipment: ["dumbbell","cable","machine"],muscles: ["shoulders"] },
+  // ── UPPER – PULL ──
+  straight_arm_pd:   { id: "sa_pd",       name: "Straight-Arm Pulldown",     prescription: "12-15 reps",    purpose: "Lat activation before rows and pulldowns.",            equipment: ["cable","machine"],       muscles: ["back"] },
+  scap_row:          { id: "scap_row",    name: "Scapular Row / Shrug",      prescription: "10-15 reps",    purpose: "Mid and lower trap activation before pulling.",        equipment: ["cable","machine","band"],muscles: ["back","shoulders"] },
+  cable_curl:        { id: "cable_curl",  name: "Cable Curl",                prescription: "12-15 reps",    purpose: "Elbow flexor warm-up before curls.",                   equipment: ["cable"],                 muscles: ["biceps"] },
+  db_curl:           { id: "db_curl",     name: "DB Curl",                   prescription: "12-15 reps",    purpose: "Elbow flexor and bicep warm-up.",                      equipment: ["dumbbell"],              muscles: ["biceps"] },
+  reverse_curl:      { id: "rev_curl",    name: "Reverse Curl",              prescription: "12-15 reps",    purpose: "Forearm and brachialis warm-up before heavy curls.",   equipment: ["barbell","dumbbell","cable"],muscles: ["forearms","biceps"] },
+  // ── BODYWEIGHT FALLBACKS ──
+  bw_squat:          { id: "bw_squat",    name: "Bodyweight Squat",          prescription: "15-20 reps",    purpose: "Hip and knee movement prep without loading.",           equipment: ["bodyweight"],            muscles: ["quads","glutes"] },
+  inchworm:          { id: "inchworm",    name: "Inchworm Walk-Out",         prescription: "8-10 reps",     purpose: "Full-body activation and hamstring elongation.",        equipment: ["bodyweight"],            muscles: ["hamstrings","abs","shoulders"] },
+  arm_circle:        { id: "arm_circ",   name: "Arm Circle / Shoulder CARs", prescription: "10 reps/dir",   purpose: "Shoulder joint mobility and rotator cuff prep.",       equipment: ["bodyweight"],            muscles: ["shoulders"] },
+};
+
+// ── Trend analysis: reads recent sessions to decide warm-up intensity ────────
+function warmupTrendAnalysis(day = LIFT_DAY) {
+  const allRecent = sortSessionsChronological([...STATE.sessions])
+    .filter(s => s.date >= new Date(Date.now() - 21 * 86400000).toISOString().slice(0,10))
+    .reverse(); // most recent first
+
+  const daySessions = allRecent.filter(s => s.day === day).slice(0, 5);
+  const leadIdx = getLeadLiftIdx(day);
+
+  // ── RPE trend for this day ──
+  let rpeSum = 0, rpeCount = 0;
+  daySessions.forEach(s => {
+    [s.rpe?.[leadIdx]?.s1, s.rpe?.[leadIdx]?.s2].forEach(v => {
+      if (v != null) { rpeSum += v; rpeCount++; }
+    });
+  });
+  const avgLeadRpe = rpeCount > 0 ? rpeSum / rpeCount : null;
+
+  // ── Load progression: is the user progressing, stalling, or regressing? ──
+  const leadWeights = daySessions.map(s => s.sets?.[leadIdx]?.s1w).filter(w => w != null);
+  let loadTrend = "progressing"; // default
+  if (leadWeights.length >= 3) {
+    const diff01 = leadWeights[0] - leadWeights[1]; // most recent vs prev
+    const diff12 = leadWeights[1] - leadWeights[2];
+    if (diff01 === 0 && diff12 === 0) loadTrend = "stalled";
+    else if (diff01 < 0 || diff12 < 0) loadTrend = "regressing";
+  }
+
+  // ── Pain history on this day ──
+  const recentPain = daySessions.slice(0,3)
+    .map(s => s.feedback?.maxPain ?? 0)
+    .filter(Boolean);
+  const avgPain = recentPain.length ? recentPain.reduce((a,b) => a+b, 0) / recentPain.length : 0;
+  const painHistory = recentPain.length >= 2 && recentPain.every(p => p >= 2);
+
+  // ── Recovery from daily logs ──
+  const recentLogs = [...STATE.dailyLogs]
+    .filter(d => d.recovery != null)
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+  const avgRecovery = recentLogs.length
+    ? recentLogs.reduce((s,d) => s + d.recovery, 0) / recentLogs.length
+    : null;
+
+  // ── Wave context ──
+  const wave = juggernautWave(0, day);
+  const isDeload = wave.name === "DELOAD";
+  const isRealization = wave.name === "REALIZATION";
+  const isCutting = (STATE.cut?.mode || "cut") === "cut";
+
+  // ── Systemic fatigue ──
+  const fatigue = computeFatigueSummary(7);
+  const highSystemicFatigue = fatigue.systemic > 60;
+  const jointStress = {
+    shoulder: fatigue.shoulderStress > 20,
+    elbow: fatigue.elbowStress > 20,
+    knee: fatigue.kneeStress > 20,
+    spine: fatigue.spinal > 30,
+  };
+
+  // ── Derive auto mode ──
+  let mode = "standard";
+  if (isDeload || isCutting) mode = "minimal";
+  else if (painHistory || highSystemicFatigue || (avgRecovery != null && avgRecovery < 4.5)) mode = "complete";
+  else if (avgLeadRpe != null && avgLeadRpe > 8.5) mode = "complete";
+  else if (loadTrend === "stalled" || loadTrend === "regressing") mode = "complete";
+  else if (isRealization) mode = "minimal"; // peak week – don't pre-fatigue
+
+  // ── Derive context note ──
+  const signals = [];
+  if (avgLeadRpe != null && avgLeadRpe > 8.3) signals.push(`avg RPE ${avgLeadRpe.toFixed(1)} last ${rpeCount} sets`);
+  if (loadTrend === "stalled") signals.push("load stalled 3+ sessions");
+  if (loadTrend === "regressing") signals.push("load regressing");
+  if (avgRecovery != null && avgRecovery < 5) signals.push(`avg recovery ${avgRecovery.toFixed(1)}/10`);
+  if (painHistory) signals.push("recurring pain reported");
+  if (highSystemicFatigue) signals.push("high systemic fatigue load");
+  if (isDeload) signals.push("deload week");
+  if (isRealization) signals.push("realization/peak week");
+  if (isCutting) signals.push("cutting phase");
+
+  return {
+    mode,
+    avgLeadRpe,
+    loadTrend,
+    avgRecovery,
+    avgPain,
+    painHistory,
+    highSystemicFatigue,
+    jointStress,
+    signals,
+    wave,
+    daySessions,
+  };
+}
+
+// ── Select warm-up movements based on day + trend context ────────────────────
+function selectWarmupMovements(day = LIFT_DAY, trend) {
+  const mainLift = inferMainLiftType(day);
+  const js = trend.jointStress;
+
+  // Build candidate list by day/lift context
+  let candidates = [];
+
+  if (mainLift === "squat" || day === "LEGS") {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.hamstring_curl,
+      WARMUP_MOVEMENT_LIBRARY.glute_bridge,
+      WARMUP_MOVEMENT_LIBRARY.leg_extension,
+      WARMUP_MOVEMENT_LIBRARY.dead_bug,
+      WARMUP_MOVEMENT_LIBRARY.reverse_hyper,
+      WARMUP_MOVEMENT_LIBRARY.tke,
+      WARMUP_MOVEMENT_LIBRARY.ab_wheel,
+    ];
+    // Knee concern: deprioritize leg extension
+    if (js.knee) candidates = [WARMUP_MOVEMENT_LIBRARY.glute_bridge, WARMUP_MOVEMENT_LIBRARY.hamstring_curl, WARMUP_MOVEMENT_LIBRARY.dead_bug, WARMUP_MOVEMENT_LIBRARY.calf_raise, WARMUP_MOVEMENT_LIBRARY.reverse_hyper];
+    if (js.spine) candidates = [WARMUP_MOVEMENT_LIBRARY.glute_bridge, WARMUP_MOVEMENT_LIBRARY.dead_bug, WARMUP_MOVEMENT_LIBRARY.leg_extension, WARMUP_MOVEMENT_LIBRARY.tke];
+  } else if (mainLift === "deadlift") {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.hamstring_curl,
+      WARMUP_MOVEMENT_LIBRARY.glute_bridge,
+      WARMUP_MOVEMENT_LIBRARY.dead_bug,
+      WARMUP_MOVEMENT_LIBRARY.reverse_hyper,
+      WARMUP_MOVEMENT_LIBRARY.rdl_light,
+      WARMUP_MOVEMENT_LIBRARY.ab_wheel,
+    ];
+    if (js.spine) candidates = [WARMUP_MOVEMENT_LIBRARY.glute_bridge, WARMUP_MOVEMENT_LIBRARY.hamstring_curl, WARMUP_MOVEMENT_LIBRARY.dead_bug, WARMUP_MOVEMENT_LIBRARY.tke];
+  } else if (mainLift === "bench" || (mainLift !== "overhead" && day === "PUSH")) {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.triceps_pressdown,
+      WARMUP_MOVEMENT_LIBRARY.face_pull,
+      WARMUP_MOVEMENT_LIBRARY.band_pull_apart,
+      WARMUP_MOVEMENT_LIBRARY.scap_pushup,
+      WARMUP_MOVEMENT_LIBRARY.ext_rotation,
+      WARMUP_MOVEMENT_LIBRARY.lat_raise_light,
+    ];
+    if (js.shoulder) candidates = [WARMUP_MOVEMENT_LIBRARY.band_pull_apart, WARMUP_MOVEMENT_LIBRARY.ext_rotation, WARMUP_MOVEMENT_LIBRARY.scap_pushup, WARMUP_MOVEMENT_LIBRARY.face_pull];
+    if (js.elbow) candidates = [WARMUP_MOVEMENT_LIBRARY.face_pull, WARMUP_MOVEMENT_LIBRARY.band_pull_apart, WARMUP_MOVEMENT_LIBRARY.scap_pushup, WARMUP_MOVEMENT_LIBRARY.ext_rotation];
+  } else if (mainLift === "overhead") {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.ext_rotation,
+      WARMUP_MOVEMENT_LIBRARY.band_pull_apart,
+      WARMUP_MOVEMENT_LIBRARY.face_pull,
+      WARMUP_MOVEMENT_LIBRARY.lat_raise_light,
+      WARMUP_MOVEMENT_LIBRARY.triceps_pressdown,
+      WARMUP_MOVEMENT_LIBRARY.scap_pushup,
+    ];
+    if (js.shoulder) candidates = [WARMUP_MOVEMENT_LIBRARY.ext_rotation, WARMUP_MOVEMENT_LIBRARY.band_pull_apart, WARMUP_MOVEMENT_LIBRARY.scap_pushup, WARMUP_MOVEMENT_LIBRARY.arm_circle];
+  } else if (day === "PULL") {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.straight_arm_pd,
+      WARMUP_MOVEMENT_LIBRARY.face_pull,
+      WARMUP_MOVEMENT_LIBRARY.scap_row,
+      WARMUP_MOVEMENT_LIBRARY.cable_curl,
+      WARMUP_MOVEMENT_LIBRARY.band_pull_apart,
+      WARMUP_MOVEMENT_LIBRARY.reverse_curl,
+    ];
+    if (js.elbow) candidates = [WARMUP_MOVEMENT_LIBRARY.straight_arm_pd, WARMUP_MOVEMENT_LIBRARY.scap_row, WARMUP_MOVEMENT_LIBRARY.face_pull, WARMUP_MOVEMENT_LIBRARY.band_pull_apart];
+    if (js.shoulder) candidates = [WARMUP_MOVEMENT_LIBRARY.scap_row, WARMUP_MOVEMENT_LIBRARY.face_pull, WARMUP_MOVEMENT_LIBRARY.straight_arm_pd, WARMUP_MOVEMENT_LIBRARY.band_pull_apart];
+  } else if (day === "ARMS") {
+    candidates = [
+      WARMUP_MOVEMENT_LIBRARY.triceps_pressdown,
+      WARMUP_MOVEMENT_LIBRARY.cable_curl,
+      WARMUP_MOVEMENT_LIBRARY.reverse_curl,
+      WARMUP_MOVEMENT_LIBRARY.face_pull,
+      WARMUP_MOVEMENT_LIBRARY.band_pull_apart,
+    ];
+    if (js.elbow) candidates = [WARMUP_MOVEMENT_LIBRARY.face_pull, WARMUP_MOVEMENT_LIBRARY.band_pull_apart, WARMUP_MOVEMENT_LIBRARY.arm_circle];
+  }
+
+  // Fallback: bodyweight-safe options
+  if (!candidates.length) {
+    candidates = [WARMUP_MOVEMENT_LIBRARY.inchworm, WARMUP_MOVEMENT_LIBRARY.dead_bug, WARMUP_MOVEMENT_LIBRARY.arm_circle];
+  }
+
+  // Pick top 3
+  const count = trend.mode === "minimal" ? 2 : 3;
+  const selected = candidates.slice(0, count);
+
+  // Build swap pool for each selected: same muscle, different equipment (up to 3 options)
+  return selected.map((m, idx) => {
+    const swapPool = Object.values(WARMUP_MOVEMENT_LIBRARY)
+      .filter(alt =>
+        alt.id !== m.id &&
+        alt.muscles.some(mu => m.muscles.includes(mu)) &&
+        !selected.some((sel, si) => si !== idx && sel.id === alt.id)
+      )
+      .slice(0, 3);
+    return {
+      ...m,
+      id: `${day.toLowerCase()}_${idx + 1}_${m.id}`,
+      baseId: m.id,
+      swapPool,
+      effort: trend.mode === "pain_adjusted" || trend.jointStress.shoulder || trend.jointStress.knee
+        ? "Easy range only. Stop if symptoms worsen."
+        : "Easy pump only. No fatigue.",
+    };
+  });
+}
+
+// ── Build ramp set prescription from working weight ──────────────────────────
+function buildRampSets(day = LIFT_DAY, trend) {
+  const exercises = STATE.exercises?.[day] || [];
+  const leadIdx = getLeadLiftIdx(day);
+  const leadEx = exercises[leadIdx];
+  if (!leadEx) return "2–4 easy ramp sets, progressively building to working weight.";
+
+  const prog = progressionFor(day, leadIdx);
+  const workWeight = prog?.weight;
+  const mainLift = inferMainLiftType(day);
+
+  // In minimal/pain mode: fewer ramps
+  if (trend.mode === "minimal") {
+    if (!workWeight) return "2 easy ramp sets up to working weight.";
+    const ramp1 = Math.round(workWeight * 0.50 / 2.5) * 2.5;
+    const ramp2 = Math.round(workWeight * 0.75 / 2.5) * 2.5;
+    return `2 ramp sets: ${ramp1}kg × 5, ${ramp2}kg × 3, then ${workWeight}kg working sets.`;
+  }
+
+  // Standard / complete: 3–4 ramps
+  if (!workWeight) return "3–4 easy ramp sets building progressively to working weight. Start at ~40%, add load each set.";
+  const ramp1 = Math.round(workWeight * 0.40 / 2.5) * 2.5;
+  const ramp2 = Math.round(workWeight * 0.60 / 2.5) * 2.5;
+  const ramp3 = Math.round(workWeight * 0.80 / 2.5) * 2.5;
+  const extra = trend.mode === "complete"
+    ? `, ${Math.round(workWeight * 0.90 / 2.5) * 2.5}kg × 2`
+    : "";
+  return `Ramp sets: ${ramp1}kg × 8 (bar speed), ${ramp2}kg × 5, ${ramp3}kg × 3${extra}, then ${workWeight}kg working sets.`;
+}
+
+// ── Main build function ───────────────────────────────────────────────────────
+function buildTargetedWarmup() {
+  const trend = warmupTrendAnalysis(LIFT_DAY);
+  const movements = selectWarmupMovements(LIFT_DAY, trend);
+  const rounds = trend.mode === "minimal" ? 1 : 2;
+  const rampSets = buildRampSets(LIFT_DAY, trend);
+  const leadName = STATE.exercises?.[LIFT_DAY]?.[getLeadLiftIdx(LIFT_DAY)]?.name || LIFT_DAY;
+  const estimatedMin = trend.mode === "minimal" ? "5–7" : trend.mode === "complete" ? "10–14" : "7–10";
+
+  const modeLabels = { minimal: "Minimal", standard: "Standard", complete: "Complete", pain_adjusted: "Pain Adjusted" };
+
+  return {
+    type: "warmup",
+    method: TARGETED_WARMUP_METHOD,
+    id: `tw-${Date.now()}`,
+    date: LIFT_DRAFT?.date || todayISO(),
+    day: LIFT_DAY,
+    mainLift: inferMainLiftType(LIFT_DAY),
+    dayFocus: LIFT_DAY,
+    leadExercise: leadName,
+    rankedMuscles: [],
+    mode: trend.mode,
+    modeLabel: modeLabels[trend.mode] || trend.mode,
+    rounds,
+    estimatedMin,
+    trendSignals: trend.signals,
+    inputs: {}, // no manual inputs needed
+    movements,
+    completion: movements.flatMap(m =>
+      Array.from({ length: rounds }, (_, i) => ({
+        movementId: m.id,
+        round: i + 1,
+        completed: false,
+      }))
+    ),
+    rampSets,
+    rampCompleted: false,
+    feedback: { postWarmupReadiness: null, jointResponse: null, saved: false },
+  };
+}
+
+function inferMainLiftType(day = LIFT_DAY) {
+  const ex = STATE.exercises?.[day]?.[getLeadLiftIdx(day)] || {};
+  const name = normalizeExerciseName(ex.name || "");
+  if (name.includes("deadlift") || name.includes("rdl")) return "deadlift";
+  if (name.includes("overhead") || name.includes("ohp") || name.includes("shoulder press")) return "overhead";
+  if (name.includes("bench") || name.includes("press")) return "bench";
+  if (name.includes("squat") || name.includes("leg press")) return "squat";
+  if (day === "PUSH") return "bench";
+  if (day === "LEGS") return "squat";
+  if (day === "PULL") return "pull";
+  if (day === "ARMS") return "arms";
+  return "squat";
+}
+
+function ensureTargetedWarmupDraft() {
+  if (!LIFT_DRAFT) return null;
+  if (!LIFT_DRAFT.targetedWarmup) LIFT_DRAFT.targetedWarmup = buildTargetedWarmup();
+  return LIFT_DRAFT.targetedWarmup;
+}
+
+function targetedWarmupComplete(warmup) {
+  if (!warmup) return false;
+  const circuitDone = (warmup.completion || []).every(c => c.completed);
+  const rampDone = !!warmup.rampCompleted;
+  const assessmentDone = !!warmup.feedback?.saved
+    && !!warmup.feedback?.postWarmupReadiness
+    && !!warmup.feedback?.jointResponse;
+  return circuitDone && rampDone && assessmentDone;
+}
+
+function targetedWarmupWarning(warmup) {
+  if (!warmup?.feedback?.saved) return "";
+  const r = warmup.feedback.postWarmupReadiness;
+  const j = warmup.feedback.jointResponse;
+  if (r === "more_tired" && j === "worse") return "Readiness and joints both worsened during warm-up. Keep today's session conservative — reduce load 5–10%, skip intensification techniques.";
+  if (r === "more_tired") return "Feeling more tired post warm-up. Proceed conservatively — no extra volume today.";
+  if (j === "worse") return "Joint response worsened during warm-up. Avoid heavy singles and grinding reps today.";
+  return "";
+}
+
+function savedTargetedWarmup(warmup) {
+  if (!warmup) return null;
+  return {
+    type: "warmup",
+    method: TARGETED_WARMUP_METHOD,
+    id: warmup.id,
+    date: warmup.date,
+    day: warmup.day,
+    mainLift: warmup.mainLift,
+    dayFocus: warmup.dayFocus,
+    leadExercise: warmup.leadExercise,
+    rankedMuscles: Array.isArray(warmup.rankedMuscles) ? [...warmup.rankedMuscles] : [],
+    mode: warmup.mode,
+    modeLabel: warmup.modeLabel || warmup.mode,
+    rounds: warmup.rounds,
+    estimatedMin: warmup.estimatedMin,
+    trendSignals: Array.isArray(warmup.trendSignals) ? [...warmup.trendSignals] : [],
+    inputs: { ...(warmup.inputs || {}) },
+    movements: (warmup.movements || []).map(m => ({ ...m, swapPool: (m.swapPool || []).map(s => ({...s})) })),
+    completion: (warmup.completion || []).map(c => ({ ...c })),
+    rampSets: warmup.rampSets,
+    rampCompleted: !!warmup.rampCompleted,
+    feedback: { ...(warmup.feedback || {}) },
+  };
+}
+
 const TARGETED_WARMUP_DEFAULTS = {
   squat: {
     label: "Squat",
@@ -7498,183 +7873,6 @@ const TARGETED_WARMUP_MUSCLE_OPTIONS = {
   calves:     { id: "muscle_calves_raise", name: "Calf Raise / Tibialis Raise", prescription: "12-20 reps", purpose: "Ankle and lower-leg preparation." },
   abs:        { id: "muscle_abs_brace", name: "Ab Pulldown / Dead Bug", prescription: "10-15 reps", purpose: "Trunk bracing before loaded movement." },
 };
-
-function inferMainLiftType(day = LIFT_DAY) {
-  const ex = STATE.exercises?.[day]?.[getLeadLiftIdx(day)] || {};
-  const name = normalizeExerciseName(ex.name || "");
-  if (name.includes("deadlift") || name.includes("rdl")) return "deadlift";
-  if (name.includes("overhead") || name.includes("ohp") || name.includes("shoulder press")) return "overhead";
-  if (name.includes("bench") || name.includes("press")) return "bench";
-  if (name.includes("squat") || name.includes("leg press")) return "squat";
-  if (day === "PUSH") return "bench";
-  if (day === "LEGS") return "squat";
-  if (day === "PULL") return "pull";
-  if (day === "ARMS") return "arms";
-  return "squat";
-}
-
-function targetedWarmupDayProfile(day = LIFT_DAY) {
-  const exercises = STATE.exercises?.[day] || [];
-  const muscleTotals = {};
-  exercises.forEach((ex, idx) => {
-    const weights = exerciseWeightedMuscles(ex);
-    Object.entries(weights).forEach(([muscle, rawWeight]) => {
-      let weight = rawWeight;
-      if (idx === getLeadLiftIdx(day)) weight *= 1.25;
-      muscleTotals[muscle] = (muscleTotals[muscle] || 0) + weight;
-    });
-  });
-  const rankedMuscles = Object.entries(muscleTotals)
-    .sort((a, b) => b[1] - a[1])
-    .map(([muscle]) => muscle);
-  const mainLift = inferMainLiftType(day);
-  const fallback = TARGETED_WARMUP_DAY_DEFAULTS[day] || TARGETED_WARMUP_DEFAULTS[mainLift] || TARGETED_WARMUP_DEFAULTS.squat;
-  const leadName = exercises[getLeadLiftIdx(day)]?.name || day || "Session";
-  return { day, mainLift, leadName, rankedMuscles, fallback };
-}
-
-function automaticTargetedWarmupMovements(day = LIFT_DAY, mainLift = inferMainLiftType(day)) {
-  const profile = targetedWarmupDayProfile(day);
-  const fallback = profile.fallback;
-  const picks = [];
-  const add = (movement) => {
-    if (!movement || picks.some(p => p.name === movement.name)) return;
-    picks.push({ ...movement });
-  };
-
-  (profile.rankedMuscles || []).forEach(muscle => add(TARGETED_WARMUP_MUSCLE_OPTIONS[muscle]));
-  (fallback.movements || []).forEach(add);
-
-  if (mainLift === "bench" || mainLift === "overhead") {
-    add(TARGETED_WARMUP_MUSCLE_OPTIONS.triceps);
-    add(TARGETED_WARMUP_MUSCLE_OPTIONS.shoulders);
-  }
-  if (mainLift === "squat" || mainLift === "deadlift") {
-    add(TARGETED_WARMUP_MUSCLE_OPTIONS.hamstrings);
-    add(TARGETED_WARMUP_MUSCLE_OPTIONS.glutes);
-    add(TARGETED_WARMUP_MUSCLE_OPTIONS.abs);
-  }
-
-  return picks.slice(0, 3).map((m, idx) => ({
-    ...m,
-    id: `${day.toLowerCase()}_${idx + 1}_${m.id}`,
-  }));
-}
-
-function targetedWarmupReadinessDefault() {
-  const readiness = calculateReadiness(todayISO());
-  if (readiness.score != null && readiness.score <= 2) return "low";
-  if (readiness.score != null && readiness.score >= 4) return "high";
-  return "normal";
-}
-
-function targetedWarmupTrainingContext(day = LIFT_DAY) {
-  const wave = juggernautWave(0, day);
-  const cutting = (STATE.cut?.mode || "cut") === "cut";
-  const deload = wave.name === "DELOAD";
-  if (cutting && deload) return "cutting_deload";
-  if (deload) return "deload";
-  if (cutting) return "cutting";
-  return "normal";
-}
-
-function targetedWarmupMode(inputs) {
-  if (inputs.painArea !== "none" || Number(inputs.painLevel) > 0) return "pain_adjusted";
-  if (inputs.sessionTime === "short" || inputs.trainingContext === "deload" || inputs.trainingContext === "cutting_deload") return "minimal";
-  if (inputs.readiness === "low" || inputs.trainingContext === "cutting") return "complete";
-  return "standard";
-}
-
-function buildTargetedWarmup(inputs = {}) {
-  const autoProfile = targetedWarmupDayProfile(LIFT_DAY);
-  const normalized = {
-    mainLift: autoProfile.mainLift,
-    dayFocus: autoProfile.day,
-    leadExercise: autoProfile.leadName,
-    rankedMuscles: autoProfile.rankedMuscles,
-    readiness: inputs.readiness || targetedWarmupReadinessDefault(),
-    sessionTime: inputs.sessionTime || "normal",
-    trainingContext: inputs.trainingContext || targetedWarmupTrainingContext(),
-    painArea: inputs.painArea || "none",
-    painLevel: Number(inputs.painLevel || 0),
-  };
-  const mode = targetedWarmupMode(normalized);
-  const rounds = mode === "minimal" ? 2 : 3;
-  const base = autoProfile.fallback;
-  const movements = automaticTargetedWarmupMovements(LIFT_DAY, normalized.mainLift).map(m => ({
-    ...m,
-    prescription: mode === "pain_adjusted" ? `${m.prescription} easy, comfortable range` : m.prescription,
-    effort: mode === "pain_adjusted" ? "Stop if symptoms worsen." : "Easy pump only. No fatigue.",
-  }));
-  return {
-    type: "warmup",
-    method: TARGETED_WARMUP_METHOD,
-    id: `tw-${Date.now()}`,
-    date: LIFT_DRAFT?.date || todayISO(),
-    day: LIFT_DAY,
-    mainLift: normalized.mainLift,
-    dayFocus: normalized.dayFocus,
-    leadExercise: normalized.leadExercise,
-    rankedMuscles: normalized.rankedMuscles,
-    mode,
-    rounds,
-    estimatedMin: mode === "minimal" ? "6-8" : mode === "complete" ? "10-14" : "8-12",
-    inputs: normalized,
-    movements,
-    completion: movements.flatMap(m => Array.from({ length: rounds }, (_, i) => ({
-      movementId: m.id,
-      round: i + 1,
-      completed: false,
-    }))),
-    rampSets: base.rampSets,
-    rampCompleted: false,
-    feedback: { postWarmupReadiness: null, jointResponse: null, saved: false },
-  };
-}
-
-function ensureTargetedWarmupDraft() {
-  if (!LIFT_DRAFT) return null;
-  if (!LIFT_DRAFT.targetedWarmup) LIFT_DRAFT.targetedWarmup = buildTargetedWarmup();
-  return LIFT_DRAFT.targetedWarmup;
-}
-
-function targetedWarmupComplete(warmup) {
-  if (!warmup) return false;
-  const roundsDone = (warmup.completion || []).every(c => c.completed);
-  const feedbackDone = !!warmup.feedback?.saved && !!warmup.feedback?.postWarmupReadiness && !!warmup.feedback?.jointResponse;
-  return roundsDone && !!warmup.rampCompleted && feedbackDone;
-}
-
-function targetedWarmupWarning(warmup) {
-  if (!warmup?.feedback?.saved) return "";
-  if (warmup.feedback.postWarmupReadiness !== "more_tired" && warmup.feedback.jointResponse !== "worse") return "";
-  return "Readiness or joint response worsened. You can still proceed, but keep the session conservative and avoid adding extra volume. No prescription was changed automatically.";
-}
-
-function savedTargetedWarmup(warmup) {
-  if (!warmup) return null;
-  return {
-    type: "warmup",
-    method: TARGETED_WARMUP_METHOD,
-    id: warmup.id,
-    date: warmup.date,
-    day: warmup.day,
-    mainLift: warmup.mainLift,
-    dayFocus: warmup.dayFocus,
-    leadExercise: warmup.leadExercise,
-    rankedMuscles: Array.isArray(warmup.rankedMuscles) ? [...warmup.rankedMuscles] : [],
-    mode: warmup.mode,
-    rounds: warmup.rounds,
-    estimatedMin: warmup.estimatedMin,
-    inputs: { ...(warmup.inputs || {}) },
-    movements: (warmup.movements || []).map(m => ({ ...m })),
-    completion: (warmup.completion || []).map(c => ({ ...c })),
-    rampSets: warmup.rampSets,
-    rampCompleted: !!warmup.rampCompleted,
-    feedback: { ...(warmup.feedback || {}) },
-  };
-}
-
 function workoutDraftIsMeaningful() {
   if (!LIFT_DRAFT || LIFT_EDITING_ID) return false;
   if (TARGETED_WARMUP_ACTIVE || LIFT_SESSION_ACTIVE) return true;
@@ -7874,115 +8072,79 @@ function renderTargetedWarmupPage() {
   const warmup = ensureTargetedWarmupDraft();
   const wrap = document.getElementById("targeted-warmup-page");
   if (!warmup || !wrap) return;
+
   const isComplete = targetedWarmupComplete(warmup);
   const warn = targetedWarmupWarning(warmup);
-  const modeLabel = warmup.mode.replace(/_/g, " ").toUpperCase();
-  const dayDefault = TARGETED_WARMUP_DAY_DEFAULTS[warmup.dayFocus || LIFT_DAY];
-  const focusLabel = dayDefault?.label || (TARGETED_WARMUP_DEFAULTS[warmup.mainLift] || {}).label || warmup.mainLift || LIFT_DAY;
-  const rankedLabels = (warmup.rankedMuscles || [])
-    .slice(0, 4)
-    .map(m => MUSCLE_LABELS[m] || m)
-    .join(" / ");
-  const roundBtns = (movementId) => Array.from({ length: warmup.rounds }, (_, i) => {
-    const round = i + 1;
-    const item = warmup.completion.find(c => c.movementId === movementId && c.round === round);
-    return `<button class="btn sm ${item?.completed ? "primary" : "ghost"}" data-tw-round="${round}" data-tw-movement="${escapeHtml(movementId)}">R${round}</button>`;
+  const modeLabel = (warmup.modeLabel || warmup.mode).toUpperCase();
+
+  const circuitTotal = warmup.completion?.length || 0;
+  const circuitDone = warmup.completion?.filter(c => c.completed).length || 0;
+  const pct = circuitTotal > 0 ? Math.round((circuitDone / circuitTotal) * 100) : 0;
+
+  const signalHtml = (warmup.trendSignals || []).length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${warmup.trendSignals.slice(0,3).map(s => `<span class="tag" style="font-size:10px;">${escapeHtml(s)}</span>`).join("")}</div>`
+    : "";
+
+  const movementCards = warmup.movements.map((m, idx) => {
+    const roundBtns = Array.from({ length: warmup.rounds }, (_, i) => {
+      const round = i + 1;
+      const item = warmup.completion.find(c => c.movementId === m.id && c.round === round);
+      const label = warmup.rounds === 1 ? "DONE" : `SET ${round}`;
+      return `<button class="btn sm ${item?.completed ? "primary" : "ghost"}" style="flex:1;" data-tw-round="${round}" data-tw-movement="${escapeHtml(m.id)}">${label}</button>`;
+    }).join("");
+    const swapHtml = (m.swapPool || []).length
+      ? `<div style="margin-top:8px;"><div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:5px;">NO EQUIPMENT? SWAP TO:</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${m.swapPool.map(alt => `<button class="btn ghost" style="font-size:11px;padding:4px 10px;" data-tw-swap="${escapeHtml(m.id)}" data-tw-swap-to='${JSON.stringify(alt).replace(/'/g,"&#39;")}'>${escapeHtml(alt.name)}</button>`).join("")}</div></div>`
+      : "";
+    return `<div style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-elev-2);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="font-family:var(--f-mono);font-size:9px;letter-spacing:0.14em;color:var(--ink-dim);font-weight:700;">0${idx+1}</div><div style="font-family:var(--f-display);font-size:20px;font-weight:900;">${escapeHtml(m.name)}</div></div><div class="tag" style="white-space:nowrap;">${escapeHtml(m.prescription)}</div></div><div class="muted" style="font-size:12px;line-height:1.45;margin-top:5px;">${escapeHtml(m.purpose)} <em style="color:var(--ink-dim);">${escapeHtml(m.effort || "")}</em></div>${swapHtml}<div style="display:flex;gap:6px;margin-top:10px;">${roundBtns}</div></div>`;
   }).join("");
-  const select = (id, label, value, options) => `
-    <div class="input">
-      <label>${label}</label>
-      <select id="${id}">
-        ${options.map(o => `<option value="${o[0]}" ${value === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}
-      </select>
-    </div>`;
 
   wrap.innerHTML = `
     <div class="card" style="border-left:3px solid var(--accent);">
       <div class="card-head">
         <div>
-          <div class="card-label">Workout Mode · Phase 8</div>
-          <div style="font-family:var(--f-display);font-size:28px;font-weight:900;letter-spacing:0.02em;margin-top:3px;">Targeted Warm-Up</div>
+          <div class="card-label">Targeted Warm-Up &middot; ${escapeHtml(modeLabel)}</div>
+          <div style="font-family:var(--f-display);font-size:26px;font-weight:900;letter-spacing:0.02em;margin-top:3px;">${escapeHtml(warmup.leadExercise || warmup.dayFocus || LIFT_DAY)}</div>
         </div>
-        <div class="card-meta">${escapeHtml(modeLabel)} · ${warmup.estimatedMin} MIN</div>
+        <div class="card-meta">${warmup.estimatedMin} MIN</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;">
-        <div class="tag" style="justify-content:center;">Load Today's Session</div>
-        <div class="tag" style="justify-content:center;color:var(--accent);border-color:var(--accent);">Targeted Warm-Up</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:10px;">
+        <div class="tag" style="justify-content:center;color:var(--good);border-color:var(--good);">Session Loaded</div>
+        <div class="tag" style="justify-content:center;color:var(--accent);border-color:var(--accent);font-weight:700;">Warm-Up</div>
         <div class="tag" style="justify-content:center;${isComplete ? "color:var(--good);border-color:var(--good);" : ""}">Start Workout</div>
       </div>
-      <div class="muted" style="font-size:12px;line-height:1.5;margin-top:12px;">
-        Complete the activation circuit, ramp the main lift, then save feedback. This page does not change workout prescriptions or volume targets.
-      </div>
+      ${signalHtml}
     </div>
 
     <div class="card">
-      <div class="card-head"><div class="card-label">Today's Setup</div><div class="card-meta">AUTO · ${escapeHtml(focusLabel)}</div></div>
-      <div style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-elev-2);margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-          <div>
-            <div class="muted" style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Auto-selected from today's session</div>
-            <div style="font-family:var(--f-display);font-size:21px;font-weight:900;margin-top:3px;">${escapeHtml(warmup.dayFocus || LIFT_DAY)} · ${escapeHtml(warmup.leadExercise || "Lead exercise")}</div>
-          </div>
-        </div>
-        <div class="muted" style="font-size:12px;line-height:1.45;margin-top:8px;">
-          Primary warm-up targets: ${escapeHtml(rankedLabels || "session muscle groups")}. Exercise selection updates from the programmed day, not a manual selector.
-        </div>
-      </div>
-      <div class="input-grid">
-        ${select("tw-readiness", "Readiness", warmup.inputs.readiness, [["low","Low"],["normal","Normal"],["high","High"]])}
-        ${select("tw-time", "Session time", warmup.inputs.sessionTime, [["short","Short"],["normal","Normal"],["long","Long"]])}
-      </div>
-      <div class="input-grid" style="margin-top:10px;">
-        ${select("tw-context", "Context", warmup.inputs.trainingContext, [["normal","Normal"],["cutting","Cutting"],["deload","Deload"],["cutting_deload","Cutting + deload"]])}
-        ${select("tw-pain-area", "Joint feedback", warmup.inputs.painArea, [["none","None"],["shoulder","Shoulder"],["elbow","Elbow"],["low_back","Low back"],["hip","Hip"],["knee","Knee"],["ankle","Ankle"]])}
-      </div>
-      <div class="input-grid" style="margin-top:10px;">
-        ${select("tw-pain-level", "Pain level", String(warmup.inputs.painLevel), [["0","0"],["1","1"],["2","2"],["3","3"]])}
-      </div>
+      <div class="card-head"><div class="card-label">Today's Plan</div><div class="card-meta">AUTO-GENERATED</div></div>
+      <div style="font-size:13px;line-height:1.55;color:var(--ink-mid);">Movements and intensity selected from your recent <strong>${escapeHtml(warmup.dayFocus || LIFT_DAY)}</strong> training data. ${warmup.rounds === 1 ? "One round — minimal mode." : `${warmup.rounds} rounds per exercise.`} No manual inputs required.</div>
     </div>
 
     <div class="card">
-      <div class="card-head"><div class="card-label">Activation Circuit</div><div class="card-meta">${warmup.rounds} ROUNDS</div></div>
-      <div style="display:grid;gap:10px;">
-        ${warmup.movements.map((m, idx) => `
-          <div style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-elev-2);">
-            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-              <div>
-                <div style="font-family:var(--f-mono);font-size:9px;letter-spacing:0.14em;color:var(--ink-dim);font-weight:700;">0${idx + 1}</div>
-                <div style="font-family:var(--f-display);font-size:20px;font-weight:900;">${escapeHtml(m.name)}</div>
-              </div>
-              <div class="tag">${escapeHtml(m.prescription)}</div>
-            </div>
-            <div class="muted" style="font-size:12px;line-height:1.45;margin-top:6px;">${escapeHtml(m.purpose)} ${escapeHtml(m.effort || "")}</div>
-            <div style="display:flex;gap:6px;margin-top:10px;">${roundBtns(m.id)}</div>
-          </div>
-        `).join("")}
-      </div>
+      <div class="card-head"><div class="card-label">Activation Circuit</div><div class="card-meta">${circuitDone}/${circuitTotal} DONE</div></div>
+      ${circuitTotal > 0 ? `<div style="height:4px;background:var(--bg-elev-3);border-radius:2px;margin-bottom:12px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:2px;transition:width 0.3s;"></div></div>` : ""}
+      <div style="display:grid;gap:10px;">${movementCards}</div>
     </div>
 
     <div class="card">
-      <div class="card-head"><div class="card-label">Main-Lift Ramp</div><div class="card-meta">${warmup.rampCompleted ? "DONE" : "REQUIRED"}</div></div>
-      <div style="font-size:13px;line-height:1.5;color:var(--ink-mid);">${escapeHtml(warmup.rampSets)}</div>
-      <button class="btn ${warmup.rampCompleted ? "primary" : "ghost"} full" style="margin-top:10px;" data-tw-ramp="1">${warmup.rampCompleted ? "RAMP SETS DONE" : "MARK RAMP SETS DONE"}</button>
+      <div class="card-head"><div class="card-label">Main-Lift Ramp</div><div class="card-meta" style="${warmup.rampCompleted ? "color:var(--good);" : ""}">${warmup.rampCompleted ? "DONE \u2713" : "REQUIRED"}</div></div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-mid);margin-bottom:10px;">${escapeHtml(warmup.rampSets)}</div>
+      <button class="btn ${warmup.rampCompleted ? "primary" : "ghost"} full" data-tw-ramp="1">${warmup.rampCompleted ? "RAMP DONE \u2713 \u2014 TAP TO UNDO" : "MARK RAMP SETS DONE"}</button>
     </div>
 
-    <div class="card">
-      <div class="card-head"><div class="card-label">Post Warm-Up Feedback</div><div class="card-meta">${warmup.feedback.saved ? "SAVED" : "REQUIRED"}</div></div>
-      <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:7px;">READINESS</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px;">
-        ${[["more_ready","MORE READY"],["same","SAME"],["more_tired","MORE TIRED"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.postWarmupReadiness === v ? "primary" : "ghost"}" data-tw-feedback="postWarmupReadiness" data-val="${v}">${l}</button>`).join("")}
-      </div>
+    <div class="card" style="${!warmup.rampCompleted ? "opacity:0.5;pointer-events:none;" : ""}">
+      <div class="card-head"><div class="card-label">Quick Assessment</div><div class="card-meta" style="${warmup.feedback.saved ? "color:var(--good);" : ""}">${warmup.feedback.saved ? "SAVED \u2713" : "REQUIRED"}</div></div>
+      <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:7px;">HOW DO YOU FEEL NOW?</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;">${[["more_ready","\u2191 BETTER"],["same","\u2192 SAME"],["more_tired","\u2193 TIRED"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.postWarmupReadiness === v ? "primary" : "ghost"}" data-tw-feedback="postWarmupReadiness" data-val="${v}">${l}</button>`).join("")}</div>
       <div style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:7px;">JOINT RESPONSE</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;">
-        ${[["better","BETTER"],["same","SAME"],["worse","WORSE"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.jointResponse === v ? "primary" : "ghost"}" data-tw-feedback="jointResponse" data-val="${v}">${l}</button>`).join("")}
-      </div>
-      <button class="btn ghost full" style="margin-top:12px;" data-tw-save-feedback="1">SAVE WARM-UP FEEDBACK</button>
-      ${warn ? `<div style="margin-top:10px;padding:10px;border-radius:9px;border-left:3px solid #d4a017;background:rgba(212,160,23,0.08);font-size:12px;line-height:1.45;color:var(--ink);">${escapeHtml(warn)}</div>` : ""}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;">${[["better","BETTER"],["same","SAME"],["worse","WORSE"]].map(([v,l]) => `<button class="btn sm ${warmup.feedback.jointResponse === v ? "primary" : "ghost"}" data-tw-feedback="jointResponse" data-val="${v}">${l}</button>`).join("")}</div>
+      <button class="btn ${warmup.feedback.saved ? "primary" : "ghost"} full" data-tw-save-feedback="1">${warmup.feedback.saved ? "ASSESSMENT SAVED \u2713" : "SAVE ASSESSMENT"}</button>
+      ${warn ? `<div style="margin-top:10px;padding:10px;border-radius:9px;border-left:3px solid #d4a017;background:rgba(212,160,23,0.08);font-size:12px;line-height:1.5;color:var(--ink);">${escapeHtml(warn)}</div>` : ""}
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:12px;">
-      <button class="btn ghost" data-tw-back="1">BACK</button>
-      <button class="btn primary" data-tw-start="1" ${isComplete ? "" : "disabled"} style="${isComplete ? "" : "opacity:0.45;"}">START ACTUAL WORKOUT</button>
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:8px;margin-top:12px;margin-bottom:16px;">
+      <button class="btn ghost" data-tw-back="1">\u2190 BACK</button>
+      <button class="btn primary" data-tw-start="1" ${isComplete ? "" : 'disabled style="opacity:0.45;"'}>START WORKOUT \u2192</button>
     </div>
   `;
 }
@@ -11657,23 +11819,6 @@ document.getElementById("btn-start-lift").addEventListener("click", () => {
   openTargetedWarmupPage();
 });
 
-document.addEventListener("change", function(e) {
-  if (!TARGETED_WARMUP_ACTIVE || !LIFT_DRAFT?.targetedWarmup) return;
-  const ids = ["tw-readiness", "tw-time", "tw-context", "tw-pain-area", "tw-pain-level"];
-  if (!ids.includes(e.target.id)) return;
-  const current = LIFT_DRAFT.targetedWarmup.inputs || {};
-  const nextInputs = {
-    readiness: document.getElementById("tw-readiness")?.value || current.readiness,
-    sessionTime: document.getElementById("tw-time")?.value || current.sessionTime,
-    trainingContext: document.getElementById("tw-context")?.value || current.trainingContext,
-    painArea: document.getElementById("tw-pain-area")?.value || current.painArea,
-    painLevel: Number(document.getElementById("tw-pain-level")?.value || current.painLevel || 0),
-  };
-  LIFT_DRAFT.targetedWarmup = buildTargetedWarmup(nextInputs);
-  renderTargetedWarmupPage();
-  scheduleWorkoutAutosave();
-});
-
 document.addEventListener("click", function(e) {
   if (!TARGETED_WARMUP_ACTIVE || !LIFT_DRAFT?.targetedWarmup) return;
   const warmup = LIFT_DRAFT.targetedWarmup;
@@ -11686,6 +11831,32 @@ document.addEventListener("click", function(e) {
     if (item) item.completed = !item.completed;
     renderTargetedWarmupPage();
     scheduleWorkoutAutosave();
+    return;
+  }
+
+  // Swap movement (equipment substitution)
+  const swapBtn = e.target.closest("[data-tw-swap]");
+  if (swapBtn) {
+    const oldId = swapBtn.dataset.twSwap;
+    let alt;
+    try { alt = JSON.parse(swapBtn.dataset.twSwapTo); } catch(_) { return; }
+    const mIdx = warmup.movements.findIndex(m => m.id === oldId);
+    if (mIdx >= 0 && alt?.id) {
+      const oldM = warmup.movements[mIdx];
+      const newId = `${LIFT_DAY.toLowerCase()}_${mIdx+1}_${alt.id}`;
+      // Rebuild swap pool for the new movement (exclude siblings)
+      const siblings = warmup.movements.filter((_,i) => i !== mIdx);
+      const newSwapPool = Object.values(WARMUP_MOVEMENT_LIBRARY)
+        .filter(a => a.id !== alt.id && a.muscles.some(mu => (alt.muscles||[]).includes(mu)) && !siblings.some(s => s.baseId === a.id))
+        .slice(0, 3);
+      warmup.movements[mIdx] = { ...alt, id: newId, baseId: alt.id, swapPool: newSwapPool, effort: oldM.effort };
+      // Rebuild completion entries for this movement
+      warmup.completion = warmup.completion.filter(c => c.movementId !== oldId);
+      Array.from({ length: warmup.rounds }, (_, i) => warmup.completion.push({ movementId: newId, round: i+1, completed: false }));
+      renderTargetedWarmupPage();
+      scheduleWorkoutAutosave();
+      toast(`SWAPPED TO ${alt.name.toUpperCase()}`);
+    }
     return;
   }
 
@@ -11708,13 +11879,13 @@ document.addEventListener("click", function(e) {
 
   if (e.target.closest("[data-tw-save-feedback]")) {
     if (!warmup.feedback.postWarmupReadiness || !warmup.feedback.jointResponse) {
-      toast("SAVE READINESS + JOINT RESPONSE");
+      toast("SELECT READINESS + JOINT RESPONSE FIRST");
       return;
     }
     warmup.feedback.saved = true;
     renderTargetedWarmupPage();
     scheduleWorkoutAutosave();
-    toast("WARM-UP FEEDBACK SAVED");
+    toast("ASSESSMENT SAVED");
     return;
   }
 
@@ -11725,11 +11896,11 @@ document.addEventListener("click", function(e) {
 
   if (e.target.closest("[data-tw-start]")) {
     if (!targetedWarmupComplete(warmup)) {
-      toast("COMPLETE WARM-UP + FEEDBACK FIRST");
+      toast("COMPLETE CIRCUIT + RAMP + ASSESSMENT FIRST");
       return;
     }
     const warn = targetedWarmupWarning(warmup);
-    if (warn) toast("PROCEED CONSERVATIVELY");
+    if (warn) toast("PROCEED CONSERVATIVELY TODAY");
     activateLiftSession();
   }
 });
