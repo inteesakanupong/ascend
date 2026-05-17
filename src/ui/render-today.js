@@ -1,5 +1,21 @@
 ﻿// Today page renderer and Today-only interactions
 
+let TODAY_WEEKLY_DAY = null;
+
+function renderTodayWeeklyDashboard() {
+  const weeklyDashEl = document.getElementById("today-weekly-dashboard");
+  if (!weeklyDashEl) return;
+
+  TODAY_WEEKLY_DAY = TODAY_WEEKLY_DAY || nextSessionDay();
+  weeklyDashEl.innerHTML = buildWeeklyDashboardHTML(TODAY_WEEKLY_DAY);
+  weeklyDashEl.querySelectorAll("[data-weekly-day]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      TODAY_WEEKLY_DAY = btn.dataset.weeklyDay;
+      renderToday();
+    });
+  });
+}
+
 function renderToday() {
   const today = todayISO();
   const start = STATE.profile.programStart;
@@ -9,17 +25,7 @@ function renderToday() {
 
   $("#today-eyebrow").textContent = `${phaseName(phase)} - WEEK ${weekNum} - DAY ${dayNum}`;
   // Phase 6: Inject weekly dashboard card
-  const weeklyDashEl = document.getElementById("today-weekly-dashboard");
-  if (weeklyDashEl) {
-    weeklyDashEl.innerHTML = buildWeeklyDashboardHTML();
-    weeklyDashEl.querySelectorAll("[data-weekly-day]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const day = btn.dataset.weeklyDay;
-        goTab("lift");
-        setTimeout(() => selectLiftDay(day), 0);
-      });
-    });
-  }
+  renderTodayWeeklyDashboard();
   $("#today-date").textContent = formatDate(today);
 
   // Readiness score
@@ -125,7 +131,7 @@ function renderToday() {
     }
   }
 
-  const nextDay = nextSessionDay();
+  const nextDay = TODAY_WEEKLY_DAY || nextSessionDay();
   const chip = $("#today-chip"); const chipText = $("#today-chip-text");
   chip.className = `day-chip ${nextDay.toLowerCase()}`;
   chipText.textContent = nextDay;
@@ -305,7 +311,7 @@ function renderToday() {
 
 // Start session button jumps to lift tab pre-filled.
 $("#btn-start-session").addEventListener("click", () => {
-  const day = nextSessionDay();
+  const day = TODAY_WEEKLY_DAY || nextSessionDay();
   goTab("lift");
   setTimeout(() => selectLiftDay(day), 50);
 });
