@@ -19,7 +19,10 @@ function goTab(tab) {
 // ───────── 11. MISC UI ─────────
 function openSheet() { $("#scrim").classList.add("open"); $("#sheet").classList.add("open"); }
 function closeSheet() { $("#scrim").classList.remove("open"); $("#sheet").classList.remove("open"); }
-$("#scrim").addEventListener("click", closeSheet);
+document.addEventListener("DOMContentLoaded", () => {
+  const scrim = document.getElementById("scrim");
+  if (scrim) scrim.addEventListener("click", closeSheet);
+});
 
 function toast(msg) {
   const el = $("#toast");

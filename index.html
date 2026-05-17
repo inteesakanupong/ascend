@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.14";
+const CACHE = "ascend-2026-05-17.15";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -66,6 +66,7 @@ self.addEventListener("install", e => {
           base + "src/data/exercise-db.js",
           base + "src/data/exercise-metadata.js",
           base + "src/data/volume-landmarks.js",
+          base + "src/utils/helpers.js",
           base + "src/utils/math.js",
           base + "src/workout/jtm.js",
           base + "src/workout/progression.js",
@@ -1234,6 +1235,9 @@ self.addEventListener("fetch", e => {
   </div>
 </div>
 
+<!-- Phase 9.5: helpers loaded first (defines $, $$, todayISO, escapeHtml etc.) -->
+<script src="src/utils/helpers.js"></script>
+
 <!-- Phase 9.5: static data modules (data only, no DOM logic) -->
 <script src="src/data/jtm-constants.js"></script>
 <script src="src/data/warmup-data.js"></script>
@@ -1272,7 +1276,7 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.14";
+const APP_VERSION = "2026-05-17.15";
 
 const CHANGELOG = [
   {
@@ -2781,39 +2785,6 @@ function normalizeBenchmarkLift(v) {
 STATE = migrateState(STATE);
 
 // ───────── 3. HELPERS ─────────
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-// ── Timezone: Thailand (UTC+7), fixed offset — no DST ──
-const TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
-function nowTH() {
-  // Returns a Date whose UTC values represent Thai local time
-  return new Date(Date.now() + TZ_OFFSET_MS);
-}
-function todayISO() {
-  // Always returns today's date in Thailand time (UTC+7)
-  return nowTH().toISOString().slice(0, 10);
-}
-function isoToDate(iso) {
-  if (!iso) return new Date();
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-function daysBetween(a, b) {
-  if (!a || !b) return 0;
-  return Math.round((isoToDate(b) - isoToDate(a)) / 86400000);
-}
-function formatDate(iso) {
-  if (!iso) return "—";
-  const d = isoToDate(iso);
-  const wk = ["SUN","MON","TUE","WED","THU","FRI","SAT"][d.getDay()];
-  return `${wk} ${d.getDate()} ${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]} ${d.getFullYear()}`;
-}
-function fmtWeight(w) {
-  if (w === undefined || w === null || w === "") return "—";
-  return Number(w).toFixed(Number.isInteger(Number(w)) ? 0 : 1);
-}
-function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
 function estimateOneRm(weightKg, reps) {
   const w = Number(weightKg), r = Number(reps);
@@ -10077,14 +10048,6 @@ const Wizard = (() => {
 })();
 
 // HTML escape helper for safe interpolation in templated strings
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 // ── RP Diet Analytics (Renaissance Periodization 2.0) ──────────────────────
 // Pre-computed stats fed into all diet coaching prompts.
