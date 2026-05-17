@@ -2,6 +2,7 @@
 
 const WORKOUT_DRAFT_KEY = "ascend-active-workout-draft";
 const WORKOUT_DRAFT_TTL_MS = 36 * 60 * 60 * 1000;
+let WORKOUT_DRAFT_DISCARDED = false;
 
 function workoutDraftIsMeaningful() {
   if (!LIFT_DRAFT || LIFT_EDITING_ID) return false;
@@ -33,7 +34,7 @@ function currentWorkoutDraftSnapshot() {
 }
 
 function saveWorkoutDraftNow() {
-  if (WORKOUT_DRAFT_RESTORING) return;
+  if (WORKOUT_DRAFT_RESTORING || WORKOUT_DRAFT_DISCARDED) return;
   const snap = currentWorkoutDraftSnapshot();
   try {
     if (!snap) return;
@@ -45,11 +46,14 @@ function saveWorkoutDraftNow() {
 
 function scheduleWorkoutAutosave() {
   if (WORKOUT_DRAFT_RESTORING) return;
+  // Reset discard flag only when a real session or warmup is in progress
+  if (LIFT_SESSION_ACTIVE || TARGETED_WARMUP_ACTIVE) WORKOUT_DRAFT_DISCARDED = false;
   clearTimeout(_workoutDraftTimer);
   _workoutDraftTimer = setTimeout(saveWorkoutDraftNow, 250);
 }
 
 function clearWorkoutDraft() {
+  WORKOUT_DRAFT_DISCARDED = true;
   clearTimeout(_workoutDraftTimer);
   try { localStorage.removeItem(WORKOUT_DRAFT_KEY); } catch (_) {}
 }
@@ -112,13 +116,9 @@ function renderWorkoutResumeCard() {
   `;
   document.getElementById("btn-resume-workout-draft")?.addEventListener("click", restoreWorkoutDraft);
   document.getElementById("btn-discard-workout-draft")?.addEventListener("click", () => {
-    // Remove from localStorage and cancel autosave timer
-    clearWorkoutDraft();
-    // Re-initialise the day cleanly — this resets all in-memory lift state
-    // (LIFT_DRAFT, LIFT_SESSION_ACTIVE, TARGETED_WARMUP_ACTIVE, etc.) and
-    // shows the fresh start gate, for any day (PULL, PUSH, ARMS, LEGS).
+    clearWorkoutDraft(); // sets WORKOUT_DRAFT_DISCARDED = true, clears localStorage + timer
     const day = LIFT_DAY || nextSessionDay();
-    selectLiftDay(day);
+    selectLiftDay(day);  // resets all lift state, shows clean start gate
     toast("DRAFT DISCARDED");
   });
 }
