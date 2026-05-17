@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.13";
+const CACHE = "ascend-2026-05-17.14";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1272,7 +1272,7 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.13";
+const APP_VERSION = "2026-05-17.14";
 
 const CHANGELOG = [
   {
@@ -11995,18 +11995,30 @@ function renderMealLog(date) {
   }
   logEl.innerHTML = meals.map((m, i) => `
     <div class="meal-entry">
-      <div>
+      <div style="flex:1;min-width:0;">
         <div class="me-name">${escapeHtml(m.name)}</div>
         <div class="me-macros">${m.grams}g · ${m.kcal}kcal · P${m.protein}g · C${m.carbs}g · F${m.fat}g</div>
       </div>
-      <button class="me-del" data-idx="${i}" aria-label="Remove meal">×</button>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button class="me-edit btn ghost" style="padding:4px 10px;font-size:11px;" data-idx="${i}" aria-label="Edit meal">EDIT</button>
+        <button class="me-del" data-idx="${i}" aria-label="Remove meal">×</button>
+      </div>
     </div>
   `).join("");
+
+  logEl.querySelectorAll(".me-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = +btn.dataset.idx;
+      const entry = meals[idx];
+      if (!entry) return;
+      openEditMealSheet(entry, idx, date);
+    });
+  });
+
   logEl.querySelectorAll(".me-del").forEach(btn => {
     btn.addEventListener("click", () => {
       const cur = getDailyLog(date) || { date, meals: [] };
       cur.meals = (cur.meals || []).filter((_, i) => i !== +btn.dataset.idx);
-      // Also subtract from day kcal/protein totals
       const removed = meals[+btn.dataset.idx];
       if (removed) {
         cur.kcal    = Math.max(0, (cur.kcal    || 0) - removed.kcal);
@@ -12016,6 +12028,165 @@ function renderMealLog(date) {
       saveState();
       renderMealLog(date);
     });
+  });
+}
+
+function openEditMealSheet(entry, entryIdx, date) {
+  // Reconstruct a food object from the saved entry so we can use the portion sheet logic.
+  // Per-100g values are back-calculated from what was stored.
+  const grams = entry.grams || 100;
+  const ratio = grams / 100;
+  const food = {
+    name:         entry.name,
+    kcal_100g:    ratio > 0 ? Math.round(entry.kcal    / ratio) : entry.kcal    || 0,
+    protein_100g: ratio > 0 ? Math.round((entry.protein / ratio) * 10) / 10 : entry.protein || 0,
+    carbs_100g:   ratio > 0 ? Math.round((entry.carbs   / ratio) * 10) / 10 : entry.carbs   || 0,
+    fat_100g:     ratio > 0 ? Math.round((entry.fat     / ratio) * 10) / 10 : entry.fat     || 0,
+    serving_g:    entry.grams || 100,
+    serving_label: entry.servingLabel || `${entry.grams || 100}g`,
+    source: entry.source || "custom",
+  };
+
+  const servingG = food.serving_g;
+  let qty = entry.servings || 1;
+  let useServings = entry.servings != null;
+  if (!useServings) {
+    qty = entry.grams || 100;
+  }
+
+  const calcGrams = () => useServings ? servingG * qty : qty;
+  const previewMacros = (g) => macrosForGrams(food, g);
+
+  function renderPortionPreview() {
+    const g = calcGrams();
+    const m = previewMacros(g);
+    const gramsDisplay = useServings ? `${g}g total` : `${g}g`;
+    document.getElementById("portion-preview").innerHTML =
+      `<strong>${m.kcal} kcal</strong> · P${m.protein}g · C${m.carbs}g · F${m.fat}g · <span style="color:var(--ink-dim);font-size:11px;">${gramsDisplay}</span>`;
+  }
+
+  function setModeUI(servingsActive) {
+    const sBtn  = document.getElementById("ps-mode-servings");
+    const gBtn  = document.getElementById("ps-mode-grams");
+    const sRow  = document.getElementById("ps-servings-row");
+    const gRow  = document.getElementById("ps-grams-row");
+    sRow.style.display = servingsActive ? "" : "none";
+    gRow.style.display = servingsActive ? "none" : "";
+    [sBtn, gBtn].forEach((b, i) => {
+      const active = servingsActive ? i === 0 : i === 1;
+      b.style.background   = active ? "var(--accent)" : "transparent";
+      b.style.color        = active ? "white" : "var(--ink-mid)";
+      b.style.borderColor  = active ? "var(--accent)" : "var(--line)";
+    });
+  }
+
+  $(\"#sheet-body\").innerHTML = `
+    <div class="portion-sheet">
+      <div class="ps-name">${escapeHtml(food.name)}</div>
+      <div class="ps-hint" style="color:var(--accent);font-size:11px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">EDITING ENTRY</div>
+      <div class="ps-hint">
+        ${food.kcal_100g} kcal/100g · 1 serving = ${servingG}g
+      </div>
+
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <button id="ps-mode-servings" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid;font-family:var(--f-mono);font-size:10px;font-weight:700;letter-spacing:0.1em;cursor:pointer;">SERVINGS</button>
+        <button id="ps-mode-grams"    style="flex:1;padding:8px;border-radius:8px;border:1.5px solid;font-family:var(--f-mono);font-size:10px;font-weight:700;letter-spacing:0.1em;cursor:pointer;">GRAMS</button>
+      </div>
+
+      <div id="ps-servings-row" class="input" style="margin-bottom:8px;">
+        <label>Servings <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-dim);">(1 serving = ${servingG}g)</span></label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="ps-qty-minus" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg-elev-2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0;">−</button>
+          <input type="number" inputmode="decimal" step="0.5" id="portion-qty" value="${useServings ? qty : 1}" style="flex:1;text-align:center;font-size:20px;font-weight:900;font-family:var(--f-mono);" />
+          <button id="ps-qty-plus" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg-elev-2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0;">+</button>
+        </div>
+      </div>
+
+      <div id="ps-grams-row" class="input" style="margin-bottom:8px;">
+        <label>Grams</label>
+        <input type="number" inputmode="decimal" step="5" id="portion-grams" value="${!useServings ? qty : entry.grams || servingG}" />
+      </div>
+
+      <div class="ps-preview" id="portion-preview"></div>
+      <button class="btn primary full" id="btn-save-edit" style="margin-top:10px;">SAVE CHANGES</button>
+    </div>
+  `;
+  openSheet();
+  setModeUI(useServings);
+  renderPortionPreview();
+
+  document.getElementById("ps-mode-servings").addEventListener("click", () => {
+    useServings = true;
+    qty = parseFloat(document.getElementById("portion-qty").value) || 1;
+    setModeUI(true);
+    renderPortionPreview();
+  });
+  document.getElementById("ps-mode-grams").addEventListener("click", () => {
+    useServings = false;
+    qty = parseFloat(document.getElementById("portion-grams").value) || servingG;
+    setModeUI(false);
+    renderPortionPreview();
+  });
+  document.getElementById("ps-qty-minus").addEventListener("click", () => {
+    const inp = document.getElementById("portion-qty");
+    qty = Math.max(0.5, (parseFloat(inp.value) || 1) - 0.5);
+    inp.value = qty;
+    renderPortionPreview();
+  });
+  document.getElementById("ps-qty-plus").addEventListener("click", () => {
+    const inp = document.getElementById("portion-qty");
+    qty = (parseFloat(inp.value) || 1) + 0.5;
+    inp.value = qty;
+    renderPortionPreview();
+  });
+  document.getElementById("portion-qty").addEventListener("input", (e) => {
+    qty = parseFloat(e.target.value) || 1;
+    renderPortionPreview();
+  });
+  document.getElementById("portion-grams").addEventListener("input", (e) => {
+    qty = parseFloat(e.target.value) || servingG;
+    renderPortionPreview();
+  });
+
+  document.getElementById("btn-save-edit").addEventListener("click", () => {
+    const g = calcGrams();
+    const m = macrosForGrams(food, g);
+    const cur = getDailyLog(date) || { date, meals: [] };
+    cur.meals = cur.meals || [];
+
+    // Subtract old entry from totals, add new
+    const old = cur.meals[entryIdx];
+    if (old) {
+      cur.kcal    = Math.max(0, (cur.kcal    || 0) - (old.kcal    || 0));
+      cur.protein = Math.max(0, (cur.protein || 0) - (old.protein || 0));
+    }
+
+    const servingStr = useServings
+      ? `${qty === 1 ? "1 serving" : qty + " servings"} (${g}g)`
+      : `${g}g`;
+
+    cur.meals[entryIdx] = {
+      name: food.name,
+      grams: g,
+      servings: useServings ? qty : null,
+      servingLabel: servingStr,
+      source: entry.source,
+      ...m,
+    };
+    cur.kcal    = (cur.kcal    || 0) + m.kcal;
+    cur.protein = (cur.protein || 0) + m.protein;
+
+    // Sync weigh page inputs if visible
+    const kcalEl    = document.getElementById("weigh-kcal");
+    const proteinEl = document.getElementById("weigh-protein");
+    if (kcalEl)    kcalEl.value    = Math.round(cur.kcal);
+    if (proteinEl) proteinEl.value = Math.round(cur.protein);
+
+    upsertDailyLog(cur);
+    saveState();
+    closeSheet();
+    renderMealLog(date);
+    toast(`UPDATED · ${m.kcal} KCAL`);
   });
 }
 

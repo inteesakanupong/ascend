@@ -719,6 +719,10 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   transition: color 150ms;
 }
 .meal-entry .me-del:active { color: var(--bad); }
+.meal-entry .me-edit {
+  font-size: 10px; padding: 4px 8px; border-radius: 6px;
+  flex-shrink: 0; letter-spacing: 0.08em;
+}
 .portion-sheet { padding: 8px 0; }
 .portion-sheet .ps-name { font-family: var(--f-display); font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 4px; }
 .portion-sheet .ps-hint { font-size: 11px; color: var(--ink-mid); margin-bottom: 12px; }
