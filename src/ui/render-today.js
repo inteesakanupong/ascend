@@ -7,10 +7,19 @@ function renderToday() {
   const weekNum = Math.max(1, Math.ceil(dayNum / 7));
   const phase = currentPhase(dayNum);
 
-  $("#today-eyebrow").textContent = `${phaseName(phase)} Â· WEEK ${weekNum} Â· DAY ${dayNum}`;
+  $("#today-eyebrow").textContent = `${phaseName(phase)} - WEEK ${weekNum} - DAY ${dayNum}`;
   // Phase 6: Inject weekly dashboard card
   const weeklyDashEl = document.getElementById("today-weekly-dashboard");
-  if (weeklyDashEl) weeklyDashEl.innerHTML = buildWeeklyDashboardHTML();
+  if (weeklyDashEl) {
+    weeklyDashEl.innerHTML = buildWeeklyDashboardHTML();
+    weeklyDashEl.querySelectorAll("[data-weekly-day]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const day = btn.dataset.weeklyDay;
+        goTab("lift");
+        setTimeout(() => selectLiftDay(day), 0);
+      });
+    });
+  }
   $("#today-date").textContent = formatDate(today);
 
   // Readiness score
@@ -22,14 +31,14 @@ function renderToday() {
     const rScore = document.getElementById("today-readiness-score");
     const rDetail = document.getElementById("today-readiness-detail");
     if (rScore) {
-      rScore.textContent = `${readiness.score}/5 Â· ${readinessLabel(readiness.score)}`;
+      rScore.textContent = `${readiness.score}/5 - ${readinessLabel(readiness.score)}`;
       rScore.style.color = readinessColor(readiness.score);
     }
     if (rDetail) {
-      let txt = readiness.factors.length ? readiness.factors.join(" Â· ") : "Standard prescription";
+      let txt = readiness.factors.length ? readiness.factors.join(" - ") : "Standard prescription";
       if (readiness.adjustment !== 0) {
         const pct = Math.round(readiness.adjustment * 100);
-        txt += ` â†’ ${pct > 0 ? "+" : ""}${pct}% intensity today`;
+        txt += ` -> ${pct > 0 ? "+" : ""}${pct}% intensity today`;
       }
       rDetail.textContent = txt;
     }
@@ -50,13 +59,13 @@ function renderToday() {
   if (todayLog?.recovery != null) {
     loggedParts.push(`recovery ${todayLog.recovery}/10`);
     if (recSlider) recSlider.value = todayLog.recovery;
-    if (recValEl)  recValEl.textContent = `${todayLog.recovery} Â· ${todayLog.recovery >= 7 ? "Good" : todayLog.recovery <= 3 ? "Poor" : "OK"}`;
+    if (recValEl)  recValEl.textContent = `${todayLog.recovery} - ${todayLog.recovery >= 7 ? "Good" : todayLog.recovery <= 3 ? "Poor" : "OK"}`;
   }
   if (todayLog?.habits?.sleep) loggedParts.push("slept 7h+");
 
   if (morningStatus) {
     if (loggedParts.length) {
-      morningStatus.textContent = `âœ“ ${loggedParts.join(" Â· ")} logged today`;
+      morningStatus.textContent = `Saved: ${loggedParts.join(" - ")} logged today`;
       morningStatus.style.color = "var(--good)";
     } else {
       morningStatus.textContent = "Log weight, recovery and sleep right after waking up";
@@ -74,8 +83,8 @@ function renderToday() {
     const rpColors = { optimal: "var(--good)", too_slow: "#d4a017", stalled: "#d4a017", too_fast: "var(--bad)", gaining: "var(--bad)" };
     rpRateEl.style.borderLeftColor = rpColors[rp.rateStatus] || "var(--ink-dim)";
     if (rpRateLabel) {
-      const durationNote = rp.durationStatus === "critical" ? " âš ï¸ PHASE TOO LONG" : rp.durationStatus === "long" ? " Â· CONSIDER ENDING" : "";
-      rpRateLabel.textContent = `RP RATE Â· WEEK ${rp.phaseWeeks}${durationNote}`;
+      const durationNote = rp.durationStatus === "critical" ? " - PHASE TOO LONG" : rp.durationStatus === "long" ? " - CONSIDER ENDING" : "";
+      rpRateLabel.textContent = `RP RATE - WEEK ${rp.phaseWeeks}${durationNote}`;
       rpRateLabel.style.color = rpColors[rp.rateStatus] || "var(--ink-dim)";
     }
     if (rpRateText) rpRateText.textContent = rp.rateGuidance;
@@ -105,7 +114,7 @@ function renderToday() {
           (dt.suggestedKcal ? ` (current: ${dt.currentKcal}kcal)` : "");
       }
       if (dtSigs && dt.signals.length > 1) {
-        dtSigs.textContent = "Signals: " + dt.signals.map(s => s.text).join(" Â· ");
+        dtSigs.textContent = "Signals: " + dt.signals.map(s => s.text).join(" - ");
       }
       document.getElementById("btn-diet-transition-dismiss")?.addEventListener("click", () => {
         localStorage.setItem(dtDismissKey, "1");
@@ -121,50 +130,46 @@ function renderToday() {
   chip.className = `day-chip ${nextDay.toLowerCase()}`;
   chipText.textContent = nextDay;
   $("#today-cycle").textContent = `${STATE.sessions.length} SESSIONS LOGGED`;
-  // Quick prescription summary â€” top 3 lifts
-  const top = [0,1,2].map(i => {
-    const p = progressionFor(nextDay, i);
-    return `${STATE.exercises[nextDay][i].name.split(" ").slice(0,2).join(" ")} ${fmtWeight(p.weight)}kg`;
-  }).join(" Â· ");
-  $("#today-next-meta").textContent = top;
+  // Keep Today compact; detailed exercise prescriptions live on Lift.
+  $("#today-next-meta").textContent = "Tap Start Session for the full plan";
 
   // Weight
   const diag = weightDiagnostic();
   if (diag.avg != null) {
     $("#today-weight").textContent = diag.avg.toFixed(2);
     $("#today-weight-sub").textContent = "7-day rolling average";
-    $("#today-lost").innerHTML = `${diag.lost > 0 ? "âˆ’" : ""}${Math.abs(diag.lost).toFixed(1)}<span class="unit">kg</span>`;
+    $("#today-lost").innerHTML = `${diag.lost > 0 ? "-" : ""}${Math.abs(diag.lost).toFixed(1)}<span class="unit">kg</span>`;
     $("#today-rate").innerHTML = diag.rate != null
-      ? `${diag.rate > 0 ? "âˆ’" : "+"}${Math.abs(diag.rate).toFixed(2)}<span class="unit">kg</span>`
-      : `â€”`;
+      ? `${diag.rate > 0 ? "-" : "+"}${Math.abs(diag.rate).toFixed(2)}<span class="unit">kg</span>`
+      : `-`;
     const target = STATE.profile.bodyweight - STATE.cut.p1Target;
     const pct = clamp(diag.lost / target, 0, 1) * 100;
     $("#today-progress").innerHTML = `${pct.toFixed(0)}<span class="unit">%</span>`;
     // Delta vs starting weight
     const delta = diag.avg - STATE.profile.bodyweight;
-    $("#today-delta").innerHTML = `<span class="${delta < 0 ? 'down' : 'up'}">${delta < 0 ? "â–¼" : "â–²"} ${Math.abs(delta).toFixed(1)}</span>`;
+    $("#today-delta").innerHTML = `<span class="${delta < 0 ? 'down' : 'up'}">${delta < 0 ? "DOWN" : "UP"} ${Math.abs(delta).toFixed(1)}</span>`;
   } else {
     const last = latestWeighIn();
     $("#today-weight").textContent = last ? fmtWeight(last.weight) : fmtWeight(STATE.profile.bodyweight);
-    $("#today-weight-sub").textContent = last ? "Latest weigh-in (need 7+ for avg)" : "Starting weight â€” log today to begin";
-    $("#today-lost").textContent = "â€”";
-    $("#today-rate").textContent = "â€”";
-    $("#today-progress").textContent = "â€”";
+    $("#today-weight-sub").textContent = last ? "Latest weigh-in (need 7+ for avg)" : "Starting weight - log today to begin";
+    $("#today-lost").textContent = "-";
+    $("#today-rate").textContent = "-";
+    $("#today-progress").textContent = "-";
     $("#today-delta").innerHTML = "";
   }
   // Phase tag
-  $("#today-phase-meta").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> Â· ${phaseKcalAdjusted(phase)} KCAL`;
+  $("#today-phase-meta").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> - ${phaseKcalAdjusted(phase)} KCAL`;
 
   // Verdict pill
   const wrap = $("#today-verdict-wrap");
   if (diag.verdict === "OK") {
-    wrap.innerHTML = `<span class="verdict progress">âœ“ ${diag.text}</span>`;
+    wrap.innerHTML = `<span class="verdict progress">OK - ${diag.text}</span>`;
   } else if (diag.verdict === "WARN") {
-    wrap.innerHTML = `<span class="verdict beat">âš  ${diag.text}</span>`;
+    wrap.innerHTML = `<span class="verdict beat">WATCH - ${diag.text}</span>`;
   } else if (diag.verdict === "BAD") {
-    wrap.innerHTML = `<span class="verdict deload">âœ— ${diag.text}</span>`;
+    wrap.innerHTML = `<span class="verdict deload">CHECK - ${diag.text}</span>`;
   } else {
-    wrap.innerHTML = `<span class="verdict start">âŠ™ ${diag.text}</span>`;
+    wrap.innerHTML = `<span class="verdict start">${diag.text}</span>`;
   }
 
   // Habits today
@@ -196,10 +201,10 @@ function renderToday() {
   $("#today-streak-meta").textContent = streak === 0
     ? "Log a session or weigh-in today to start"
     : streak === 1
-    ? "consecutive day logged Â· keep it going"
-    : `consecutive days logged Â· keep it going`;
+    ? "consecutive day logged - keep it going"
+    : `consecutive days logged - keep it going`;
 
-  // Tap streak number â†’ show 7-day habit breakdown
+  // Tap streak number to show 7-day habit breakdown
   const streakEl = document.getElementById("today-streak");
   if (streakEl && !streakEl._listenerAdded) {
     streakEl._listenerAdded = true;
@@ -218,20 +223,20 @@ function renderToday() {
         const wt = log?.weight ? `${log.weight}kg` : "";
         return `<div style="display:flex;justify-content:space-between;padding:6px 14px;${i%2===0?'background:var(--bg-elev-1)':''};">
           <span style="font-family:var(--f-mono);font-size:11px;color:var(--ink-mid);">${dayLabel}</span>
-          <span style="font-size:11px;">${wt} ${hasSession ? 'ðŸ‹ï¸' : ''} ${done || '<span style="color:var(--ink-faint);">â€”</span>'}</span>
+          <span style="font-size:11px;">${wt} ${hasSession ? 'session' : ''} ${done || '<span style="color:var(--ink-faint);">-</span>'}</span>
         </div>`;
       }).join("");
       $("#sheet-body").innerHTML = `
         <h3>Last 7 Days</h3>
-        <div class="muted" style="font-size:11px;margin-bottom:12px;letter-spacing:0.08em;">STREAK Â· HABITS Â· SESSIONS</div>
+        <div class="muted" style="font-size:11px;margin-bottom:12px;letter-spacing:0.08em;">STREAK - HABITS - SESSIONS</div>
         <div style="border-radius:10px;overflow:hidden;border:1px solid var(--line);">${rows}</div>
-        <div class="muted" style="font-size:10px;margin-top:10px;text-align:center;">ðŸ‹ï¸ session Â· ðŸš¶ steps Â· ðŸ¥© protein Â· ðŸ’§ water Â· ðŸ˜´ sleep</div>
+        <div class="muted" style="font-size:10px;margin-top:10px;text-align:center;">session - steps - protein - water - sleep</div>
       `;
       openSheet();
     });
   }
 
-  // â”€â”€ Did we already log a session today? â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Did we already log a session today?
   const todaySessions = STATE.sessions.filter(s => s.date === today);
   const doneDom = document.getElementById("today-session-done");
   const doneMeta = document.getElementById("today-session-done-meta");
@@ -241,15 +246,15 @@ function renderToday() {
       doneDom.style.display = "block";
       const names = todaySessions.map(s => s.day).join(" + ");
       const dur = todaySessions[todaySessions.length-1].durationSec;
-      doneMeta.textContent = names + (dur ? ` Â· ${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}` : "");
+      doneMeta.textContent = names + (dur ? ` - ${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}` : "");
     }
-    if (startBtn) startBtn.textContent = "LOG ANOTHER SESSION â†’";
+    if (startBtn) startBtn.textContent = "LOG ANOTHER SESSION ->";
   } else {
     if (doneDom) doneDom.style.display = "none";
-    if (startBtn) startBtn.textContent = "START SESSION â†’";
+    if (startBtn) startBtn.textContent = "START SESSION ->";
   }
 
-  // â”€â”€ Macro strip â€” show if kcal/protein logged today â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Macro strip - show if kcal/protein logged today
   const macroCard = document.getElementById("today-macro-card");
   const macroBars = document.getElementById("today-macro-bars");
   const macroMeta = document.getElementById("today-macro-meta");
@@ -298,28 +303,28 @@ function renderToday() {
   }
 }
 
-// Start session button â†’ jump to lift tab pre-filled
+// Start session button jumps to lift tab pre-filled.
 $("#btn-start-session").addEventListener("click", () => {
   const day = nextSessionDay();
   goTab("lift");
   setTimeout(() => selectLiftDay(day), 50);
 });
 
-// Morning log â€” weight + recovery + sleep
+// Morning log - weight + recovery + sleep
 const _todayRecoverySlider = document.getElementById("today-recovery-slider");
 const _todayRecoveryVal    = document.getElementById("today-recovery-val");
-const RECOVERY_LABELS = ["","ðŸ˜© Poor","ðŸ˜” Low","ðŸ˜ Below avg","ðŸ™ Below avg","ðŸ˜ OK","ðŸ™‚ Decent","ðŸ˜Š Good","ðŸ˜„ Good","ðŸ’ª Great","ðŸ”¥ Peak"];
+const RECOVERY_LABELS = ["","Poor","Low","Below avg","Below avg","OK","Decent","Good","Good","Great","Peak"];
 if (_todayRecoverySlider) {
   _todayRecoverySlider.value = 5;
-  _todayRecoveryVal.textContent = `5 Â· OK`;
+  _todayRecoveryVal.textContent = `5 - OK`;
   _todayRecoverySlider.addEventListener("input", (e) => {
     const v = +e.target.value;
-    _todayRecoveryVal.textContent = `${v} Â· ${RECOVERY_LABELS[v] || ""}`;
+    _todayRecoveryVal.textContent = `${v} - ${RECOVERY_LABELS[v] || ""}`;
     _todayRecoveryVal.style.color = v >= 7 ? "var(--good)" : v <= 3 ? "var(--bad)" : "var(--accent)";
   });
 }
 
-// Phase-3: 3-tap check-in (energy / soreness / mood) â†’ auto-fill recovery slider
+// Phase-3: 3-tap check-in (energy / soreness / mood) auto-fills recovery slider.
 const _checkinState = { energy: null, soreness: null, mood: null };
 
 function _updateCheckinSlider() {
@@ -330,12 +335,12 @@ function _updateCheckinSlider() {
   const clamped = Math.max(1, Math.min(10, recoveryScore));
   if (_todayRecoverySlider) {
     _todayRecoverySlider.value = clamped;
-    _todayRecoveryVal && (_todayRecoveryVal.textContent = `${clamped} Â· ${RECOVERY_LABELS[clamped] || ""}`);
+    _todayRecoveryVal && (_todayRecoveryVal.textContent = `${clamped} - ${RECOVERY_LABELS[clamped] || ""}`);
     _todayRecoveryVal && (_todayRecoveryVal.style.color = clamped >= 7 ? "var(--good)" : clamped <= 3 ? "var(--bad)" : "var(--accent)");
   }
   const el = document.getElementById("checkin-summary");
   const labels = { energy: ["very low","low","ok","good","peak"], soreness: ["none","mild","moderate","sore","very sore"], mood: ["low","meh","ok","good","great"] };
-  if (el) el.textContent = `Energy ${labels.energy[energy-1]} Â· Soreness ${labels.soreness[soreness-1]} Â· Mood ${labels.mood[mood-1]} â†’ ${clamped}/10`;
+  if (el) el.textContent = `Energy ${labels.energy[energy-1]} - Soreness ${labels.soreness[soreness-1]} - Mood ${labels.mood[mood-1]} -> ${clamped}/10`;
 }
 
 ["energy","soreness","mood"].forEach(group => {
@@ -382,7 +387,7 @@ document.getElementById("btn-log-morning").addEventListener("click", () => {
 
   // Reset inputs
   if (weightInp) weightInp.value = "";
-  if (recSlider) { recSlider.value = 5; _todayRecoveryVal && (_todayRecoveryVal.textContent = "5 Â· OK"); }
+  if (recSlider) { recSlider.value = 5; _todayRecoveryVal && (_todayRecoveryVal.textContent = "5 - OK"); }
   if (sleepCheck) sleepCheck.checked = false;
   // Reset check-in buttons
   _checkinState.energy = _checkinState.soreness = _checkinState.mood = null;
@@ -398,7 +403,7 @@ document.getElementById("btn-log-morning").addEventListener("click", () => {
   if (recovery) parts.push(`recovery ${recovery}/10`);
   if (slept) parts.push("slept 7h+");
   if (status) {
-    status.textContent = `âœ“ ${parts.join(" Â· ")} logged`;
+    status.textContent = `Saved: ${parts.join(" - ")} logged`;
     status.style.color = "var(--good)";
   }
 

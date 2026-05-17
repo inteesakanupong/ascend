@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.18";
+const CACHE = "ascend-2026-05-17.19";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1281,9 +1281,18 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.18";
+const APP_VERSION = "2026-05-17.19";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.19",
+    title: "Today Page Cleanup",
+    items: [
+      "Simplified the Today next-session card so it no longer crowds the page with exercise prescriptions.",
+      "Made Weekly Overview day buttons open the matching Lift day.",
+      "Cleaned corrupted character sequences from Today page text.",
+    ]
+  },
   {
     version: "2026-05-17.18",
     title: "Lift Renderer Extraction",
@@ -3697,9 +3706,9 @@ function buildWeeklyDashboardHTML() {
   var dayColors = { PUSH: 'var(--push)', PULL: 'var(--pull)', ARMS: 'var(--arms)', LEGS: 'var(--legs)' };
   var dayChips = dayOrder.map(function(d) {
     var done = completedDays.has(d);
-    return '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;'
+    return '<button type="button" data-weekly-day="' + d + '" style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid ' + (done ? dayColors[d] : 'var(--line)') + ';font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;cursor:pointer;'
       + 'background:' + (done ? dayColors[d] : 'var(--bg-elev-2)') + ';'
-      + 'color:' + (done ? 'white' : 'var(--ink-dim)') + ';">' + d.slice(0,2) + '</div>';
+      + 'color:' + (done ? 'white' : 'var(--ink-dim)') + ';">' + d + '</button>';
   }).join('');
 
   // Avg session duration this week
