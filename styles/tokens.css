@@ -1,0 +1,61 @@
+/* ===========================================================
+   PPAL — design tokens
+   Aesthetic: editorial sports magazine × gym terminal
+   ============================================================ */
+:root {
+  /* Color — light mode */
+  --bg:           #f5f4f0;
+  --bg-elev-1:    #ffffff;
+  --bg-elev-2:    #eeede9;
+  --bg-elev-3:    #e4e3de;
+  --line:         #dddcd7;
+  --line-strong:  #c8c7c1;
+
+  --ink:          #111110;
+  --ink-mid:      #5a5a55;
+  --ink-dim:      #8a8a84;
+  --ink-faint:    #b4b4ae;
+
+  --accent:       #e84d0e;     /* signal orange — slightly deeper for light bg */
+  --accent-glow:  #e84d0e22;
+  --accent-soft:  #e84d0e12;
+
+  --good:         #16a34a;
+  --warn:         #d97706;
+  --bad:          #dc2626;
+
+  --push:         #e84d0e;
+  --pull:         #6d4cf0;
+  --arms:         #0284c7;
+  --legs:         #16a34a;
+
+  /* Type */
+  --f-display: "Big Shoulders Display", ui-sans-serif, system-ui, sans-serif;
+  --f-body:    "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --f-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  /* Layout */
+  --pad: 18px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --tab-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; height: 100%; }
+body {
+  font-family: var(--f-body);
+  background: var(--bg);
+  color: var(--ink);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overscroll-behavior-y: none;
+  user-select: none;
+}
+input, textarea, [contenteditable] { user-select: text; }
+
