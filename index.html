@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.20";
+const CACHE = "ascend-2026-05-17.21";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1281,9 +1281,17 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.20";
+const APP_VERSION = "2026-05-17.21";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.21",
+    title: "Today Scheduled Workout",
+    items: [
+      "Weekly Overview now displays the workout that is actually scheduled next.",
+      "Removed the Today day selector behavior so workout selection stays automatic.",
+    ]
+  },
   {
     version: "2026-05-17.20",
     title: "Today Overview Day Selector",
@@ -3684,7 +3692,7 @@ function showPostSessionReview(session) {
 }
 
 // ── Phase 6 Item 2: Weekly dashboard card ────────────────────────────────
-function buildWeeklyDashboardHTML(selectedDay) {
+function buildWeeklyDashboardHTML(scheduledDay) {
   var today = todayISO();
   var vol = weeklyVolumeByMuscle(7);
   var gate = completedFullRotation();
@@ -3713,13 +3721,13 @@ function buildWeeklyDashboardHTML(selectedDay) {
   var completedDays = new Set(sessions7.map(function(s) { return s.day; }));
   var dayOrder = ['PUSH','PULL','ARMS','LEGS'];
   var dayColors = { PUSH: 'var(--push)', PULL: 'var(--pull)', ARMS: 'var(--arms)', LEGS: 'var(--legs)' };
-  selectedDay = selectedDay || nextSessionDay();
+  scheduledDay = scheduledDay || nextSessionDay();
   var dayChips = dayOrder.map(function(d) {
     var done = completedDays.has(d);
-    var active = selectedDay === d;
-    return '<button type="button" data-weekly-day="' + d + '" aria-pressed="' + (active ? 'true' : 'false') + '" style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid ' + (active ? dayColors[d] : done ? dayColors[d] : 'var(--line)') + ';font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;cursor:pointer;'
-      + 'background:' + (active ? dayColors[d] : done ? 'color-mix(in srgb, ' + dayColors[d] + ' 18%, var(--bg-elev-2))' : 'var(--bg-elev-2)') + ';'
-      + 'color:' + (active ? 'white' : done ? dayColors[d] : 'var(--ink-dim)') + ';">' + d + '</button>';
+    var scheduled = scheduledDay === d;
+    return '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid ' + (scheduled ? dayColors[d] : done ? dayColors[d] : 'var(--line)') + ';font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.05em;'
+      + 'background:' + (scheduled ? dayColors[d] : done ? 'color-mix(in srgb, ' + dayColors[d] + ' 18%, var(--bg-elev-2))' : 'var(--bg-elev-2)') + ';'
+      + 'color:' + (scheduled ? 'white' : done ? dayColors[d] : 'var(--ink-dim)') + ';">' + d + '</div>';
   }).join('');
 
   // Avg session duration this week
@@ -3730,7 +3738,7 @@ function buildWeeklyDashboardHTML(selectedDay) {
     + '<div style="font-family:var(--f-mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-dim);margin-bottom:10px;">WEEKLY OVERVIEW</div>'
     // Day chips
     + '<div style="display:flex;gap:6px;margin-bottom:12px;">' + dayChips + '</div>'
-    + '<div style="font-size:10px;color:var(--ink-dim);font-family:var(--f-mono);letter-spacing:0.08em;margin-bottom:10px;">SELECTED: ' + selectedDay + '</div>'
+    + '<div style="font-size:10px;color:var(--ink-dim);font-family:var(--f-mono);letter-spacing:0.08em;margin-bottom:10px;">NEXT WORKOUT: ' + scheduledDay + '</div>'
     // Stats row
     + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">'
     + '<div style="font-size:11px;color:var(--ink-mid);">' + sessions7.length + ' session' + (sessions7.length!==1?'s':'') + ' this week</div>'

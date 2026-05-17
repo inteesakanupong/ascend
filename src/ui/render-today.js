@@ -1,19 +1,10 @@
 ﻿// Today page renderer and Today-only interactions
 
-let TODAY_WEEKLY_DAY = null;
-
 function renderTodayWeeklyDashboard() {
   const weeklyDashEl = document.getElementById("today-weekly-dashboard");
   if (!weeklyDashEl) return;
 
-  TODAY_WEEKLY_DAY = TODAY_WEEKLY_DAY || nextSessionDay();
-  weeklyDashEl.innerHTML = buildWeeklyDashboardHTML(TODAY_WEEKLY_DAY);
-  weeklyDashEl.querySelectorAll("[data-weekly-day]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      TODAY_WEEKLY_DAY = btn.dataset.weeklyDay;
-      renderToday();
-    });
-  });
+  weeklyDashEl.innerHTML = buildWeeklyDashboardHTML(nextSessionDay());
 }
 
 function renderToday() {
@@ -131,7 +122,7 @@ function renderToday() {
     }
   }
 
-  const nextDay = TODAY_WEEKLY_DAY || nextSessionDay();
+  const nextDay = nextSessionDay();
   const chip = $("#today-chip"); const chipText = $("#today-chip-text");
   chip.className = `day-chip ${nextDay.toLowerCase()}`;
   chipText.textContent = nextDay;
@@ -311,7 +302,7 @@ function renderToday() {
 
 // Start session button jumps to lift tab pre-filled.
 $("#btn-start-session").addEventListener("click", () => {
-  const day = TODAY_WEEKLY_DAY || nextSessionDay();
+  const day = nextSessionDay();
   goTab("lift");
   setTimeout(() => selectLiftDay(day), 50);
 });
