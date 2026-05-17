@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.15";
+const CACHE = "ascend-2026-05-17.16";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -61,6 +61,7 @@ self.addEventListener("install", e => {
           base + "styles/components.css",
           base + "styles/pages.css",
           base + "styles/workout.css",
+          base + "recovery.html",
           base + "src/data/jtm-constants.js",
           base + "src/data/warmup-data.js",
           base + "src/data/exercise-db.js",
@@ -1276,9 +1277,17 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.15";
+const APP_VERSION = "2026-05-17.16";
 
 const CHANGELOG = [
+  {
+    version: "2026-05-17.16",
+    title: "Startup Recovery",
+    items: [
+      "Added a recovery page to clear stale Ascend service-worker caches when a browser is stuck on an old blank build.",
+      "Startup errors now render an on-screen diagnostic instead of leaving the app shell blank.",
+    ]
+  },
   {
     version: "2026-05-17.7",
     title: "Automatic Targeted Warm-Up Selection",
@@ -12043,7 +12052,7 @@ function openEditMealSheet(entry, entryIdx, date) {
     });
   }
 
-  $(\"#sheet-body\").innerHTML = `
+  $("#sheet-body").innerHTML = `
     <div class="portion-sheet">
       <div class="ps-name">${escapeHtml(food.name)}</div>
       <div class="ps-hint" style="color:var(--accent);font-size:11px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">EDITING ENTRY</div>
@@ -13421,7 +13430,20 @@ try {
 } catch (e) {
   console.warn("Adaptive state refresh failed", e);
 }
-appInit();
+try {
+  appInit();
+} catch (e) {
+  console.error("Ascend startup failed", e);
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:grid;place-items:center;background:#f5f4f0;color:#111110;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:18px;">
+      <div style="max-width:420px;border:1px solid #dddcd7;background:#fff;padding:22px;">
+        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.1;">Ascend startup failed</h1>
+        <p style="margin:0 0 12px;color:#5a5a55;line-height:1.45;">Ascend caught a startup error instead of staying blank. Open <strong>recovery.html</strong> once to clear the old cached build, then reload Ascend.</p>
+        <pre style="white-space:pre-wrap;overflow:auto;background:#eeede9;padding:10px;font-size:12px;line-height:1.35;">${String(e && (e.stack || e.message) || e).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]))}</pre>
+      </div>
+    </div>
+  `;
+}
 </script>
 
 </body>
