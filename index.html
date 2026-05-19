@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-05-17.21";
+const CACHE = "ascend-2026-05-19.1";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1270,7 +1270,7 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-05-17.21";
+const APP_VERSION = "2026-05-19.1";
 
 const CHANGELOG = [
   {
@@ -9581,6 +9581,28 @@ try {
     </div>
   `;
 }
+</script>
+
+<!-- Developer-only mock data commands. Loaded only for local/file dev contexts or ?ascendDev=1. -->
+<script>
+(function loadAscendDevTools() {
+  const params = new URLSearchParams(window.location.search || "");
+  const host = window.location.hostname;
+  const devEnabled =
+    params.get("ascendDev") === "1" ||
+    params.get("ascendDev") === "true" ||
+    window.location.protocol === "file:" ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "";
+  if (!devEnabled) return;
+  ["src/dev/mock-data.js", "src/dev/dev-tools.js"].forEach(src => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = false;
+    document.body.appendChild(script);
+  });
+})();
 </script>
 
 </body>
