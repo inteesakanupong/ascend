@@ -1274,6 +1274,15 @@ const APP_VERSION = "2026-05-19.1";
 
 const CHANGELOG = [
   {
+    version: "2026-05-19.1",
+    title: "Developer Calculation Sandbox",
+    items: [
+      "Added developer-only mock data commands for checking Ascend's calculation logic without affecting normal users.",
+      "Added a non-destructive calculation audit command that verifies JTM waves, accessory progression, readiness, volume, fatigue, and Targeted Warm-Up behavior.",
+      "Mock data tools only load in local/dev contexts or when explicitly enabled with the developer flag.",
+    ]
+  },
+  {
     version: "2026-05-17.21",
     title: "Today Scheduled Workout",
     items: [
