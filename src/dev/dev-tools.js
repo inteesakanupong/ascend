@@ -168,6 +168,58 @@
     });
   }
 
+  function buildWarmupScenarios() {
+    return [
+      {
+        scenario: "standard mode candidate",
+        day: "PUSH",
+        result: withTemporaryState(s => {
+          s.cut.mode = "maintain";
+          s.dailyLogs = s.dailyLogs.map(d => ({ ...d, recovery: 7, habits: { sleep: true, protein: true } }));
+          let pushSeen = 0;
+          s.sessions = s.sessions.filter(sess => {
+            if (sess.date >= isoDaysAgoLocal(14)) return false;
+            if (sess.day !== "PUSH") return true;
+            pushSeen += 1;
+            return pushSeen <= 4;
+          });
+        }, () => warmupSummaryFor("PUSH"))
+      },
+      {
+        scenario: "minimal mode candidate",
+        day: "ARMS",
+        result: warmupSummaryFor("ARMS")
+      },
+      {
+        scenario: "complete mode candidate",
+        day: "PULL",
+        result: withTemporaryState(s => {
+          s.cut.mode = "maintain";
+        }, () => warmupSummaryFor("PULL"))
+      },
+      {
+        scenario: "joint-stress-sensitive selection",
+        day: "PUSH",
+        result: withTemporaryState(s => {
+          s.cut.mode = "maintain";
+        }, () => warmupSummaryFor("PUSH"))
+      }
+    ];
+  }
+
+  function mockCalculationSnapshot() {
+    const scenarios = buildWarmupScenarios();
+    return {
+      leadPrescriptions: progressionSummary(),
+      accessoryExamples: accessoryExamples(),
+      readiness: calculateReadiness(todayISO()),
+      weeklyVolumeByMuscle: weeklyVolumeByMuscle(7),
+      fatigue: computeFatigueSummary(7),
+      warmup: DAY_ORDER.map(day => ({ day, ...warmupSummaryFor(day) })),
+      warmupScenarios: scenarios.map(s => ({ scenario: s.scenario, day: s.day, ...s.result }))
+    };
+  }
+
   window.loadAscendMockData = function loadAscendMockData() {
     if (!window.AscendMockData?.buildMockState) {
       console.error("Ascend mock data builder is not loaded.");
@@ -260,42 +312,7 @@
     console.groupEnd();
 
     console.group("Targeted Warm-Up - Scenario Checks");
-    const scenarios = [
-      {
-        scenario: "standard mode candidate",
-        day: "PUSH",
-        result: withTemporaryState(s => {
-          s.cut.mode = "maintain";
-          s.dailyLogs = s.dailyLogs.map(d => ({ ...d, recovery: 7, habits: { sleep: true, protein: true } }));
-          let pushSeen = 0;
-          s.sessions = s.sessions.filter(sess => {
-            if (sess.date >= isoDaysAgoLocal(14)) return false;
-            if (sess.day !== "PUSH") return true;
-            pushSeen += 1;
-            return pushSeen <= 4;
-          });
-        }, () => warmupSummaryFor("PUSH"))
-      },
-      {
-        scenario: "minimal mode candidate",
-        day: "ARMS",
-        result: warmupSummaryFor("ARMS")
-      },
-      {
-        scenario: "complete mode candidate",
-        day: "PULL",
-        result: withTemporaryState(s => {
-          s.cut.mode = "maintain";
-        }, () => warmupSummaryFor("PULL"))
-      },
-      {
-        scenario: "joint-stress-sensitive selection",
-        day: "PUSH",
-        result: withTemporaryState(s => {
-          s.cut.mode = "maintain";
-        }, () => warmupSummaryFor("PUSH"))
-      }
-    ];
+    const scenarios = buildWarmupScenarios();
     console.table(scenarios.map(s => ({
       scenario: s.scenario,
       day: s.day,
@@ -313,15 +330,7 @@
     console.groupEnd();
 
     console.groupEnd();
-    return {
-      leadPrescriptions: progressionSummary(),
-      accessoryExamples: accessoryExamples(),
-      readiness: calculateReadiness(todayISO()),
-      weeklyVolumeByMuscle: weeklyVolumeByMuscle(7),
-      fatigue: computeFatigueSummary(7),
-      warmup: DAY_ORDER.map(day => ({ day, ...warmupSummaryFor(day) })),
-      warmupScenarios: scenarios.map(s => ({ scenario: s.scenario, day: s.day, ...s.result }))
-    };
+    return mockCalculationSnapshot();
   };
 
   function isoDaysAgoLocal(daysAgo) {
@@ -330,17 +339,123 @@
     return d.toISOString().slice(0, 10);
   }
 
+  function indexBy(list, key) {
+    return Object.fromEntries((list || []).map(item => [item[key], item]));
+  }
+
+  function sameJson(a, b) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  window.ascendRunCalculationAudit = function ascendRunCalculationAudit() {
+    if (!window.AscendMockData?.buildMockState) {
+      console.error("Ascend mock data builder is not loaded.");
+      return { passed: false, failures: [{ check: "mock builder loaded", detail: "AscendMockData.buildMockState missing" }] };
+    }
+
+    const originalState = STATE;
+    let auditState;
+    const checks = [];
+
+    function check(name, condition, detail) {
+      checks.push({
+        check: name,
+        status: condition ? "PASS" : "FAIL",
+        detail: condition ? "" : detail
+      });
+    }
+
+    try {
+      auditState = window.AscendMockData.buildMockState(typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10));
+      STATE = auditState;
+
+      const snapshot = mockCalculationSnapshot();
+      const leads = indexBy(snapshot.leadPrescriptions, "day");
+      const accessories = indexBy(snapshot.accessoryExamples, "day");
+      const scenarios = indexBy(snapshot.warmupScenarios, "scenario");
+      const volumeBefore = snapshot.weeklyVolumeByMuscle;
+      const fatigue = snapshot.fatigue;
+
+      check("mock state shape", STATE.devMockData?.active && STATE.sessions.length === 26 && STATE.dailyLogs.length === 56,
+        `Expected active mock with 26 sessions/56 logs, got ${STATE.sessions.length}/${STATE.dailyLogs.length}.`);
+      check("all days have explicit lead lifts", DAY_ORDER.every(day => STATE.exercises[day]?.some(ex => ex.leadLift === true)),
+        "Every training day must have one explicit leadLift.");
+      check("today readiness exists", !!getDailyLog(todayISO()) && snapshot.readiness.score === 1 && snapshot.readiness.adjustment === -0.1,
+        `Expected readiness score 1 and -10% adjustment, got ${snapshot.readiness.score}/${snapshot.readiness.adjustment}.`);
+      check("rapid weight drop detected", (snapshot.readiness.factors || []).some(f => /Rapid weight drop/.test(f)),
+        "Readiness should flag rapid weight drop.");
+
+      check("PUSH JTM accumulation", leads.PUSH?.nextWave?.includes("ACCUMULATION") && leads.PUSH.prescription === "BEAT 85kg x 10",
+        `Unexpected PUSH lead prescription: ${JSON.stringify(leads.PUSH)}.`);
+      check("PULL JTM realization", leads.PULL?.nextWave?.includes("REALIZATION") && leads.PULL.prescription === "REALIZE 95kg x 5",
+        `Unexpected PULL lead prescription: ${JSON.stringify(leads.PULL)}.`);
+      check("ARMS JTM deload", leads.ARMS?.nextWave?.includes("DELOAD") && leads.ARMS.prescription === "DELOAD_WAVE 65kg x 5",
+        `Unexpected ARMS lead prescription: ${JSON.stringify(leads.ARMS)}.`);
+      check("LEGS JTM intensification", leads.LEGS?.nextWave?.includes("INTENSIFICATION") && leads.LEGS.prescription === "BEAT 147.5kg x 8",
+        `Unexpected LEGS lead prescription: ${JSON.stringify(leads.LEGS)}.`);
+
+      check("cutting/high-RPE accessory hold", accessories.PUSH?.verdict === "HOLD" && accessories.PUSH.confidence <= 0.45,
+        `PUSH accessory should hold under cut + high RPE + poor readiness: ${JSON.stringify(accessories.PUSH)}.`);
+      check("repeated missed reps deload", accessories.PULL?.verdict === "DELOAD",
+        `PULL missed reps should deload: ${JSON.stringify(accessories.PULL)}.`);
+      check("skipped set holds safely", accessories.ARMS?.verdict === "HOLD" && /incomplete|skipped/i.test(accessories.ARMS.note || ""),
+        `Skipped set should hold with safety note: ${JSON.stringify(accessories.ARMS)}.`);
+      check("lower accessory deloads after misses", accessories.LEGS?.verdict === "DELOAD",
+        `LEGS missed RDL branch should deload: ${JSON.stringify(accessories.LEGS)}.`);
+
+      check("weekly muscle volume populated", ["chest", "back", "biceps", "quads"].every(m => volumeBefore[m] > 0),
+        `Expected chest/back/biceps/quads volume, got ${JSON.stringify(volumeBefore)}.`);
+      check("fatigue summary populated", fatigue.recoveryCost > 100 && fatigue.elbowStress > 20,
+        `Expected high mock fatigue and elbow stress, got ${JSON.stringify(fatigue)}.`);
+
+      const volumeWithoutWarmups = withTemporaryState(s => {
+        s.sessions = s.sessions.map(sess => ({ ...sess, warmup: null }));
+      }, () => weeklyVolumeByMuscle(7));
+      check("warm-up data excluded from volume", sameJson(volumeBefore, volumeWithoutWarmups),
+        "Removing saved warm-up objects should not change weekly muscle volume.");
+
+      check("standard warm-up scenario", scenarios["standard mode candidate"]?.mode === "standard",
+        `Expected standard mode, got ${JSON.stringify(scenarios["standard mode candidate"])}.`);
+      check("minimal warm-up scenario", scenarios["minimal mode candidate"]?.mode === "minimal",
+        `Expected minimal mode, got ${JSON.stringify(scenarios["minimal mode candidate"])}.`);
+      check("complete warm-up scenario", scenarios["complete mode candidate"]?.mode === "complete",
+        `Expected complete mode, got ${JSON.stringify(scenarios["complete mode candidate"])}.`);
+      check("joint-stress-sensitive warm-up selection",
+        scenarios["joint-stress-sensitive selection"]?.jointStress?.elbow === true &&
+        !(scenarios["joint-stress-sensitive selection"]?.movements || []).includes("Triceps Pressdown"),
+        `Expected elbow stress to avoid triceps pressdown, got ${JSON.stringify(scenarios["joint-stress-sensitive selection"])}.`);
+
+      const failures = checks.filter(row => row.status === "FAIL");
+      console.group(`Ascend Calculation Audit - ${failures.length ? "FAIL" : "PASS"}`);
+      console.table(checks);
+      console.groupEnd();
+      return {
+        passed: failures.length === 0,
+        passedCount: checks.length - failures.length,
+        failedCount: failures.length,
+        checks,
+        failures,
+        snapshot
+      };
+    } catch (e) {
+      console.error("Ascend calculation audit failed unexpectedly.", e);
+      return { passed: false, failedCount: 1, failures: [{ check: "unexpected exception", detail: e.message || String(e) }] };
+    } finally {
+      STATE = originalState;
+    }
+  };
+
   window.ascendDevMockStatus = function ascendDevMockStatus() {
     const backupMetaRaw = localStorage.getItem(MOCK_BACKUP_META_KEY);
     return {
       devToolsEnabled: true,
       mockActive: localStorage.getItem(MOCK_ACTIVE_KEY) === "1" || !!STATE?.devMockData?.active,
       backup: backupMetaRaw ? JSON.parse(backupMetaRaw) : null,
-      commands: ["loadAscendMockData()", "clearAscendMockData()", "restoreAscendMockBackup()", "ascendMockCalculationSummary()"]
+      commands: ["loadAscendMockData()", "clearAscendMockData()", "restoreAscendMockBackup()", "ascendMockCalculationSummary()", "ascendRunCalculationAudit()"]
     };
   };
 
   document.addEventListener("DOMContentLoaded", renderMockBadge);
   renderMockBadge();
-  console.info("Ascend dev mock commands available: loadAscendMockData(), clearAscendMockData(), ascendMockCalculationSummary().");
+  console.info("Ascend dev mock commands available: loadAscendMockData(), clearAscendMockData(), ascendMockCalculationSummary(), ascendRunCalculationAudit().");
 })();
