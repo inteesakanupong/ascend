@@ -240,12 +240,8 @@ function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight) {
 // weight × reps. Compares s1w × s1r (first set — most consistent signal).
 // n=3 is the default "confirmed stall"; n=2 is "early warning".
 function isStalled(day, exIdx, n = 3) {
-  const sessions = STATE.sessions
-    .filter(s => s.day === day)
-    .sort((a, b) => {
-      const d = a.date.localeCompare(b.date);
-      return d !== 0 ? d : (parseInt(a.id.replace(/^s-/,""))||0) - (parseInt(b.id.replace(/^s-/,""))||0);
-    });
+  const ex = activeExerciseForSlot(day, exIdx) || STATE.exercises[day]?.[exIdx];
+  const sessions = exerciseHistoryFor(day, exIdx, ex, { allowSlotFallback: !isActiveExerciseSwapped(day, exIdx) }).sessions;
   if (sessions.length < n) return false;
   const recent = sessions.slice(-n);
   const w0 = recent[0].sets?.[exIdx]?.s1w;
@@ -262,10 +258,12 @@ function isStalled(day, exIdx, n = 3) {
 // Returns a recommendation object or null.
 function getRepRangeAdaptation(day, exIdx) {
   const counters = STATE.repRangeCounters || {};
-  const key = `${day}:${exIdx}`;
+  const activeEx = activeExerciseForSlot(day, exIdx) || STATE.exercises[day]?.[exIdx];
+  const key = `${day}:${exerciseKeyFor(activeEx)}`;
   const c = counters[key] || { hitTop: 0, missMin: 0 };
   const ex = STATE.exercises[day]?.[exIdx];
   if (!ex) return null;
+  if (isLeadLift(day, exIdx)) return null;
   if (c.hitTop >= 2) {
     return {
       action: "widen",
@@ -292,7 +290,8 @@ function updateRepRangeCounters(session) {
   const day = session.day;
   const exercises = STATE.exercises[day] || [];
   exercises.forEach((ex, idx) => {
-    const key = `${day}:${idx}`;
+    if (isLeadLift(day, idx)) return;
+    const key = `${day}:${sessionExerciseKey(session, idx) || idx}`;
     const s = session.sets?.[idx];
     if (!s) return;
     const { s1w, s1r, s2w, s2r } = s;
@@ -321,7 +320,7 @@ function applyRepRangeAdaptation(day, exIdx, adaptation) {
   STATE.exercises[day][exIdx].repMin = adaptation.newMin;
   STATE.exercises[day][exIdx].repMax = adaptation.newMax;
   // Reset the counter for this exercise
-  const key = `${day}:${exIdx}`;
+  const key = `${day}:${exerciseKeyFor(STATE.exercises[day]?.[exIdx])}`;
   if (STATE.repRangeCounters) STATE.repRangeCounters[key] = { hitTop: 0, missMin: 0 };
   saveState();
 }
@@ -949,7 +948,7 @@ function remainingExercises(exIdx) {
 // Bromley weight suggestion after a completed set
 // Returns { verdict, newWeight, newReps, label, color }
 function bromleyWeightSuggestion(exIdx, setNum) {
-  const ex = STATE.exercises[LIFT_DAY][exIdx];
+  const ex = activeExerciseForSlot(LIFT_DAY, exIdx) || STATE.exercises[LIFT_DAY][exIdx];
   const setKey = `s${setNum}`;
   const wField = `s${setNum}w`;
   const rField = `s${setNum}r`;
@@ -960,6 +959,34 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   const wave = juggernautWave(0, LIFT_DAY);
 
   if (rpe == null || reps == null || weight == null) return null;
+
+  const isLeadExercise = isLeadLift(LIFT_DAY, exIdx);
+  if (isLeadExercise) {
+    const p = progressionFor(LIFT_DAY, exIdx);
+    const targetReps = p?.reps ?? reps;
+    const isLastSet = setNum === 2;
+    if (wave.name === "REALIZATION" && isLastSet) {
+      const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight);
+      const currentWM = getWorkingMax(LIFT_DAY, exIdx) || weight;
+      const wmChange = newWM > currentWM ? `+${fmtWeight(newWM - currentWM)}kg` : "holding";
+      return {
+        verdict: "amrap_result",
+        newWeight: null, newReps: null,
+        label: `AMRAP RESULT: ${reps} reps @ ${fmtWeight(weight)}kg`,
+        text: `Training max ${wmChange === "holding" ? "unchanged" : "updating to"} ${fmtWeight(newWM)}kg next cycle. Save session to lock it in.`,
+        color: "good"
+      };
+    }
+    if (reps >= targetReps) return null;
+    return {
+      verdict: "jtm_target_miss",
+      newWeight: null,
+      newReps: null,
+      label: `Below JTM target (${targetReps} reps)`,
+      text: `Log the set as performed. Lead lifts stay on the JTM wave target; no accessory drop-weight rule is applied.`,
+      color: "warn"
+    };
+  }
 
   const missedReps   = reps < ex.repMin;
   const hitTopRange  = reps >= ex.repMax;
@@ -1079,7 +1106,8 @@ function bromleyWeightSuggestion(exIdx, setNum) {
 // Extra set suggestion after BOTH sets are done for an exercise
 // Returns { suggest: bool, sets: number, reason, fatigue } | null
 function extraSetSuggestion(exIdx) {
-  const ex = STATE.exercises[LIFT_DAY][exIdx];
+  const ex = activeExerciseForSlot(LIFT_DAY, exIdx) || STATE.exercises[LIFT_DAY][exIdx];
+  if (isLeadLift(LIFT_DAY, exIdx)) return null;
   const s1rpe  = LIFT_SET_RPE[exIdx]?.s1;
   const s2rpe  = LIFT_SET_RPE[exIdx]?.s2;
   const s1reps = LIFT_DRAFT.sets[exIdx]?.s1r;
@@ -1565,6 +1593,30 @@ function repRangeAdaptCard(exIdx) {
     </div>`;
 }
 
+function resetDraftSlotForExercise(day, idx) {
+  if (!LIFT_DRAFT || LIFT_DRAFT.day !== day) return;
+  const p = progressionFor(day, idx);
+  LIFT_DRAFT.sets[idx] = { s1w: p.weight, s1r: p.reps, s2w: p.weight, s2r: p.reps };
+  if (LIFT_SET_DONE[idx]) LIFT_SET_DONE[idx] = { s1: false, s2: false };
+  if (LIFT_SET_RPE[idx]) LIFT_SET_RPE[idx] = { s1: null, s2: null };
+  if (LIFT_EXTRA_SETS[idx]) LIFT_EXTRA_SETS[idx] = { dismissed: false, sets: [] };
+  if (LIFT_TECHNIQUES[idx] !== undefined) LIFT_TECHNIQUES[idx] = null;
+  LIFT_DISMISSED_BANNERS.delete(`${idx}-1`);
+  LIFT_DISMISSED_BANNERS.delete(`${idx}-2`);
+}
+
+function buildExerciseSwap(canonEx, name, dbMatch) {
+  const equipment = dbMatch?.equipment || detectEquipment(name, dbMatch) || canonEx.equipment;
+  return {
+    name,
+    exerciseKey: exerciseKeyFor(name),
+    repMin: canonEx.repMin,
+    repMax: canonEx.repMax,
+    start: dbMatch?.start ?? defaultStartWeightForExercise({ name, equipment }),
+    equipment,
+  };
+}
+
 function renderLiftExercises() {
   const wrap = $("#lift-exercises");
   const RPE_HINTS = {
@@ -1730,9 +1782,9 @@ function renderLiftExercises() {
     }[p.verdict] || p.verdict;
     const verdictCls = p.verdict === "DELOAD_WAVE" ? "deload" : p.verdict.toLowerCase();
     const draftSet = LIFT_DRAFT.sets[idx];
-    const isBW = isBodyweightExercise(canonEx);
-    const eq = detectEquipment(canonEx.name, canonEx);
-    const inc = incrementFor(canonEx);
+    const isBW = isBodyweightExercise(ex);
+    const eq = detectEquipment(ex.name, ex);
+    const inc = incrementFor(ex);
     const swapBadge = swap ? `<span class="tag" style="margin-left:6px; color: var(--accent); border-color: var(--accent);">SWAPPED</span>` : "";
     const clearSwapBtn = swap ? `<span data-clear-swap="${idx}" style="float:right;cursor:pointer;color:var(--ink-dim);font-size:9px;text-decoration:none;font-family:var(--f-mono);font-weight:700;padding:4px 4px 4px 8px;margin:-4px -4px -4px 0;letter-spacing:0.06em;opacity:0.8;">✕</span>` : "";
     const EQUIPMENT_TYPES = ["auto", "cable", "machine", "smith", "db", "barbell", "bodyweight"];
@@ -1779,7 +1831,7 @@ function renderLiftExercises() {
         <div class="ex-num">${String(idx+1).padStart(2,'0')}</div>
         <div class="ex-name">${ex.name}${swapBadge}${leadBadge}</div>
         <div class="ex-meta">
-          ${ex.repMin}–${ex.repMax} REPS ·
+          ${isThisLeadLift ? `JTM ${escapeHtml(p.wavePhase || wave.name)}` : `${ex.repMin}-${ex.repMax} REPS`} &middot;
           <span class="verdict ${verdictCls}" style="margin-left:4px;">${verdictLabel}</span>
           ${eqBadge}
         </div>
@@ -1793,7 +1845,7 @@ function renderLiftExercises() {
           </div>
         </div>
         ${(() => {
-          const barType = canonEx.barType || getBarType(canonEx);
+          const barType = ex.barType || getBarType(ex);
           if (barType === "none" || isBW) return "";
           const plates = fmtPlates(displayTargetWeight, barType);
           if (!plates) return "";
@@ -1803,7 +1855,7 @@ function renderLiftExercises() {
           </div>`;
         })()}
         ${(() => {
-          const cues = getFormCues(canonEx.name);
+          const cues = getFormCues(ex.name);
           if (!cues || !cues.length) return "";
           return `<details style="margin-top:8px;">
             <summary style="font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.14em;color:var(--ink-dim);cursor:pointer;list-style:none;display:flex;align-items:center;gap:4px;">
@@ -1888,6 +1940,7 @@ function renderLiftExercises() {
       e.stopPropagation();
       const idx = +btn.dataset.clearSwap;
       if (LIFT_DRAFT?.swappedExercises) delete LIFT_DRAFT.swappedExercises[idx];
+      resetDraftSlotForExercise(LIFT_DAY, idx);
       renderLiftExercises();
       toast("SWAP CLEARED");
     });
@@ -2078,12 +2131,8 @@ function renderLiftExercises() {
       if (!LIFT_DRAFT?.swappedExercises) LIFT_DRAFT.swappedExercises = {};
       const canonEx = STATE.exercises[LIFT_DAY][idx];
       const dbMatch = EXERCISE_DB.find(e => e.name === name) || findDbMatch(name);
-      LIFT_DRAFT.swappedExercises[idx] = {
-        name,
-        repMin: canonEx.repMin,
-        repMax: canonEx.repMax,
-        equipment: dbMatch?.equipment || canonEx.equipment,
-      };
+      LIFT_DRAFT.swappedExercises[idx] = buildExerciseSwap(canonEx, name, dbMatch);
+      resetDraftSlotForExercise(LIFT_DAY, idx);
       btn.closest("[data-stall-swap]")?.remove();
       _rerenderExCard(idx);
       toast(`NEXT SESSION: ${name.slice(0, 28)}`);
@@ -2975,12 +3024,8 @@ function _applyExerciseSelection(name) {
 
     document.getElementById("btn-swap-session").addEventListener("click", () => {
       LIFT_DRAFT.swappedExercises = LIFT_DRAFT.swappedExercises || {};
-      LIFT_DRAFT.swappedExercises[idx] = {
-        name: canonName,
-        repMin: canonEx.repMin,
-        repMax: canonEx.repMax,
-        equipment: equipment || canonEx.equipment,
-      };
+      LIFT_DRAFT.swappedExercises[idx] = buildExerciseSwap(canonEx, canonName, dbMatch);
+      resetDraftSlotForExercise(LIFT_DAY, idx);
       closeSheet();
       renderLiftExercises();
       toast(`SESSION SWAP → ${canonName.slice(0,28)}`);
@@ -2990,9 +3035,11 @@ function _applyExerciseSelection(name) {
       STATE.exercises[LIFT_DAY][idx] = {
         ...STATE.exercises[LIFT_DAY][idx],
         name: canonName,
+        exerciseKey: exerciseKeyFor(canonName),
         equipment: equipment || canonEx.equipment,
       };
       if (LIFT_DRAFT?.swappedExercises?.[idx]) delete LIFT_DRAFT.swappedExercises[idx];
+      resetDraftSlotForExercise(LIFT_DAY, idx);
       saveState();
       closeSheet();
       renderLiftExercises();
@@ -3314,6 +3361,8 @@ $("#btn-save-session").addEventListener("click", () => {
     date: LIFT_DRAFT.date,
     sets: LIFT_DRAFT.sets.map(s => ({ ...s })),
     swappedExercises: { ...(LIFT_DRAFT.swappedExercises || {}) },
+    exerciseNames: LIFT_DRAFT.sets.map((_, idx) => (activeExerciseForSlot(LIFT_DRAFT.day, idx) || STATE.exercises[LIFT_DRAFT.day]?.[idx])?.name || ""),
+    exerciseKeys: LIFT_DRAFT.sets.map((_, idx) => exerciseKeyFor(activeExerciseForSlot(LIFT_DRAFT.day, idx) || STATE.exercises[LIFT_DRAFT.day]?.[idx])),
     notes: (document.getElementById("lift-notes")?.value?.trim() || null),
     rpe: LIFT_SET_RPE.map(r => ({ s1: r.s1, s2: r.s2 })),
     extraSets: LIFT_EXTRA_SETS.map(e => ({ sets: (e?.sets || []).filter(s => s.done) })),

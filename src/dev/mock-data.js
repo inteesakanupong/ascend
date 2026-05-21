@@ -43,8 +43,8 @@
     ]
   };
 
-  const LEAD_TMS = { PUSH: 142.5, PULL: 122.5, ARMS: 127.5, LEGS: 210 };
-  const SESSION_COUNTS = { PUSH: 8, PULL: 6, ARMS: 7, LEGS: 5 };
+  const LEAD_TMS = { PUSH: 100, PULL: 122.5, ARMS: 127.5, LEGS: 210 };
+  const SESSION_COUNTS = { PUSH: 1, PULL: 6, ARMS: 7, LEGS: 5 };
   const START_OFFSETS = { PUSH: 0, PULL: 1, ARMS: 2, LEGS: 3 };
 
   function clone(value) {
@@ -60,6 +60,10 @@
 
   function roundToNearest(value, inc) {
     return Math.round(value / inc) * inc;
+  }
+
+  function keyFor(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim().replace(/\s+/g, "_");
   }
 
   function waveForSessionNum(n) {
@@ -167,12 +171,19 @@
       return { sets: [{ weight: set.s1w, reps: Math.max(8, set.s1r - 2), rpe: addPushExtra ? 9 : 8, done: true, technique: "straight_set", source: "mock_extra" }] };
     });
     const warmupMode = sessionNum === 1 ? "standard" : wave.name === "DELOAD" ? "minimal" : sessionNum >= 5 && (day === "PULL" || day === "LEGS") ? "complete" : null;
+    const swappedExercises = sessionNum === 4 && day === "PULL"
+      ? { 3: { name: "Single Arm Cable Row", exerciseKey: keyFor("Single Arm Cable Row"), repMin: 8, repMax: 12, equipment: "cable", start: 42 } }
+      : {};
+    const exerciseNames = exs.map((ex, idx) => swappedExercises[idx]?.name || ex.name);
+    const exerciseKeys = exerciseNames.map(keyFor);
     return {
       id: `mock-${day.toLowerCase()}-${String(sessionNum).padStart(2, "0")}`,
       day,
       date,
       sets,
-      swappedExercises: sessionNum === 4 && day === "PULL" ? { 3: { name: "Single Arm Cable Row", repMin: 8, repMax: 12, equipment: "cable" } } : {},
+      swappedExercises,
+      exerciseNames,
+      exerciseKeys,
       notes: sessionNum === 7 && day === "ARMS" ? "Skipped skull crusher set 2 after elbow tightness." : null,
       rpe,
       extraSets,

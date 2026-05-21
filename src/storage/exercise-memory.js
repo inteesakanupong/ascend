@@ -5,7 +5,7 @@ function updateExerciseMemoryFromSession(session) {
   (session.sets || []).forEach((set, idx) => {
     const name = sessionExerciseName(session, idx);
     if (!name) return;
-    const key = normalizeExerciseName(name);
+    const key = exerciseKeyFor(name);
     const profile = exerciseFatigueProfile(name);
     const setCount = sessionSetCount(session, idx);
     const rpes = [session.rpe?.[idx]?.s1, session.rpe?.[idx]?.s2].filter(v => v != null);

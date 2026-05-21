@@ -99,48 +99,70 @@ function leadTmPrescription(ex, wave, TM, lastStr = null) {
   };
 }
 
+function exerciseHistoryFor(day, exIdx, ex, opts = {}) {
+  const daySessions = sortSessionsChronological(trainingSessionsForDay(day));
+  const key = exerciseKeyFor(ex);
+  const exactSessions = daySessions.filter(s =>
+    s.sets?.[exIdx]?.s1r != null && sessionExerciseMatches(s, exIdx, ex)
+  );
+  const allowSlotFallback = opts.allowSlotFallback !== false;
+  const fallbackSessions = exactSessions.length || !allowSlotFallback
+    ? []
+    : daySessions.filter(s => s.sets?.[exIdx]?.s1r != null);
+  const sessions = exactSessions.length ? exactSessions : fallbackSessions;
+  return {
+    key,
+    sessions,
+    source: exactSessions.length ? "exerciseKey" : fallbackSessions.length ? "legacySlotFallback" : "none"
+  };
+}
+
 function progressionFor(day, exIdx) {
-  const ex = STATE.exercises[day][exIdx];
+  const ex = activeExerciseForSlot(day, exIdx) || STATE.exercises[day][exIdx];
   const inc = incrementFor(ex);
   const isLead = isLeadLift(day, exIdx);
   const wave = juggernautWave(0, day);
 
-  const sessions = sortSessionsChronological(trainingSessionsForDay(day));
+  const history = exerciseHistoryFor(day, exIdx, ex, { allowSlotFallback: !isActiveExerciseSwapped(day, exIdx) });
+  const sessions = history.sessions;
+  const withIdentity = result => ({ ...result, exerciseKey: history.key, historySource: history.source });
 
   // ── First session ever for this day
   if (sessions.length === 0) {
     if (isLead) {
       // PHASE 1 FIX: Lead lifts must NEVER fall back to accessory rep logic.
-      const storedTM = getWorkingMax(day, exIdx);
-      if (storedTM) return leadTmPrescription(ex, wave, storedTM);
+      const storedTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
+      if (storedTM) return withIdentity(leadTmPrescription(ex, wave, storedTM));
       // No TM stored: infer from start weight so JTM reps are always correct
-      const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
-      if (inferredTM) return leadTmPrescription(ex, wave, inferredTM, null);
+      const startWeight = defaultStartWeightForExercise(ex);
+      const inferredTM = startWeight ? roundToIncrement(startWeight / 0.60, ex) : null;
+      if (inferredTM) return withIdentity(leadTmPrescription(ex, wave, inferredTM, null));
       // Absolute fallback: use JTM reps even if weight is unknown
       const tmPctData = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
-      return { verdict: "START", weight: ex.start || 20, reps: tmPctData.reps, last: null,
+      return withIdentity({ verdict: "START", weight: startWeight || 20, reps: tmPctData.reps, last: null,
                note: "Lead lift — set a working max in Profile for accurate JTM prescriptions. Using start weight as estimate.",
-               wavePhase: wave.name };
+               wavePhase: wave.name });
     }
-    return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
-             note: "First session — start moderate, leave 2-3 reps in reserve." };
+    return withIdentity({ verdict: "START", weight: defaultStartWeightForExercise(ex), reps: ex.repMin, last: null,
+             note: "First session — start moderate, leave 2-3 reps in reserve." });
   }
 
   const last = sessions[sessions.length - 1].sets[exIdx];
   if (!last || last.s1r == null) {
     if (isLead) {
       // PHASE 1 FIX: Lead lift with missing set data must still use JTM, not accessory fallback.
-      const storedTM = getWorkingMax(day, exIdx);
-      if (storedTM) return leadTmPrescription(ex, wave, storedTM);
-      const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
-      if (inferredTM) return leadTmPrescription(ex, wave, inferredTM, null);
+      const storedTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
+      if (storedTM) return withIdentity(leadTmPrescription(ex, wave, storedTM));
+      const startWeight = defaultStartWeightForExercise(ex);
+      const inferredTM = startWeight ? roundToIncrement(startWeight / 0.60, ex) : null;
+      if (inferredTM) return withIdentity(leadTmPrescription(ex, wave, inferredTM, null));
       const tmPctData = JUG_TM_PCTS[wave.name] || JUG_TM_PCTS.ACCUMULATION;
-      return { verdict: "START", weight: ex.start || 20, reps: tmPctData.reps, last: null,
+      return withIdentity({ verdict: "START", weight: startWeight || 20, reps: tmPctData.reps, last: null,
                note: "Lead lift — no set data. Set working max in Profile for accurate JTM prescriptions.",
-               wavePhase: wave.name };
+                wavePhase: wave.name });
     }
-    return { verdict: "START", weight: ex.start, reps: ex.repMin, last: null,
-             note: "No set data — start moderate, leave 2-3 reps in reserve." };
+    return withIdentity({ verdict: "START", weight: defaultStartWeightForExercise(ex), reps: ex.repMin, last: null,
+             note: "No set data — start moderate, leave 2-3 reps in reserve." });
   }
 
   const { s1w: _s1w, s1r, s2w: _s2w, s2r: _s2r } = last;
@@ -168,14 +190,14 @@ function progressionFor(day, exIdx) {
   const shouldHoldLoad = poorReadiness || (avgLastRpe != null && avgLastRpe > (isIsolation ? 8 : 8.5));
 
   if (set2Incomplete) {
-    return {
+    return withIdentity({
       verdict: "HOLD",
       weight: workingWeight,
       reps: Math.min(ex.repMax, Math.max(ex.repMin, s1r)),
       last: lastStr,
       note: "Set 2 was incomplete or skipped. Hold the same load next time; do not reset or progress from a partial exercise.",
       wavePhase: wave.name
-    };
+    });
   }
 
   // ── LEAD LIFT: Juggernaut TM-based weight prescription
@@ -186,16 +208,17 @@ function progressionFor(day, exIdx) {
   //   3. Inferred from start weight (60% pct back-calculation)
   // Lead lifts NEVER fall through to accessory double-progression.
   if (isLead) {
-    const storedTM = getWorkingMax(day, exIdx);
+    const storedTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
     // Priority 2: Derive TM from last session AMRAP (s2 = final/AMRAP set)
     const amrapW = s2w || s1w;
     const amrapR = Math.max(s1r, s2r);
     const estimatedOneRm = amrapW && amrapR ? estimateOneRm(amrapW, amrapR) : null;
     const derivedTM = estimatedOneRm ? roundToIncrement(estimatedOneRm * 0.90, ex) : null;
     // Priority 3: Infer from start weight so JTM reps are always correct
-    const inferredTM = ex.start ? roundToIncrement(ex.start / 0.60, ex) : null;
+    const startWeight = defaultStartWeightForExercise(ex);
+    const inferredTM = startWeight ? roundToIncrement(startWeight / 0.60, ex) : null;
     const TM = storedTM || derivedTM || inferredTM || workingWeight;
-    return leadTmPrescription(ex, wave, TM, lastStr);
+    return withIdentity(leadTmPrescription(ex, wave, TM, lastStr));
     // Note: execution never reaches accessory logic below for lead lifts.
   }
 
@@ -206,7 +229,7 @@ function progressionFor(day, exIdx) {
   // ── DELOAD WEEK
   if (wave.name === "DELOAD") {
     const deloadW = roundToIncrement(workingWeight * 0.875, ex);
-    return {
+    return withIdentity({
       verdict: "DELOAD_WAVE",
       weight: deloadW,
       reps: ex.repMin,
@@ -215,7 +238,7 @@ function progressionFor(day, exIdx) {
       wavePhase: "DELOAD",
       confidence: 1.0,
       reasoning: ["deload week: fixed reduction"]
-    };
+    });
   }
 
   // ── PHASE 3: Progression Confidence Score
@@ -264,7 +287,7 @@ function progressionFor(day, exIdx) {
   // Helper: attach confidence and reasoning to every result
   function accessoryResult(verdict, weight, reps, note) {
     if (reasoning.length === 0) reasoning.push("normal progression");
-    return {
+    return withIdentity({
       verdict: verdict,
       weight: weight,
       reps: reps,
@@ -273,7 +296,7 @@ function progressionFor(day, exIdx) {
       wavePhase: wave.name,
       confidence: Math.round(confidence * 100) / 100,
       reasoning: reasoning.slice()
-    };
+    });
   }
 
   // ── Below rep range

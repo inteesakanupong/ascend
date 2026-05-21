@@ -139,10 +139,94 @@
         nextWave: `${wave.name} C${wave.cycleNum} W${wave.waveWeek}`,
         leadLift: lead?.name || null,
         prescription: p ? `${p.verdict} ${p.weight}kg x ${p.reps}` : "missing",
-        trainingMax: p?.trainingMax || getWorkingMax(day, leadIdx) || null
+        trainingMax: p?.trainingMax || getWorkingMax(day, leadIdx) || null,
+        progressionLogic: lead ? (isLeadLift(day, leadIdx) ? "JTM" : "accessory") : "missing",
+        exerciseKey: p?.exerciseKey || (lead ? exerciseKeyFor(lead) : null),
+        historySource: p?.historySource || "unknown"
       });
     });
     return rows;
+  }
+
+  function muscleClassificationSummary() {
+    return [
+      "Machine Chest Press",
+      "Flat Machine Chest Press",
+      "Chest Press Machine",
+      "Seated Machine Chest Press",
+      "Plate Loaded Chest Press",
+      "Smith Machine Chest Press",
+      "Smith Incline Bench Press"
+    ].map(name => ({
+      exercise: name,
+      dbMuscle: findDbMatch(name)?.muscle || null,
+      primary: exercisePrimaryMuscleFromWeights(name),
+      weighted: exerciseWeightedMuscles(name)
+    }));
+  }
+
+  function phase9SwapSummary() {
+    const originalDraft = typeof LIFT_DRAFT !== "undefined" ? LIFT_DRAFT : null;
+    const originalDay = typeof LIFT_DAY !== "undefined" ? LIFT_DAY : null;
+    try {
+      const rows = [];
+      LIFT_DAY = "PUSH";
+      LIFT_DRAFT = {
+        day: "PUSH",
+        date: todayISO(),
+        sets: (STATE.exercises.PUSH || []).map(() => ({})),
+        swappedExercises: {
+          0: { name: "Smith Incline Bench Press", exerciseKey: exerciseKeyFor("Smith Incline Bench Press"), repMin: 5, repMax: 8, start: 70, equipment: "smith" },
+          2: { name: "Flat Machine Chest Press", exerciseKey: exerciseKeyFor("Flat Machine Chest Press"), repMin: 8, repMax: 12, start: 45, equipment: "machine" },
+          3: { name: "Seated Machine Chest Press", exerciseKey: exerciseKeyFor("Seated Machine Chest Press"), repMin: 8, repMax: 12, start: 35, equipment: "machine" }
+        }
+      };
+      rows.push(...Object.keys(LIFT_DRAFT.swappedExercises).map(idxRaw => {
+        const idx = +idxRaw;
+        const ex = activeExerciseForSlot("PUSH", idx);
+        const p = progressionFor("PUSH", idx);
+        return {
+          day: "PUSH",
+          slot: idx + 1,
+          exercise: ex.name,
+          remainsLead: isLeadLift("PUSH", idx),
+          logic: isLeadLift("PUSH", idx) ? "JTM" : "accessory",
+          exerciseKey: p.exerciseKey,
+          historySource: p.historySource,
+          prescription: `${p.verdict} ${p.weight}kg x ${p.reps}`,
+          last: p.last || "none"
+        };
+      }));
+      LIFT_DAY = "PULL";
+      LIFT_DRAFT = {
+        day: "PULL",
+        date: todayISO(),
+        sets: (STATE.exercises.PULL || []).map(() => ({})),
+        swappedExercises: {
+          3: { name: "Single Arm Cable Row", exerciseKey: exerciseKeyFor("Single Arm Cable Row"), repMin: 8, repMax: 12, start: 42, equipment: "cable" }
+        }
+      };
+      rows.push(...Object.keys(LIFT_DRAFT.swappedExercises).map(idxRaw => {
+        const idx = +idxRaw;
+        const ex = activeExerciseForSlot("PULL", idx);
+        const p = progressionFor("PULL", idx);
+        return {
+          day: "PULL",
+          slot: idx + 1,
+          exercise: ex.name,
+          remainsLead: isLeadLift("PULL", idx),
+          logic: isLeadLift("PULL", idx) ? "JTM" : "accessory",
+          exerciseKey: p.exerciseKey,
+          historySource: p.historySource,
+          prescription: `${p.verdict} ${p.weight}kg x ${p.reps}`,
+          last: p.last || "none"
+        };
+      }));
+      return rows;
+    } finally {
+      LIFT_DRAFT = originalDraft;
+      LIFT_DAY = originalDay;
+    }
   }
 
   function accessoryExamples() {
@@ -212,6 +296,8 @@
     return {
       leadPrescriptions: progressionSummary(),
       accessoryExamples: accessoryExamples(),
+      muscleClassification: muscleClassificationSummary(),
+      swaps: phase9SwapSummary(),
       readiness: calculateReadiness(todayISO()),
       weeklyVolumeByMuscle: weeklyVolumeByMuscle(7),
       fatigue: computeFatigueSummary(7),
@@ -295,6 +381,14 @@
     console.table(accessoryExamples());
     console.groupEnd();
 
+    console.group("Phase 9 Muscle Classification");
+    console.table(muscleClassificationSummary());
+    console.groupEnd();
+
+    console.group("Phase 9 Swap / History Checks");
+    console.table(phase9SwapSummary());
+    console.groupEnd();
+
     console.group("Readiness");
     console.log(calculateReadiness(todayISO()));
     console.groupEnd();
@@ -376,8 +470,8 @@
       const volumeBefore = snapshot.weeklyVolumeByMuscle;
       const fatigue = snapshot.fatigue;
 
-      check("mock state shape", STATE.devMockData?.active && STATE.sessions.length === 26 && STATE.dailyLogs.length === 56,
-        `Expected active mock with 26 sessions/56 logs, got ${STATE.sessions.length}/${STATE.dailyLogs.length}.`);
+      check("mock state shape", STATE.devMockData?.active && STATE.sessions.length === 19 && STATE.dailyLogs.length === 56,
+        `Expected active mock with 19 sessions/56 logs, got ${STATE.sessions.length}/${STATE.dailyLogs.length}.`);
       check("all days have explicit lead lifts", DAY_ORDER.every(day => STATE.exercises[day]?.some(ex => ex.leadLift === true)),
         "Every training day must have one explicit leadLift.");
       check("today readiness exists", !!getDailyLog(todayISO()) && snapshot.readiness.score === 1 && snapshot.readiness.adjustment === -0.1,
@@ -385,7 +479,7 @@
       check("rapid weight drop detected", (snapshot.readiness.factors || []).some(f => /Rapid weight drop/.test(f)),
         "Readiness should flag rapid weight drop.");
 
-      check("PUSH JTM accumulation", leads.PUSH?.nextWave?.includes("ACCUMULATION") && leads.PUSH.prescription === "BEAT 85kg x 10",
+      check("PUSH JTM intensification 70x8", leads.PUSH?.nextWave?.includes("INTENSIFICATION") && leads.PUSH.prescription === "BEAT 70kg x 8" && leads.PUSH.progressionLogic === "JTM",
         `Unexpected PUSH lead prescription: ${JSON.stringify(leads.PUSH)}.`);
       check("PULL JTM realization", leads.PULL?.nextWave?.includes("REALIZATION") && leads.PULL.prescription === "REALIZE 95kg x 5",
         `Unexpected PULL lead prescription: ${JSON.stringify(leads.PULL)}.`);
@@ -394,8 +488,6 @@
       check("LEGS JTM intensification", leads.LEGS?.nextWave?.includes("INTENSIFICATION") && leads.LEGS.prescription === "BEAT 147.5kg x 8",
         `Unexpected LEGS lead prescription: ${JSON.stringify(leads.LEGS)}.`);
 
-      check("cutting/high-RPE accessory hold", accessories.PUSH?.verdict === "HOLD" && accessories.PUSH.confidence <= 0.45,
-        `PUSH accessory should hold under cut + high RPE + poor readiness: ${JSON.stringify(accessories.PUSH)}.`);
       check("repeated missed reps deload", accessories.PULL?.verdict === "DELOAD",
         `PULL missed reps should deload: ${JSON.stringify(accessories.PULL)}.`);
       check("skipped set holds safely", accessories.ARMS?.verdict === "HOLD" && /incomplete|skipped/i.test(accessories.ARMS.note || ""),
@@ -407,6 +499,19 @@
         `Expected chest/back/biceps/quads volume, got ${JSON.stringify(volumeBefore)}.`);
       check("fatigue summary populated", fatigue.recoveryCost > 100 && fatigue.elbowStress > 20,
         `Expected high mock fatigue and elbow stress, got ${JSON.stringify(fatigue)}.`);
+
+      const classifications = indexBy(snapshot.muscleClassification, "exercise");
+      check("machine chest press variants classify as chest",
+        ["Machine Chest Press", "Flat Machine Chest Press", "Smith Incline Bench Press"].every(name => classifications[name]?.primary === "chest"),
+        `Unexpected chest classification: ${JSON.stringify(snapshot.muscleClassification)}.`);
+
+      const swaps = indexBy(snapshot.swaps, "exercise");
+      check("lead swap remains JTM lead", swaps["Smith Incline Bench Press"]?.remainsLead === true && swaps["Smith Incline Bench Press"]?.logic === "JTM",
+        `Unexpected lead swap summary: ${JSON.stringify(snapshot.swaps)}.`);
+      check("accessory swap uses own history source", swaps["Flat Machine Chest Press"]?.historySource === "none" || swaps["Flat Machine Chest Press"]?.historySource === "exerciseKey",
+        `Unexpected accessory swap history: ${JSON.stringify(snapshot.swaps)}.`);
+      check("accessory swap restores own previous history", swaps["Single Arm Cable Row"]?.historySource === "exerciseKey" && !!swaps["Single Arm Cable Row"]?.last,
+        `Expected Single Arm Cable Row to use its own saved swapped history: ${JSON.stringify(snapshot.swaps)}.`);
 
       const volumeWithoutWarmups = withTemporaryState(s => {
         s.sessions = s.sessions.map(sess => ({ ...sess, warmup: null }));

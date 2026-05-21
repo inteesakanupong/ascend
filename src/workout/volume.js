@@ -85,6 +85,8 @@ function exerciseFatigueProfile(exOrName) {
 }
 
 function sessionExerciseName(session, idx) {
+  const savedName = session.exerciseNames?.[idx];
+  if (savedName) return savedName;
   const base = STATE.exercises[session.day]?.[idx];
   const swap = session.swappedExercises?.[idx];
   return swap?.name || base?.name || "";
@@ -102,10 +104,17 @@ function sessionSetCount(session, idx) {
 }
 
 function exerciseFor(session, idx) {
+  const savedName = session.exerciseNames?.[idx];
   if (session.swappedExercises && session.swappedExercises[idx]) {
-    return { ...STATE.exercises[session.day][idx], ...session.swappedExercises[idx] };
+    const ex = { ...STATE.exercises[session.day][idx], ...session.swappedExercises[idx] };
+    if (savedName) ex.name = savedName;
+    if (!ex.exerciseKey) ex.exerciseKey = sessionExerciseKey(session, idx);
+    return ex;
   }
-  return STATE.exercises[session.day][idx];
+  const ex = { ...(STATE.exercises[session.day][idx] || {}) };
+  if (savedName) ex.name = savedName;
+  if (!ex.exerciseKey) ex.exerciseKey = sessionExerciseKey(session, idx);
+  return ex;
 }
 
 function prsInSession(session) {

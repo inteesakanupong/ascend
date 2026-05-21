@@ -115,6 +115,8 @@ function migrateState(s) {
   s.sessions = (s.sessions || []).map(sess => ({
     durationSec: null,
     swappedExercises: {},
+      exerciseNames: [],
+      exerciseKeys: [],
       notes: null,
       techniques: [],
       ...sess,
@@ -149,6 +151,23 @@ function migrateState(s) {
   s.adaptive_state.version = 1;
   s = normalizeExerciseProgramNamesAndOrder(s);
   s = normalizeProgramCalibrationState(s);
+  Object.keys(s.exercises || {}).forEach(day => {
+    (s.exercises[day] || []).forEach(ex => {
+      if (ex?.name && !ex.exerciseKey) ex.exerciseKey = exerciseKeyFor(ex);
+    });
+  });
+  s.sessions = (s.sessions || []).map(sess => {
+    const names = Array.isArray(sess.exerciseNames) ? sess.exerciseNames.slice() : [];
+    const keys = Array.isArray(sess.exerciseKeys) ? sess.exerciseKeys.slice() : [];
+    (sess.sets || []).forEach((_, idx) => {
+      const swap = sess.swappedExercises?.[idx];
+      const base = s.exercises?.[sess.day]?.[idx];
+      if (!names[idx]) names[idx] = swap?.name || base?.name || "";
+      if (!keys[idx]) keys[idx] = exerciseKeyFor(swap?.exerciseKey || swap?.name || names[idx] || base);
+      if (swap && !swap.exerciseKey) swap.exerciseKey = keys[idx];
+    });
+    return { ...sess, exerciseNames: names, exerciseKeys: keys };
+  });
 
   // Backfill working maxes for REALIZATION sessions that were saved before setWorkingMax existed.
   // For each day, find REALIZATION sessions (waveWeek = ((sessionIndex) % 4) === 2, 0-indexed)
