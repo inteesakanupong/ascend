@@ -223,15 +223,72 @@ const EXERCISE_DB_RAW = [
   ["Pallof Press","abs","core","cable","isolation"],
 ];
 
-// Build indexed database
-const EXERCISE_DB = EXERCISE_DB_RAW.map(([name, muscle, movement, equipment, type]) => ({
-  name, muscle, movement, equipment, type, custom: false
-}));
+const EXERCISE_ALIASES = {
+  "Smith Machine Chest Press": "Smith Machine Bench Press",
+  "Smith Machine Incline Bench Press": "Smith Incline Bench Press",
+  "Chest Press Machine": "Machine Chest Press (Flat)",
+  "Flat Machine Chest Press": "Machine Chest Press (Flat)",
+  "Seated Machine Chest Press": "Machine Chest Press (Flat)",
+  "Machine Chest Press": "Machine Chest Press (Flat)",
+  "Incline DB Fly / Cable Fly": "Incline Cable Fly",
+  "DB Lateral Raise": "Dumbbell Lateral Raise",
+  "Cable Lateral Raise (1-arm)": "Cable Lateral Raise",
+  "Face Pull (cable)": "Face Pull",
+  "Straight Arm Pulldown (rope)": "Straight Arm Pulldown",
+  "Lat Pulldown (pronated)": "Lat Pulldown",
+  "Wide Grip Lat Pulldown": "Lat Pulldown",
+  "Bayesian Curls": "Bayesian Curl",
+  "Bayesian Cable Curls": "Bayesian Curl",
+  "Incline DB Curl": "Incline Dumbbell Curl",
+  "Hammer Curl (alternating)": "Hammer Curl",
+  "Cable Triceps Pushdown": "Tricep Pushdown",
+  "Triceps Pushdown (Straight bar)": "Tricep Pushdown",
+  "Rope Pushdown": "Tricep Pushdown",
+  "Cable OH Tricep Extension": "Cable Overhead Tricep Extension",
+  "Overhead Barbell Extension": "Overhead Tricep Extension (barbell)",
+  "Good Morning (for hamstrings)": "Good Morning",
+  "Pendlay Row": "Barbell Pendlay Row",
+  "Weighted Pull-Up": "Weighted Pull-up",
+  "Standing Cable Crunch": "Cable Crunch",
+  "Reverse / Wrist Curl": "Reverse Wrist Curl",
+  "Barbell Romanian Deadlift": "Romanian Deadlift",
+  "Barbell Hip Thrust": "Hip Thrust",
+};
+
+function exerciseDbKey(name) {
+  return (name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function canonicalNameForExercise(name) {
+  if (!name) return name;
+  const direct = EXERCISE_ALIASES[name];
+  if (direct) return direct;
+  const key = exerciseDbKey(name);
+  const alias = Object.entries(EXERCISE_ALIASES).find(([from]) => exerciseDbKey(from) === key);
+  return alias ? alias[1] : name;
+}
+
+// Build indexed database with aliases folded into one clear canonical entry.
+const EXERCISE_DB_ALIAS_LABELS = {};
+const EXERCISE_DB = [];
+const EXERCISE_DB_SEEN = new Set();
+for (const [rawName, rawMuscle, rawMovement, rawEquipment, rawType] of EXERCISE_DB_RAW) {
+  const name = canonicalNameForExercise(rawName);
+  const key = exerciseDbKey(name);
+  if (rawName !== name) {
+    if (!EXERCISE_DB_ALIAS_LABELS[name]) EXERCISE_DB_ALIAS_LABELS[name] = [];
+    if (!EXERCISE_DB_ALIAS_LABELS[name].includes(rawName)) EXERCISE_DB_ALIAS_LABELS[name].push(rawName);
+  }
+  if (EXERCISE_DB_SEEN.has(key)) continue;
+  EXERCISE_DB_SEEN.add(key);
+  EXERCISE_DB.push({ name, muscle: rawMuscle, movement: rawMovement, equipment: rawEquipment, type: rawType, custom: false });
+}
 
 // Fuzzy name match — returns DB entry if similar enough (Levenshtein-inspired)
 function findDbMatch(name) {
   if (!name) return null;
-  const n = name.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  const canonical = canonicalNameForExercise(name);
+  const n = canonical.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
   let best = null, bestScore = 0;
   for (const ex of EXERCISE_DB) {
     const dn = ex.name.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();

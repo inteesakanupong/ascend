@@ -102,18 +102,24 @@ function leadTmPrescription(ex, wave, TM, lastStr = null) {
 function exerciseHistoryFor(day, exIdx, ex, opts = {}) {
   const daySessions = sortSessionsChronological(trainingSessionsForDay(day));
   const key = exerciseKeyFor(ex);
-  const exactSessions = daySessions.filter(s =>
-    s.sets?.[exIdx]?.s1r != null && sessionExerciseMatches(s, exIdx, ex)
-  );
+  const exactEntries = [];
+  daySessions.forEach(s => {
+    (s.sets || []).forEach((set, idx) => {
+      if (set?.s1r != null && sessionExerciseMatches(s, idx, ex)) exactEntries.push({ session: s, idx, set });
+    });
+  });
   const allowSlotFallback = opts.allowSlotFallback !== false;
-  const fallbackSessions = exactSessions.length || !allowSlotFallback
+  const fallbackEntries = exactEntries.length || !allowSlotFallback
     ? []
-    : daySessions.filter(s => s.sets?.[exIdx]?.s1r != null);
-  const sessions = exactSessions.length ? exactSessions : fallbackSessions;
+    : daySessions
+        .filter(s => s.sets?.[exIdx]?.s1r != null)
+        .map(s => ({ session: s, idx: exIdx, set: s.sets[exIdx] }));
+  const entries = exactEntries.length ? exactEntries : fallbackEntries;
   return {
     key,
-    sessions,
-    source: exactSessions.length ? "exerciseKey" : fallbackSessions.length ? "legacySlotFallback" : "none"
+    entries,
+    sessions: entries.map(e => e.session),
+    source: exactEntries.length ? "exerciseKeyAnySlot" : fallbackEntries.length ? "legacySlotFallback" : "none"
   };
 }
 
@@ -124,6 +130,7 @@ function progressionFor(day, exIdx) {
   const wave = juggernautWave(0, day);
 
   const history = exerciseHistoryFor(day, exIdx, ex, { allowSlotFallback: !isActiveExerciseSwapped(day, exIdx) });
+  const entries = history.entries || [];
   const sessions = history.sessions;
   const withIdentity = result => ({ ...result, exerciseKey: history.key, historySource: history.source });
 
@@ -147,7 +154,10 @@ function progressionFor(day, exIdx) {
              note: "First session — start moderate, leave 2-3 reps in reserve." });
   }
 
-  const last = sessions[sessions.length - 1].sets[exIdx];
+  const lastEntry = entries[entries.length - 1];
+  const last = lastEntry?.set;
+  const lastSession = lastEntry?.session || sessions[sessions.length - 1];
+  const lastIdx = lastEntry?.idx ?? exIdx;
   if (!last || last.s1r == null) {
     if (isLead) {
       // PHASE 1 FIX: Lead lift with missing set data must still use JTM, not accessory fallback.
@@ -176,15 +186,14 @@ function progressionFor(day, exIdx) {
     : `${fmtWeight(s1w)}kg × ${s1r} (set 2 incomplete)`;
   const workingWeight = s1w;
 
-  const lastSession = sessions[sessions.length - 1];
-  const lastRpeVals = [lastSession.rpe?.[exIdx]?.s1, lastSession.rpe?.[exIdx]?.s2].filter(v => v != null);
+  const lastRpeVals = [lastSession.rpe?.[lastIdx]?.s1, lastSession.rpe?.[lastIdx]?.s2].filter(v => v != null);
   const avgLastRpe = lastRpeVals.length ? lastRpeVals.reduce((a, b) => a + b, 0) / lastRpeVals.length : null;
   const readiness = calculateReadiness(todayISO());
   const profile = exerciseFatigueProfile(ex.name);
   const isIsolation = profile.pattern === "isolation" || profile.systemicFatigue <= 3;
   const poorReadiness = readiness.score != null && readiness.score <= 2.5;
-  const recentSameMisses = sessions.slice(-2).filter(s => {
-    const st = s.sets?.[exIdx];
+  const recentSameMisses = entries.slice(-2).filter(e => {
+    const st = e.set;
     return st && (st.s1r < ex.repMin || (st.s2r != null && st.s2r < ex.repMin));
   }).length;
   const shouldHoldLoad = poorReadiness || (avgLastRpe != null && avgLastRpe > (isIsolation ? 8 : 8.5));
@@ -247,7 +256,7 @@ function progressionFor(day, exIdx) {
   let confidence = 1.0;
 
   // Extra-set RPE penalty (Item 1: extra-set RPE affects next-session progression)
-  const lastExtraSets = (sessions[sessions.length - 1].extraSets?.[exIdx]?.sets || [])
+  const lastExtraSets = (lastSession.extraSets?.[lastIdx]?.sets || [])
     .filter(function(es) { return es.done && es.rpe != null; });
   const maxExtraRpe = lastExtraSets.length ? Math.max.apply(null, lastExtraSets.map(function(es) { return es.rpe; })) : null;
   if (maxExtraRpe != null && maxExtraRpe >= 9) {

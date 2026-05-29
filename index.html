@@ -3711,7 +3711,7 @@ function buildWeeklyDashboardHTML(scheduledDay) {
   // Muscle volume strip
   var muscles = ['chest','shoulders','back','biceps','triceps','quads','hamstrings','glutes'];
   var muscleHTML = muscles.map(function(m) {
-    var lm = (typeof VOLUME_LANDMARKS !== 'undefined' ? VOLUME_LANDMARKS[m] : null) || { mev: 4, mav: 12, mrv: 20 };
+    var lm = (typeof effectiveMrvLandmarksForMuscle === 'function' ? effectiveMrvLandmarksForMuscle(m) : (typeof VOLUME_LANDMARKS !== 'undefined' ? VOLUME_LANDMARKS[m] : null)) || { mev: 4, mav: 12, mrv: 20 };
     var sets = vol[m] || 0;
     var pct = Math.min(100, Math.round((sets / lm.mrv) * 100));
     var color = sets === 0 ? 'var(--line)' : sets >= lm.mrv ? 'var(--bad)' : sets >= lm.mav ? 'var(--good)' : sets >= lm.mev ? 'var(--accent)' : 'var(--warn)';
@@ -4121,8 +4121,8 @@ function buildLifterAnalysis() {
   const fatigue = computeFatigueSummary(7);
   const vol = weeklyVolumeByMuscle(7);
   const mrvEstimates = Object.fromEntries(Object.keys(VOLUME_LANDMARKS).map(m => [m, mrvEstimateForMuscle(m, strengthBalance, fatigue)]));
-  const nearMrv = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > lm.mav).map(([m]) => m);
-  const belowMev = Object.entries(VOLUME_LANDMARKS).filter(([m, lm]) => (vol[m] || 0) > 0 && (vol[m] || 0) < lm.mev).map(([m]) => m);
+  const nearMrv = Object.keys(VOLUME_LANDMARKS).filter(m => (vol[m] || 0) > effectiveMrvLandmarksForMuscle(m).mav);
+  const belowMev = Object.keys(VOLUME_LANDMARKS).filter(m => (vol[m] || 0) > 0 && (vol[m] || 0) < effectiveMrvLandmarksForMuscle(m).mev);
   const trend28 = trendRateKgPerWeek(28);
   // Frequency check — muscles trained but hit less than 2x/week (hypertrophy ideal)
   const cutoff7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
@@ -6414,13 +6414,88 @@ const MUSCLE_TO_DAY = {
 };
 
 function mrvBandForMuscle(muscle, sets) {
-  const lm = VOLUME_LANDMARKS[muscle];
+  const lm = effectiveMrvLandmarksForMuscle(muscle);
   if (!lm) return "unknown";
   if (sets > lm.mrv) return "over";
   if (sets > lm.mav) return "high";
   if (sets === 0) return "zero";
   if (sets < lm.mev) return "low";
   return "optimal";
+}
+
+function phaseMrvMultiplier() {
+  const wave = typeof juggernautWave === "function" ? juggernautWave(0, typeof LIFT_DAY !== "undefined" ? LIFT_DAY : null) : null;
+  const name = wave?.name || "";
+  if (name === "DELOAD") return 0.65;
+  if (name === "REALIZATION") return 0.9;
+  if (name === "INTENSIFICATION") return 0.95;
+  if (name === "ACCUMULATION") return 1.05;
+  return 1;
+}
+
+function recentMuscleEffortProfile(muscle, days = 7) {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0,10);
+  const rows = [];
+  for (const session of (STATE.sessions || []).filter(s => s.date >= cutoff)) {
+    (session.sets || []).forEach((set, idx) => {
+      const name = sessionExerciseName(session, idx);
+      const weights = name ? exerciseWeightedMuscles(name) : {};
+      const muscleWeight = weights[muscle] || 0;
+      if (!muscleWeight) return;
+      const raw = session.rpe?.[idx];
+      const rpe = typeof raw === "number" ? raw : raw ? (((raw.s1 || 0) + (raw.s2 || 0)) / ((raw.s1 ? 1 : 0) + (raw.s2 ? 1 : 0) || 1)) : null;
+      const sets = sessionSetCount(session, idx);
+      if (rpe != null && rpe > 0 && sets > 0) rows.push({ rpe, sets: sets * muscleWeight });
+    });
+  }
+  const totalSets = rows.reduce((sum, r) => sum + r.sets, 0);
+  const avgRpe = totalSets > 0 ? rows.reduce((sum, r) => sum + r.rpe * r.sets, 0) / totalSets : null;
+  return { avgRpe, weightedSetsWithRpe: roundVolume(totalSets) };
+}
+
+function recentRecoveryAverage(days = 7) {
+  const rows = [...(STATE.dailyLogs || [])]
+    .filter(d => d.recovery != null)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, days);
+  if (!rows.length) return null;
+  return rows.reduce((sum, d) => sum + d.recovery, 0) / rows.length;
+}
+
+function effectiveMrvLandmarksForMuscle(muscle) {
+  const base = VOLUME_LANDMARKS[muscle];
+  if (!base) return null;
+  const fatigue = typeof computeFatigueSummary === "function" ? computeFatigueSummary(7) : null;
+  const effort = recentMuscleEffortProfile(muscle, 7);
+  const avgRecovery = recentRecoveryAverage(7);
+  const cutPenalty = STATE.cut?.mode === "cut" ? 0.96 : 1;
+  let multiplier = phaseMrvMultiplier() * cutPenalty;
+
+  if (effort.avgRpe != null) {
+    if (effort.avgRpe >= 9) multiplier *= 0.85;
+    else if (effort.avgRpe >= 8.5) multiplier *= 0.9;
+    else if (effort.avgRpe <= 7 && phaseMrvMultiplier() >= 1) multiplier *= 1.04;
+  }
+  if (avgRecovery != null) {
+    if (avgRecovery <= 4.5) multiplier *= 0.9;
+    else if (avgRecovery >= 7.5 && effort.avgRpe != null && effort.avgRpe <= 7.5) multiplier *= 1.03;
+  }
+  if ((fatigue?.local?.[muscle] || 0) > 35 || (fatigue?.recoveryCost || 0) > 120) multiplier *= 0.92;
+
+  multiplier = clamp(multiplier, 0.6, 1.12);
+  const mrv = Math.max(base.mev, Math.min(base.mrv + 3, Math.round(base.mrv * multiplier * 10) / 10));
+  const mav = Math.max(base.mev, Math.min(mrv - 1, Math.round(base.mav * multiplier * 10) / 10));
+  return {
+    ...base,
+    baseMav: base.mav,
+    baseMrv: base.mrv,
+    mav,
+    mrv,
+    phaseMultiplier: phaseMrvMultiplier(),
+    effortRpe: effort.avgRpe == null ? null : Math.round(effort.avgRpe * 10) / 10,
+    recoveryAverage: avgRecovery == null ? null : Math.round(avgRecovery * 10) / 10,
+    adjusted: mav !== base.mav || mrv !== base.mrv,
+  };
 }
 
 function dayAllowsMuscle(day, muscle) {
@@ -6440,7 +6515,7 @@ function exercisePrimaryMuscle(exOrName) {
 }
 
 function programExerciseNames(day) {
-  return new Set((STATE.exercises[day] || []).map(ex => (ex.name || "").toLowerCase()));
+  return new Set((STATE.exercises[day] || []).map(ex => exerciseKeyFor(ex)));
 }
 
 // ── Swap Decision Engine ────────────────────────────────────────────────────
@@ -6474,7 +6549,7 @@ function findSwapReplacementExercise(day, targetMuscle) {
     .map(e => ({ name: e.name, note: `${e.equipment} ${e.movement}`, muscle: e.muscle, source: "db" }));
 
   return [...curated, ...dbPool]
-    .filter(candidate => candidate.name && !existing.has(candidate.name.toLowerCase()))
+    .filter(candidate => candidate.name && !existing.has(exerciseKeyFor(candidate.name)))
     .filter(candidate => dayAllowsMuscle(day, exercisePrimaryMuscle(candidate.name) || targetMuscle))
     .map(candidate => {
       const profile = exerciseFatigueProfile(candidate.name);
@@ -6487,7 +6562,8 @@ function findSwapReplacementExercise(day, targetMuscle) {
 }
 
 function generateMrvSwapRecommendations(vol = weeklyVolumeByMuscle(7)) {
-  const states = Object.entries(VOLUME_LANDMARKS).map(([muscle, lm]) => {
+  const states = Object.keys(VOLUME_LANDMARKS).map((muscle) => {
+    const lm = effectiveMrvLandmarksForMuscle(muscle);
     const sets = vol[muscle] || 0;
     const band = mrvBandForMuscle(muscle, sets);
     const deficit = Math.max(0, lm.mev - sets);
@@ -6523,6 +6599,7 @@ function generateMrvSwapRecommendations(vol = weeklyVolumeByMuscle(7)) {
       if (!donorMusclesForDay.length) continue;
       source = findSwapSourceExercise(day, donorMusclesForDay);
       replacement = findSwapReplacementExercise(day, target.muscle);
+      if (source && replacement && exerciseKeyFor(source.ex) === exerciseKeyFor(replacement.name)) replacement = null;
       if (source && replacement) break;
     }
     if (!source || !replacement) continue;
@@ -6572,7 +6649,8 @@ function generateMrvRecommendations() {
   const swapRecs = generateMrvSwapRecommendations(vol);
   const swapMuscles = new Set(swapRecs.map(r => r.muscle));
 
-  for (const [muscle, lm] of Object.entries(VOLUME_LANDMARKS)) {
+  for (const muscle of Object.keys(VOLUME_LANDMARKS)) {
+    const lm = effectiveMrvLandmarksForMuscle(muscle);
     const sets = vol[muscle] || 0;
     const day  = MUSCLE_TO_DAY[muscle];
     const suggestions = MRV_EXERCISE_SUGGESTIONS[muscle] || [];
@@ -6840,7 +6918,7 @@ function renderMrvStatusSummary(adaptive) {
   const order = ["over", "high", "low", "zero", "optimal"];
   const rows = Object.keys(VOLUME_LANDMARKS)
     .map(muscle => {
-      const lm = VOLUME_LANDMARKS[muscle];
+      const lm = effectiveMrvLandmarksForMuscle(muscle);
       const sets = memory[muscle]?.sets ?? 0;
       const band = memory[muscle]?.band || mrvBandForMuscle(muscle, sets);
       return { muscle, sets, lm, band };
@@ -6885,7 +6963,8 @@ function renderMrvDecisionDetail(rec) {
     <details style="margin-top:8px;">
       <summary style="cursor:pointer;font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--ink-dim);">WHY THIS ACTION</summary>
       <div style="margin-top:6px;padding:8px 10px;border-left:2px solid ${mrvStatusColor(rec.severity)};background:var(--bg-elev-2);border-radius:7px;font-size:11px;color:var(--ink-mid);line-height:1.5;">
-        ${escapeHtml(rec.muscle)} is currently ${status.toLowerCase()} at ${rec.sets} weighted sets. Target range is ${rec.lm.mev}-${rec.lm.mav}; MRV is ${rec.lm.mrv}.
+        ${escapeHtml(rec.muscle)} is currently ${status.toLowerCase()} at ${rec.sets} weighted sets. Target range is ${rec.lm.mev}-${rec.lm.mav}; effective MRV is ${rec.lm.mrv}${rec.lm.adjusted ? ` (base ${rec.lm.baseMrv})` : ""}.
+        ${rec.lm.effortRpe != null ? `<div style="margin-top:4px;">Recent muscle RPE: ${rec.lm.effortRpe}/10. Recovery avg: ${rec.lm.recoveryAverage ?? "n/a"}/10.</div>` : ""}
       </div>
     </details>
   `;
@@ -7074,12 +7153,16 @@ function updateAdaptiveStateSnapshot(reason = "snapshot") {
   const vol = weeklyVolumeByMuscle(7);
   const fatigue = computeFatigueSummary(7);
   mem.fatigue = { updated: todayISO(), days: 7, ...fatigue };
-  for (const [muscle, lm] of Object.entries(VOLUME_LANDMARKS)) {
+  for (const muscle of Object.keys(VOLUME_LANDMARKS)) {
+    const lm = effectiveMrvLandmarksForMuscle(muscle);
     const sets = vol[muscle] || 0;
     mem.muscleMemory[muscle] = {
       sets,
       band: mrvBandForMuscle(muscle, sets),
       localFatigue: fatigue.local[muscle] || 0,
+      effectiveMav: lm.mav,
+      effectiveMrv: lm.mrv,
+      effortRpe: lm.effortRpe,
       recommendation: sets > lm.mrv ? "reduce" : sets < lm.mev ? "increase" : sets > lm.mav ? "hold" : "maintain",
     };
   }

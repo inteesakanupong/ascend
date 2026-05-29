@@ -1,0 +1,6502 @@
+{
+  "v": 2,
+  "profile": {
+    "name": "Intee",
+    "sex": "male",
+    "age": 27,
+    "height": 178,
+    "activityLevel": "moderate",
+    "stepGoal": 10000,
+    "bodyweight": 85.4,
+    "programStart": "2026-05-16",
+    "progressionStep": 2.5,
+    "deloadFactor": 0.925,
+    "bodyFatPct": 22.9,
+    "trainingProgramStartedAt": "2026-05-16",
+    "dietProgramStartedAt": "2026-05-16",
+    "trainingProgramSessionBaseline": {
+      "PUSH": 0,
+      "PULL": 0,
+      "ARMS": 0,
+      "LEGS": 0
+    },
+    "trainingGoal": "hypertrophy",
+    "experienceLevel": "intermediate",
+    "knowledgeLevel": "high",
+    "trainingDays": 6,
+    "lifestyleStress": "moderate",
+    "sleepHours": 7,
+    "sportsActivity": "moderate",
+    "recommendedSplit": "HIGH-FREQUENCY PPAL",
+    "programTemplate": "balanced_hypertrophy",
+    "wm_PUSH_0": 105,
+    "wm_LEGS_0": 162.5,
+    "wm_PULL_0": 87.5,
+    "wm_ARMS_0": 45
+  },
+  "cut": {
+    "mode": "cut",
+    "p1Target": 75,
+    "p1Weeks": 8,
+    "dbWeeks": 1.5,
+    "p2Target": 73,
+    "p2Weeks": 4,
+    "p1Kcal": 2350,
+    "dbKcal": 2800,
+    "p2Kcal": 1950,
+    "proteinFloor": 170,
+    "fastThreshold": 1.2,
+    "slowThreshold": 0.7
+  },
+  "athleteProfile": {
+    "bodyweightKg": 84.45,
+    "bodyFatPercent": 22.9,
+    "leanMassKg": 65.1,
+    "goal": "cut",
+    "programMode": "hypertrophy",
+    "trainingExperience": "intermediate",
+    "recoveryProfile": "unknown",
+    "benchmarkLifts": {
+      "benchPress": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      },
+      "squat": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      },
+      "bentOverRow": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      },
+      "deadlift": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      },
+      "overheadPress": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      },
+      "rdl": {
+        "weightKg": null,
+        "reps": null,
+        "estimatedOneRm": null
+      }
+    }
+  },
+  "dietProfile": {
+    "calorieTarget": 2350,
+    "proteinTarget": 170,
+    "carbTarget": 217,
+    "fatTarget": 57,
+    "weeklyWeightChangeTarget": -1,
+    "source": "setup"
+  },
+  "healthSignals": {
+    "source": "manual",
+    "date": "2026-05-17",
+    "sleepHours": null,
+    "sleepScore": null,
+    "restingHR": null,
+    "steps": null,
+    "activeCalories": null,
+    "bodyweightKg": null,
+    "bodyFatPercent": null,
+    "leanMassKg": null
+  },
+  "lifterAnalysis": {
+    "strengthBalance": {
+      "pressing": "intermediate",
+      "squatting": "advanced",
+      "hinge": "novice-intermediate",
+      "pulling": "intermediate",
+      "verticalPress": "intermediate",
+      "hingeAccessory": "novice-intermediate"
+    },
+    "bodyTrend": {
+      "currentWeight": 84.45,
+      "avg7": 84.84166666666665,
+      "trend28": -0.9673611111111183,
+      "bfTrend": null,
+      "leanMassKg": 65.1,
+      "fatMassKg": 19.3
+    },
+    "dietOutcome": {
+      "kcalAvg": 2126,
+      "proteinAvg": 173,
+      "adherence": 90,
+      "targetKcal": 2350,
+      "targetProtein": 170,
+      "recommendation": "Consolidate spinal load: remove one of (Hatfield Squat, Hack Squat, Bulgarian Split Squat (DB ea.)) to reduce cumulative lower back fatigue."
+    },
+    "fatigueRisks": [
+      "Chest, Shoulders, Triceps, Glutes near or above recoverable volume.",
+      "Spinal load overlap: Hatfield Squat, Hack Squat, Bulgarian Split Squat (DB ea.). Running 3+ heavy hinge/spinal exercises creates redundant fatigue — consider removing one.",
+      "Horizontal push redundancy: Smith Incline Bench Press, Machine Chest Press (Flat), Incline DB Fly / Cable Fly, Incline Cable Fly, Cable Low Fly. More than 2 pressing variations adds joint stress without proportional stimulus.",
+      "Horizontal pull redundancy: Chest Supported Row, Seated Cable Row (wide), Face Pull (cable). Consider consolidating to 2 row variations."
+    ],
+    "progressionDrivers": [
+      "Hack Squat",
+      "Seated Calf Raise",
+      "Cable Crunch"
+    ],
+    "recommendations": [
+      "Consolidate spinal load: remove one of (Hatfield Squat, Hack Squat, Bulgarian Split Squat (DB ea.)) to reduce cumulative lower back fatigue.",
+      "Keep targets stable — cut rate and performance both look appropriate.",
+      "Hold or reduce added sets for chest this week.",
+      "calves is below MEV; add work only if recovery is acceptable."
+    ],
+    "wavePosition": {
+      "name": "REALIZATION",
+      "week": 3,
+      "rpeTarget": [
+        8,
+        9
+      ],
+      "volumeMultiplier": 0.6,
+      "deload": false,
+      "intensityNote": "AMRAP week — test your true capacity on lead exercise. Cap at 20 reps.",
+      "hypertrophyNote": "Near-MRV week. Volume is at its highest — push hard, but stay technically clean. AMRAP on lead lift to gauge strength progress. The deload is coming — earn it this week.",
+      "waveWeek": 3,
+      "weekNum": 3,
+      "cycleNum": 1
+    },
+    "mrvEstimates": {
+      "chest": 17.5,
+      "back": 21.5,
+      "shoulders": 17.5,
+      "biceps": 15.5,
+      "triceps": 13.5,
+      "quads": 16,
+      "hamstrings": 13,
+      "glutes": 12,
+      "calves": 16,
+      "forearms": 10,
+      "abs": 15
+    },
+    "trainingResponse": {
+      "best": [
+        {
+          "name": "Hack Squat",
+          "day": "LEGS",
+          "delta": 580,
+          "stalled": false,
+          "fatigue": 6.9
+        },
+        {
+          "name": "Seated Calf Raise",
+          "day": "LEGS",
+          "delta": 375,
+          "stalled": false,
+          "fatigue": 2.5
+        },
+        {
+          "name": "Cable Crunch",
+          "day": "PUSH",
+          "delta": 207,
+          "stalled": false,
+          "fatigue": 2.5
+        }
+      ],
+      "stalled": [
+        {
+          "name": "Ab Rollout",
+          "day": "PUSH",
+          "delta": 0,
+          "stalled": true,
+          "fatigue": 6.1
+        },
+        {
+          "name": "Cable Low Fly",
+          "day": "PUSH",
+          "delta": -96,
+          "stalled": true,
+          "fatigue": 2.7
+        },
+        {
+          "name": "Cable Lateral Raise (1-arm)",
+          "day": "PUSH",
+          "delta": -124,
+          "stalled": true,
+          "fatigue": 2.5
+        }
+      ],
+      "highFatigue": [
+        {
+          "name": "Hatfield Squat",
+          "day": "LEGS",
+          "delta": -25,
+          "stalled": false,
+          "fatigue": 7.4
+        },
+        {
+          "name": "Bulgarian Split Squat (DB ea.)",
+          "day": "LEGS",
+          "delta": -40,
+          "stalled": false,
+          "fatigue": 7.4
+        }
+      ],
+      "nearMrv": [
+        "chest",
+        "shoulders",
+        "triceps",
+        "glutes"
+      ],
+      "belowMev": [
+        "calves"
+      ]
+    },
+    "coachingVerdict": "Cutting with 0.97 kg/week loss. Chest, Shoulders, Triceps, Glutes near or above recoverable volume. Consolidate spinal load: remove one of (Hatfield Squat, Hack Squat, Bulgarian Split Squat (DB ea.)) to reduce cumulative lower back fatigue.",
+    "exerciseRotationSuggestions": []
+  },
+  "exercises": {
+    "PUSH": [
+      {
+        "name": "Smith Incline Bench Press",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 60,
+        "leadLift": true,
+        "exerciseKey": "smith_incline_bench_press"
+      },
+      {
+        "name": "Machine Chest Press (Flat)",
+        "repMin": 8,
+        "repMax": 15,
+        "start": 55,
+        "exerciseKey": "machine_chest_press_flat",
+        "equipment": "machine"
+      },
+      {
+        "name": "Dumbbell Lateral Raise",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 10,
+        "exerciseKey": "dumbbell_lateral_raise"
+      },
+      {
+        "name": "Cable Lateral Raise",
+        "repMin": 12,
+        "repMax": 20,
+        "start": 7.5,
+        "exerciseKey": "cable_lateral_raise"
+      },
+      {
+        "name": "Incline Cable Fly",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 25,
+        "exerciseKey": "cable_overhead_tricep_extension",
+        "equipment": "dumbbell"
+      },
+      {
+        "name": "Cable Low Fly",
+        "repMin": 8,
+        "repMax": 25,
+        "start": 27.5,
+        "exerciseKey": "cable_low_fly",
+        "equipment": "cable"
+      },
+      {
+        "name": "Cable Crunch",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 50,
+        "equipment": "cable",
+        "exerciseKey": "cable_crunch"
+      },
+      {
+        "name": "Ab Rollout",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 25,
+        "equipment": "bodyweight",
+        "exerciseKey": "ab_rollout"
+      }
+    ],
+    "PULL": [
+      {
+        "name": "Chest Supported Row",
+        "repMin": 6,
+        "repMax": 8,
+        "start": 60,
+        "leadLift": true,
+        "exerciseKey": "chest_supported_row",
+        "equipment": "smith",
+        "barType": "smith"
+      },
+      {
+        "name": "Lat Pulldown",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 60,
+        "exerciseKey": "lat_pulldown",
+        "equipment": "cable"
+      },
+      {
+        "name": "Seated Cable Row (wide)",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 55,
+        "exerciseKey": "seated_cable_row_wide"
+      },
+      {
+        "name": "Cable Shrug",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 30,
+        "equipment": "cable",
+        "exerciseKey": "cable_shrug"
+      },
+      {
+        "name": "Face Pull",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 20,
+        "exerciseKey": "face_pull"
+      },
+      {
+        "name": "Straight Arm Pulldown",
+        "repMin": 12,
+        "repMax": 20,
+        "start": 25,
+        "exerciseKey": "straight_arm_pulldown",
+        "equipment": "cable"
+      },
+      {
+        "name": "Dumbbell Rear Delt Fly",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 35,
+        "equipment": "dumbbell",
+        "exerciseKey": "dumbbell_rear_delt_fly"
+      },
+      {
+        "name": "Cable Curl",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 12,
+        "equipment": "cable",
+        "exerciseKey": "cable_curl"
+      }
+    ],
+    "ARMS": [
+      {
+        "name": "EZ Bar Curl (strict)",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 42.5,
+        "leadLift": true,
+        "exerciseKey": "ez_bar_curl_strict",
+        "barType": "ezbar",
+        "equipment": "barbell"
+      },
+      {
+        "name": "Cable Skull Crusher",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 60,
+        "equipment": "cable",
+        "exerciseKey": "cable_skull_crusher"
+      },
+      {
+        "name": "Incline Cable Curls",
+        "repMin": 12,
+        "repMax": 18,
+        "start": 12,
+        "exerciseKey": "incline_cable_curls"
+      },
+      {
+        "name": "Cable Overhead Tricep Extension",
+        "repMin": 12,
+        "repMax": 18,
+        "start": 20,
+        "equipment": "cable",
+        "exerciseKey": "cable_overhead_tricep_extension"
+      },
+      {
+        "name": "Hammer Curl",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 14,
+        "equipment": "db",
+        "exerciseKey": "hammer_curl"
+      },
+      {
+        "name": "Tricep Pushdown",
+        "repMin": 12,
+        "repMax": 20,
+        "start": 0,
+        "equipment": "cable",
+        "exerciseKey": "tricep_pushdown"
+      },
+      {
+        "name": "Bayesian Curl",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 25,
+        "exerciseKey": "bayesian_curl"
+      },
+      {
+        "name": "Wrist Curl",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 15,
+        "equipment": "cable",
+        "exerciseKey": "wrist_curl"
+      }
+    ],
+    "LEGS": [
+      {
+        "name": "Hatfield Squat",
+        "repMin": 5,
+        "repMax": 8,
+        "start": 97.5,
+        "leadLift": true,
+        "equipment": "barbell",
+        "barType": "ssb",
+        "exerciseKey": "hatfield_squat"
+      },
+      {
+        "name": "Seated Calf Raise",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 70,
+        "equipment": "machine",
+        "barType": "smith",
+        "exerciseKey": "romanian_deadlift"
+      },
+      {
+        "name": "Hack Squat",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 180,
+        "equipment": "machine",
+        "exerciseKey": "hack_squat"
+      },
+      {
+        "name": "Leg Curl",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 50,
+        "exerciseKey": "leg_curl"
+      },
+      {
+        "name": "Bulgarian Split Squat (DB ea.)",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 16,
+        "exerciseKey": "bulgarian_split_squat_db_ea"
+      },
+      {
+        "name": "Leg Extension",
+        "repMin": 15,
+        "repMax": 25,
+        "start": 55,
+        "exerciseKey": "leg_extension"
+      },
+      {
+        "name": "Hip Thrust (Smith)",
+        "repMin": 8,
+        "repMax": 12,
+        "start": 80,
+        "exerciseKey": "hip_thrust_smith"
+      },
+      {
+        "name": "Standing Calf Raise",
+        "repMin": 10,
+        "repMax": 20,
+        "start": 100,
+        "equipment": "smith",
+        "barType": "smith",
+        "exerciseKey": "standing_calf_raise"
+      },
+      {
+        "name": "Cable Crunch",
+        "repMin": 10,
+        "repMax": 15,
+        "start": 25,
+        "equipment": "cable",
+        "exerciseKey": "cable_crunch"
+      }
+    ]
+  },
+  "onboarded": true,
+  "customExercises": [
+    {
+      "name": "Cable Skull Crusher",
+      "muscle": "triceps",
+      "movement": "arms",
+      "equipment": "cable",
+      "type": "compound",
+      "custom": true
+    },
+    {
+      "name": "Incline Cable Curls",
+      "muscle": "biceps",
+      "movement": "arms",
+      "equipment": "cable",
+      "type": "compound",
+      "custom": true
+    }
+  ],
+  "sessions": [
+    {
+      "durationSec": 3133,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Smith Incline Bench Press",
+        "Smith Seated OHP",
+        "Dumbbell Lateral Raise",
+        "Cable Lateral Raise",
+        "Incline Cable Fly",
+        "Cable Overhead Tricep Extension",
+        "Tricep Pushdown (rope)",
+        "Cable Crunch",
+        "Ab Rollout"
+      ],
+      "exerciseKeys": [
+        "smith_incline_bench_press",
+        "smith_seated_ohp",
+        "dumbbell_lateral_raise",
+        "cable_lateral_raise",
+        "incline_cable_fly",
+        "cable_overhead_tricep_extension",
+        "tricep_pushdown_rope",
+        "cable_crunch",
+        "ab_rollout"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        "rest_pause",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1778894225522",
+      "day": "PUSH",
+      "date": "2026-05-16",
+      "sets": [
+        {
+          "s1w": 60,
+          "s1r": 10,
+          "s2w": 60,
+          "s2r": 10
+        },
+        {
+          "s1w": 55,
+          "s1r": 8,
+          "s2w": 55,
+          "s2r": 8
+        },
+        {
+          "s1w": 50,
+          "s1r": 12,
+          "s2w": 50,
+          "s2r": 8
+        },
+        {
+          "s1w": 10,
+          "s1r": 25,
+          "s2w": 10,
+          "s2r": 23
+        },
+        {
+          "s1w": 7.5,
+          "s1r": 15,
+          "s2w": 7.5,
+          "s2r": 16
+        },
+        {
+          "s1w": 14,
+          "s1r": 18,
+          "s2w": 14,
+          "s2r": 18
+        },
+        {
+          "s1w": 24,
+          "s1r": 15,
+          "s2w": 24,
+          "s2r": 12
+        },
+        {
+          "s1w": 24,
+          "s1r": 12,
+          "s2w": 12,
+          "s2r": 15
+        },
+        {
+          "s1w": 0,
+          "s1r": 15,
+          "s2w": 0,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 9,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": [
+            {
+              "weight": 60,
+              "reps": 10,
+              "rpe": 7,
+              "done": true
+            }
+          ]
+        },
+        {
+          "sets": [
+            {
+              "weight": 55,
+              "reps": 8,
+              "rpe": 9,
+              "done": true,
+              "source": "mrv",
+              "muscle": "shoulders"
+            }
+          ]
+        },
+        {
+          "sets": [
+            {
+              "weight": 50,
+              "reps": 8,
+              "rpe": 8,
+              "done": true,
+              "source": "mrv",
+              "muscle": "chest"
+            }
+          ]
+        },
+        {
+          "sets": [
+            {
+              "weight": 10,
+              "reps": 50,
+              "rpe": 10,
+              "done": true,
+              "technique": "rest_pause",
+              "source": "intensity"
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 24,
+              "reps": 13,
+              "rpe": 8,
+              "done": true,
+              "source": "mrv",
+              "muscle": "triceps"
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 0,
+              "reps": 15,
+              "rpe": 7,
+              "done": true,
+              "source": "mrv",
+              "muscle": "abs"
+            }
+          ]
+        }
+      ],
+      "energyRating": null
+    },
+    {
+      "durationSec": 2595,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Chest Supported Row",
+        "Lat Pulldown",
+        "Seated Cable Row (wide)",
+        "Single Arm Lat Pulldown",
+        "Face Pull",
+        "Straight Arm Pulldown",
+        "Dumbbell Rear Delt Fly",
+        "Cable Curl"
+      ],
+      "exerciseKeys": [
+        "chest_supported_row",
+        "lat_pulldown",
+        "seated_cable_row_wide",
+        "single_arm_lat_pulldown",
+        "face_pull",
+        "straight_arm_pulldown",
+        "dumbbell_rear_delt_fly",
+        "cable_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779054370594",
+      "day": "PULL",
+      "date": "2026-05-18",
+      "sets": [
+        {
+          "s1w": 60,
+          "s1r": 10,
+          "s2w": 60,
+          "s2r": 10
+        },
+        {
+          "s1w": 60,
+          "s1r": 12,
+          "s2w": 60,
+          "s2r": 12
+        },
+        {
+          "s1w": 54,
+          "s1r": 12,
+          "s2w": 54,
+          "s2r": 12
+        },
+        {
+          "s1w": 27,
+          "s1r": 15,
+          "s2w": 27,
+          "s2r": 15
+        },
+        {
+          "s1w": 18,
+          "s1r": 25,
+          "s2w": 18,
+          "s2r": 25
+        },
+        {
+          "s1w": 24,
+          "s1r": 20,
+          "s2w": 24,
+          "s2r": 15
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 25,
+          "s2w": 12.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 12,
+          "s1r": 15,
+          "s2w": 12,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779051427184",
+        "date": "2026-05-18",
+        "day": "PULL",
+        "mainLift": "pull",
+        "dayFocus": "PULL",
+        "leadExercise": "Chest Supported Row",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5Ã¢â‚¬â€œ7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "pull_1_sa_pd",
+            "name": "Straight-Arm Pulldown",
+            "prescription": "12-15 reps",
+            "purpose": "Lat activation before rows and pulldowns.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "back"
+            ],
+            "baseId": "sa_pd",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "scap_row",
+                "name": "Scapular Row / Shrug",
+                "prescription": "10-15 reps",
+                "purpose": "Mid and lower trap activation before pulling.",
+                "equipment": [
+                  "cable",
+                  "machine",
+                  "band"
+                ],
+                "muscles": [
+                  "back",
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "pull_2_face_pull",
+            "name": "Face Pull",
+            "prescription": "15-20 reps",
+            "purpose": "Rear delt and external rotator warm-up.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "face_pull",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "pull_1_sa_pd",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "pull_2_face_pull",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 30kg Ãƒâ€” 5, 45kg Ãƒâ€” 3, then 60kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "same",
+          "jointResponse": "same",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3486,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "EZ Bar Curl (strict)",
+        "EZ Bar Skull Crusher",
+        "Incline Dumbbell Curl",
+        "Overhead DB Tricep Extension",
+        "Hammer Curl",
+        "Tricep Pushdown",
+        "Bayesian Curl",
+        "Wrist Curl"
+      ],
+      "exerciseKeys": [
+        "ez_bar_curl_strict",
+        "ez_bar_skull_crusher",
+        "incline_dumbbell_curl",
+        "overhead_db_tricep_extension",
+        "hammer_curl",
+        "tricep_pushdown",
+        "bayesian_curl",
+        "wrist_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779143189001",
+      "day": "ARMS",
+      "date": "2026-05-19",
+      "sets": [
+        {
+          "s1w": 40,
+          "s1r": 12,
+          "s2w": 40,
+          "s2r": 10
+        },
+        {
+          "s1w": 40,
+          "s1r": 10,
+          "s2w": 40,
+          "s2r": 7
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 15,
+          "s2w": 12.5,
+          "s2r": 12
+        },
+        {
+          "s1w": 20,
+          "s1r": 8,
+          "s2w": 15,
+          "s2r": 18
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 15,
+          "s2w": 12.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 30,
+          "s1r": 20,
+          "s2w": 30,
+          "s2r": 12
+        },
+        {
+          "s1w": 24,
+          "s1r": 16,
+          "s2w": 24,
+          "s2r": 15
+        },
+        {
+          "s1w": 15,
+          "s1r": 20,
+          "s2w": 15,
+          "s2r": 21
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 10,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779139299678",
+        "date": "2026-05-19",
+        "day": "ARMS",
+        "mainLift": "arms",
+        "dayFocus": "ARMS",
+        "leadExercise": "EZ Bar Curl (strict)",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5Ã¢â‚¬â€œ7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "arms_1_tri_press",
+            "name": "Triceps Pressdown",
+            "prescription": "15-20 reps",
+            "purpose": "Elbow-friendly triceps blood flow before pressing.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "triceps"
+            ],
+            "baseId": "tri_press",
+            "swapPool": [],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "arms_2_cable_curl",
+            "name": "Cable Curl",
+            "prescription": "12-15 reps",
+            "purpose": "Elbow flexor warm-up before curls.",
+            "equipment": [
+              "cable"
+            ],
+            "muscles": [
+              "biceps"
+            ],
+            "baseId": "cable_curl",
+            "swapPool": [
+              {
+                "id": "db_curl",
+                "name": "DB Curl",
+                "prescription": "12-15 reps",
+                "purpose": "Elbow flexor and bicep warm-up.",
+                "equipment": [
+                  "dumbbell"
+                ],
+                "muscles": [
+                  "biceps"
+                ]
+              },
+              {
+                "id": "rev_curl",
+                "name": "Reverse Curl",
+                "prescription": "12-15 reps",
+                "purpose": "Forearm and brachialis warm-up before heavy curls.",
+                "equipment": [
+                  "barbell",
+                  "dumbbell",
+                  "cable"
+                ],
+                "muscles": [
+                  "forearms",
+                  "biceps"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "arms_1_tri_press",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "arms_2_cable_curl",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 22.5kg Ãƒâ€” 5, 32.5kg Ãƒâ€” 3, then 42.5kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 4703,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Hatfield Squat",
+        "Romanian Deadlift",
+        "Hack Squat",
+        "Leg Curl",
+        "Bulgarian Split Squat (DB ea.)",
+        "Leg Extension",
+        "Hip Thrust (Smith)",
+        "Standing Calf Raise"
+      ],
+      "exerciseKeys": [
+        "hatfield_squat",
+        "romanian_deadlift",
+        "hack_squat",
+        "leg_curl",
+        "bulgarian_split_squat_db_ea",
+        "leg_extension",
+        "hip_thrust_smith",
+        "standing_calf_raise"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779231419017",
+      "day": "LEGS",
+      "date": "2026-05-20",
+      "sets": [
+        {
+          "s1w": 92.5,
+          "s1r": 10,
+          "s2w": 92.5,
+          "s2r": 10
+        },
+        {
+          "s1w": 67.5,
+          "s1r": 10,
+          "s2w": 67.5,
+          "s2r": 10
+        },
+        {
+          "s1w": 170,
+          "s1r": 6,
+          "s2w": 165,
+          "s2r": 10
+        },
+        {
+          "s1w": 47.5,
+          "s1r": 12,
+          "s2w": 47.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 15,
+          "s1r": 12,
+          "s2w": 15,
+          "s2r": 12
+        },
+        {
+          "s1w": 52.5,
+          "s1r": 25,
+          "s2w": 52.5,
+          "s2r": 25
+        },
+        {
+          "s1w": 75,
+          "s1r": 12,
+          "s2w": 75,
+          "s2r": 12
+        },
+        {
+          "s1w": 95,
+          "s1r": 12,
+          "s2w": 95,
+          "s2r": 20
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 9,
+          "s2": 9
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 8,
+          "s2": 10
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779226331296",
+        "date": "2026-05-20",
+        "day": "LEGS",
+        "mainLift": "squat",
+        "dayFocus": "LEGS",
+        "leadExercise": "Hatfield Squat",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5Ã¢â‚¬â€œ7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "legs_1_rev_hyper",
+            "name": "Back Extension / Rev Hyper",
+            "prescription": "15-20 reps",
+            "purpose": "Low back and glute pump, decompresses spine.",
+            "equipment": [
+              "machine",
+              "bodyweight"
+            ],
+            "muscles": [
+              "glutes",
+              "hamstrings"
+            ],
+            "baseId": "rev_hyper",
+            "swapPool": [
+              {
+                "id": "ham_curl",
+                "name": "Hamstring Curl",
+                "prescription": "15-20 reps",
+                "purpose": "Posterior-chain activation before squats and hinges.",
+                "equipment": [
+                  "machine",
+                  "cable"
+                ],
+                "muscles": [
+                  "hamstrings"
+                ]
+              },
+              {
+                "id": "rdl_light",
+                "name": "Light RDL",
+                "prescription": "12-15 reps",
+                "purpose": "Hip hinge pattern and hamstring warm-up.",
+                "equipment": [
+                  "barbell",
+                  "dumbbell"
+                ],
+                "muscles": [
+                  "hamstrings",
+                  "glutes"
+                ]
+              },
+              {
+                "id": "bw_squat",
+                "name": "Bodyweight Squat",
+                "prescription": "15-20 reps",
+                "purpose": "Hip and knee movement prep without loading.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "quads",
+                  "glutes"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "legs_2_glute_br",
+            "name": "Glute Bridge / Hip Thrust",
+            "prescription": "15-20 reps",
+            "purpose": "Glute activation before any lower-body session.",
+            "equipment": [
+              "bodyweight",
+              "barbell"
+            ],
+            "muscles": [
+              "glutes"
+            ],
+            "baseId": "glute_br",
+            "swapPool": [
+              {
+                "id": "rdl_light",
+                "name": "Light RDL",
+                "prescription": "12-15 reps",
+                "purpose": "Hip hinge pattern and hamstring warm-up.",
+                "equipment": [
+                  "barbell",
+                  "dumbbell"
+                ],
+                "muscles": [
+                  "hamstrings",
+                  "glutes"
+                ]
+              },
+              {
+                "id": "rev_hyper",
+                "name": "Back Extension / Rev Hyper",
+                "prescription": "15-20 reps",
+                "purpose": "Low back and glute pump, decompresses spine.",
+                "equipment": [
+                  "machine",
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "glutes",
+                  "hamstrings"
+                ]
+              },
+              {
+                "id": "bw_squat",
+                "name": "Bodyweight Squat",
+                "prescription": "15-20 reps",
+                "purpose": "Hip and knee movement prep without loading.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "quads",
+                  "glutes"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "legs_2_glute_br",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "legs_1_rev_hyper",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 50kg Ãƒâ€” 5, 72.5kg Ãƒâ€” 3, then 97.5kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 4132,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Smith Incline Bench Press",
+        "Smith Seated OHP",
+        "Dumbbell Lateral Raise",
+        "Cable Lateral Raise",
+        "Incline Cable Fly",
+        "Cable Overhead Tricep Extension",
+        "Tricep Pushdown (rope)",
+        "Cable Crunch",
+        "Ab Rollout"
+      ],
+      "exerciseKeys": [
+        "smith_incline_bench_press",
+        "smith_seated_ohp",
+        "dumbbell_lateral_raise",
+        "cable_lateral_raise",
+        "incline_cable_fly",
+        "cable_overhead_tricep_extension",
+        "tricep_pushdown_rope",
+        "cable_crunch",
+        "ab_rollout"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779314583895",
+      "day": "PUSH",
+      "date": "2026-05-21",
+      "sets": [
+        {
+          "s1w": 70,
+          "s1r": 8,
+          "s2w": 70,
+          "s2r": 8
+        },
+        {
+          "s1w": 55,
+          "s1r": 8,
+          "s2w": 57.5,
+          "s2r": 8
+        },
+        {
+          "s1w": 36,
+          "s1r": 15,
+          "s2w": 36,
+          "s2r": 15
+        },
+        {
+          "s1w": 10,
+          "s1r": 24,
+          "s2w": 10,
+          "s2r": 25
+        },
+        {
+          "s1w": 7.5,
+          "s1r": 20,
+          "s2w": 7.5,
+          "s2r": 20
+        },
+        {
+          "s1w": 18,
+          "s1r": 18,
+          "s2w": 24,
+          "s2r": 18
+        },
+        {
+          "s1w": 24,
+          "s1r": 15,
+          "s2w": 27,
+          "s2r": 14
+        },
+        {
+          "s1w": 24,
+          "s1r": 3,
+          "s2w": 12,
+          "s2r": 20
+        },
+        {
+          "s1w": 0,
+          "s1r": 15,
+          "s2w": 0,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 9
+        },
+        {
+          "s1": 9,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": [
+            {
+              "weight": 70,
+              "reps": 8,
+              "rpe": 8,
+              "done": true
+            }
+          ]
+        },
+        {
+          "sets": [
+            {
+              "weight": 57.5,
+              "reps": 6,
+              "rpe": 7,
+              "done": true
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779310200856",
+        "date": "2026-05-21",
+        "day": "PUSH",
+        "mainLift": "bench",
+        "dayFocus": "PUSH",
+        "leadExercise": "Smith Incline Bench Press",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5Ã¢â‚¬â€œ7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "push_1_face_pull",
+            "name": "Face Pull",
+            "prescription": "15-20 reps",
+            "purpose": "Rear delt and external rotator warm-up.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "face_pull",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "push_2_bpa",
+            "name": "Band Pull-Apart",
+            "prescription": "20-25 reps",
+            "purpose": "Rear-delt and scapular activation before pressing.",
+            "equipment": [
+              "band",
+              "cable"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "bpa",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "push_1_face_pull",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "push_2_bpa",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 35kg Ãƒâ€” 5, 52.5kg Ãƒâ€” 3, then 70kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3410,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Chest Supported Row",
+        "Lat Pulldown",
+        "Seated Cable Row (wide)",
+        "Single Arm Lat Pulldown",
+        "Face Pull",
+        "Straight Arm Pulldown",
+        "Dumbbell Rear Delt Fly",
+        "Cable Curl"
+      ],
+      "exerciseKeys": [
+        "chest_supported_row",
+        "lat_pulldown",
+        "seated_cable_row_wide",
+        "single_arm_lat_pulldown",
+        "face_pull",
+        "straight_arm_pulldown",
+        "dumbbell_rear_delt_fly",
+        "cable_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779399778530",
+      "day": "PULL",
+      "date": "2026-05-22",
+      "sets": [
+        {
+          "s1w": 70,
+          "s1r": 8,
+          "s2w": 70,
+          "s2r": 8
+        },
+        {
+          "s1w": 66,
+          "s1r": 10,
+          "s2w": 66,
+          "s2r": 11
+        },
+        {
+          "s1w": 60,
+          "s1r": 12,
+          "s2w": 60,
+          "s2r": 12
+        },
+        {
+          "s1w": 33,
+          "s1r": 10,
+          "s2w": 33,
+          "s2r": 10
+        },
+        {
+          "s1w": 18,
+          "s1r": 25,
+          "s2w": 24,
+          "s2r": 20
+        },
+        {
+          "s1w": 24,
+          "s1r": 19,
+          "s2w": 24,
+          "s2r": 18
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 16,
+          "s2w": 12.5,
+          "s2r": 17
+        },
+        {
+          "s1w": 12,
+          "s1r": 15,
+          "s2w": 18,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 9
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": null
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 66,
+              "reps": 9,
+              "rpe": 8,
+              "done": true
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779396221478",
+        "date": "2026-05-22",
+        "day": "PULL",
+        "mainLift": "pull",
+        "dayFocus": "PULL",
+        "leadExercise": "Chest Supported Row",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "pull_1_sa_pd",
+            "name": "Straight-Arm Pulldown",
+            "prescription": "12-15 reps",
+            "purpose": "Lat activation before rows and pulldowns.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "back"
+            ],
+            "baseId": "sa_pd",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "face_pull",
+                "name": "Face Pull",
+                "prescription": "15-20 reps",
+                "purpose": "Rear delt and external rotator warm-up.",
+                "equipment": [
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "pull_2_scap_row",
+            "name": "Scapular Row / Shrug",
+            "prescription": "10-15 reps",
+            "purpose": "Mid and lower trap activation before pulling.",
+            "equipment": [
+              "cable",
+              "machine",
+              "band"
+            ],
+            "muscles": [
+              "back",
+              "shoulders"
+            ],
+            "baseId": "scap_row",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "face_pull",
+                "name": "Face Pull",
+                "prescription": "15-20 reps",
+                "purpose": "Rear delt and external rotator warm-up.",
+                "equipment": [
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "pull_1_sa_pd",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "pull_2_scap_row",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 35kg × 5, 52.5kg × 3, then 70kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "same",
+          "jointResponse": "same",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3073,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "EZ Bar Curl (strict)",
+        "Cable Skull Crusher",
+        "Incline Dumbbell Curl",
+        "Overhead DB Tricep Extension",
+        "Hammer Curl",
+        "Tricep Pushdown",
+        "Bayesian Curl",
+        "Wrist Curl"
+      ],
+      "exerciseKeys": [
+        "ez_bar_curl_strict",
+        "cable_skull_crusher",
+        "incline_dumbbell_curl",
+        "overhead_db_tricep_extension",
+        "hammer_curl",
+        "tricep_pushdown",
+        "bayesian_curl",
+        "wrist_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        "drop_set",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779493627615",
+      "day": "ARMS",
+      "date": "2026-05-23",
+      "sets": [
+        {
+          "s1w": 35,
+          "s1r": 8,
+          "s2w": 35,
+          "s2r": 8
+        },
+        {
+          "s1w": 24,
+          "s1r": 12,
+          "s2w": 30,
+          "s2r": 12
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 13,
+          "s2w": 12.5,
+          "s2r": 7
+        },
+        {
+          "s1w": 17.5,
+          "s1r": 12,
+          "s2w": 17.5,
+          "s2r": 12
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 15,
+          "s2w": 15,
+          "s2r": 12
+        },
+        {
+          "s1w": 30,
+          "s1r": 15,
+          "s2w": 30,
+          "s2r": 16
+        },
+        {
+          "s1w": 24,
+          "s1r": 16,
+          "s2w": 24,
+          "s2r": 12
+        },
+        {
+          "s1w": 15,
+          "s1r": 21,
+          "s2w": 15,
+          "s2r": 21
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 9
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 9
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 30,
+              "reps": 10,
+              "rpe": 8,
+              "done": true
+            },
+            {
+              "weight": 24,
+              "reps": 10,
+              "rpe": 8,
+              "done": true,
+              "technique": "drop_set",
+              "source": "intensity"
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779490125414",
+        "date": "2026-05-23",
+        "day": "ARMS",
+        "mainLift": "arms",
+        "dayFocus": "ARMS",
+        "leadExercise": "EZ Bar Curl (strict)",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "arms_1_face_pull",
+            "name": "Face Pull",
+            "prescription": "15-20 reps",
+            "purpose": "Rear delt and external rotator warm-up.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "face_pull",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "arms_2_bpa",
+            "name": "Band Pull-Apart",
+            "prescription": "20-25 reps",
+            "purpose": "Rear-delt and scapular activation before pressing.",
+            "equipment": [
+              "band",
+              "cable"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "bpa",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "arms_1_face_pull",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "arms_2_bpa",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 17.5kg × 5, 27.5kg × 3, then 35kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3265,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Hatfield Squat",
+        "Seated Calf Raise",
+        "Hack Squat",
+        "Leg Curl",
+        "Bulgarian Split Squat (DB ea.)",
+        "Leg Extension",
+        "Hip Thrust (Smith)",
+        "Standing Calf Raise",
+        "Cable Crunch"
+      ],
+      "exerciseKeys": [
+        "hatfield_squat",
+        "romanian_deadlift",
+        "hack_squat",
+        "leg_curl",
+        "bulgarian_split_squat_db_ea",
+        "leg_extension",
+        "hip_thrust_smith",
+        "standing_calf_raise",
+        "cable_crunch"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779748884217",
+      "day": "LEGS",
+      "date": "2026-05-26",
+      "sets": [
+        {
+          "s1w": 112.5,
+          "s1r": 8,
+          "s2w": 112.5,
+          "s2r": 8
+        },
+        {
+          "s1w": 70,
+          "s1r": 15,
+          "s2w": 72.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 160,
+          "s1r": 10,
+          "s2w": 160,
+          "s2r": 10
+        },
+        {
+          "s1w": 47.5,
+          "s1r": 13,
+          "s2w": 47.5,
+          "s2r": 14
+        },
+        {
+          "s1w": 17.5,
+          "s1r": 8,
+          "s2w": 20,
+          "s2r": 8
+        },
+        {
+          "s1w": 55,
+          "s1r": 25,
+          "s2w": 55,
+          "s2r": 25
+        },
+        {
+          "s1w": 77.5,
+          "s1r": 8,
+          "s2w": 77.5,
+          "s2r": 8
+        },
+        {
+          "s1w": 95,
+          "s1r": 13,
+          "s2w": 95,
+          "s2r": 13
+        },
+        {
+          "s1w": 25,
+          "s1r": 10,
+          "s2w": 25,
+          "s2r": 10
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": null,
+          "s2": null
+        },
+        {
+          "s1": null,
+          "s2": null
+        },
+        {
+          "s1": null,
+          "s2": null
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 72.5,
+              "reps": 15,
+              "rpe": 6,
+              "done": true,
+              "source": "mrv",
+              "muscle": "calves"
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779745410148",
+        "date": "2026-05-26",
+        "day": "LEGS",
+        "mainLift": "squat",
+        "dayFocus": "LEGS",
+        "leadExercise": "Hatfield Squat",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "legs_1_rdl_light",
+            "name": "Light RDL",
+            "prescription": "12-15 reps",
+            "purpose": "Hip hinge pattern and hamstring warm-up.",
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "muscles": [
+              "hamstrings",
+              "glutes"
+            ],
+            "baseId": "rdl_light",
+            "swapPool": [
+              {
+                "id": "ham_curl",
+                "name": "Hamstring Curl",
+                "prescription": "15-20 reps",
+                "purpose": "Posterior-chain activation before squats and hinges.",
+                "equipment": [
+                  "machine",
+                  "cable"
+                ],
+                "muscles": [
+                  "hamstrings"
+                ]
+              },
+              {
+                "id": "rev_hyper",
+                "name": "Back Extension / Rev Hyper",
+                "prescription": "15-20 reps",
+                "purpose": "Low back and glute pump, decompresses spine.",
+                "equipment": [
+                  "machine",
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "glutes",
+                  "hamstrings"
+                ]
+              },
+              {
+                "id": "bw_squat",
+                "name": "Bodyweight Squat",
+                "prescription": "15-20 reps",
+                "purpose": "Hip and knee movement prep without loading.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "quads",
+                  "glutes"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "legs_2_rev_hyper",
+            "name": "Back Extension / Rev Hyper",
+            "prescription": "15-20 reps",
+            "purpose": "Low back and glute pump, decompresses spine.",
+            "equipment": [
+              "machine",
+              "bodyweight"
+            ],
+            "muscles": [
+              "glutes",
+              "hamstrings"
+            ],
+            "baseId": "rev_hyper",
+            "swapPool": [
+              {
+                "id": "ham_curl",
+                "name": "Hamstring Curl",
+                "prescription": "15-20 reps",
+                "purpose": "Posterior-chain activation before squats and hinges.",
+                "equipment": [
+                  "machine",
+                  "cable"
+                ],
+                "muscles": [
+                  "hamstrings"
+                ]
+              },
+              {
+                "id": "glute_br",
+                "name": "Glute Bridge / Hip Thrust",
+                "prescription": "15-20 reps",
+                "purpose": "Glute activation before any lower-body session.",
+                "equipment": [
+                  "bodyweight",
+                  "barbell"
+                ],
+                "muscles": [
+                  "glutes"
+                ]
+              },
+              {
+                "id": "bw_squat",
+                "name": "Bodyweight Squat",
+                "prescription": "15-20 reps",
+                "purpose": "Hip and knee movement prep without loading.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "quads",
+                  "glutes"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "legs_1_rdl_light",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "legs_2_rev_hyper",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 57.5kg × 5, 85kg × 3, then 112.5kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3401,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Smith Incline Bench Press",
+        "Machine Chest Press (Flat)",
+        "Dumbbell Lateral Raise",
+        "Cable Lateral Raise",
+        "Incline Cable Fly",
+        "Incline Cable Fly",
+        "Cable Low Fly",
+        "Cable Crunch",
+        "Ab Rollout"
+      ],
+      "exerciseKeys": [
+        "smith_incline_bench_press",
+        "machine_chest_press_flat",
+        "dumbbell_lateral_raise",
+        "cable_lateral_raise",
+        "cable_overhead_tricep_extension",
+        "incline_cable_fly",
+        "cable_low_fly",
+        "cable_crunch",
+        "ab_rollout"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779834415955",
+      "day": "PUSH",
+      "date": "2026-05-27",
+      "sets": [
+        {
+          "s1w": 77.5,
+          "s1r": 5,
+          "s2w": 77.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 50,
+          "s1r": 10,
+          "s2w": 50,
+          "s2r": 11
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 20,
+          "s2w": 12.5,
+          "s2r": 16
+        },
+        {
+          "s1w": 9,
+          "s1r": 14,
+          "s2w": 9,
+          "s2r": 15
+        },
+        {
+          "s1w": 10,
+          "s1r": 15,
+          "s2w": 12.5,
+          "s2r": 15
+        },
+        {
+          "s1w": 18,
+          "s1r": 18,
+          "s2w": 24,
+          "s2r": 18
+        },
+        {
+          "s1w": 24,
+          "s1r": 11,
+          "s2w": 24,
+          "s2r": 10
+        },
+        {
+          "s1w": 33,
+          "s1r": 15,
+          "s2w": 36,
+          "s2r": 13
+        },
+        {
+          "s1w": 0,
+          "s1r": 15,
+          "s2w": 0,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 7,
+          "s2": 9
+        },
+        {
+          "s1": 7,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": null,
+          "s2": null
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779831001966",
+        "date": "2026-05-27",
+        "day": "PUSH",
+        "mainLift": "bench",
+        "dayFocus": "PUSH",
+        "leadExercise": "Smith Incline Bench Press",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "realization/peak week",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "push_1_face_pull",
+            "name": "Face Pull",
+            "prescription": "15-20 reps",
+            "purpose": "Rear delt and external rotator warm-up.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "face_pull",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "push_2_bpa",
+            "name": "Band Pull-Apart",
+            "prescription": "20-25 reps",
+            "purpose": "Rear-delt and scapular activation before pressing.",
+            "equipment": [
+              "band",
+              "cable"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "bpa",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "push_1_face_pull",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "push_2_bpa",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 40kg × 5, 57.5kg × 3, then 77.5kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 3111,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "Chest Supported Row",
+        "Lat Pulldown",
+        "Seated Cable Row (wide)",
+        "Cable Shrug",
+        "Face Pull",
+        "Straight Arm Pulldown",
+        "Dumbbell Rear Delt Fly",
+        "Cable Curl"
+      ],
+      "exerciseKeys": [
+        "chest_supported_row",
+        "lat_pulldown",
+        "seated_cable_row_wide",
+        "cable_shrug",
+        "face_pull",
+        "straight_arm_pulldown",
+        "dumbbell_rear_delt_fly",
+        "cable_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1779919633327",
+      "day": "PULL",
+      "date": "2026-05-28",
+      "sets": [
+        {
+          "s1w": 72.5,
+          "s1r": 5,
+          "s2w": 72.5,
+          "s2r": 10
+        },
+        {
+          "s1w": 60,
+          "s1r": 12,
+          "s2w": 66,
+          "s2r": 10
+        },
+        {
+          "s1w": 60,
+          "s1r": 12,
+          "s2w": 66,
+          "s2r": 10
+        },
+        {
+          "s1w": 33,
+          "s1r": 15,
+          "s2w": 36,
+          "s2r": 15
+        },
+        {
+          "s1w": 18,
+          "s1r": 25,
+          "s2w": 18,
+          "s2r": 25
+        },
+        {
+          "s1w": 24,
+          "s1r": 20,
+          "s2w": 24,
+          "s2r": 14
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 17,
+          "s2w": 12.5,
+          "s2r": 18
+        },
+        {
+          "s1w": 12,
+          "s1r": 15,
+          "s2w": 18,
+          "s2r": 15
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 9
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 7,
+          "s2": 7
+        },
+        {
+          "s1": 6,
+          "s2": 7
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1779916348332",
+        "date": "2026-05-28",
+        "day": "PULL",
+        "mainLift": "pull",
+        "dayFocus": "PULL",
+        "leadExercise": "Chest Supported Row",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "realization/peak week",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "pull_1_sa_pd",
+            "name": "Straight-Arm Pulldown",
+            "prescription": "12-15 reps",
+            "purpose": "Lat activation before rows and pulldowns.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "back"
+            ],
+            "baseId": "sa_pd",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "face_pull",
+                "name": "Face Pull",
+                "prescription": "15-20 reps",
+                "purpose": "Rear delt and external rotator warm-up.",
+                "equipment": [
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "pull_2_scap_row",
+            "name": "Scapular Row / Shrug",
+            "prescription": "10-15 reps",
+            "purpose": "Mid and lower trap activation before pulling.",
+            "equipment": [
+              "cable",
+              "machine",
+              "band"
+            ],
+            "muscles": [
+              "back",
+              "shoulders"
+            ],
+            "baseId": "scap_row",
+            "swapPool": [
+              {
+                "id": "bpa",
+                "name": "Band Pull-Apart",
+                "prescription": "20-25 reps",
+                "purpose": "Rear-delt and scapular activation before pressing.",
+                "equipment": [
+                  "band",
+                  "cable"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "face_pull",
+                "name": "Face Pull",
+                "prescription": "15-20 reps",
+                "purpose": "Rear delt and external rotator warm-up.",
+                "equipment": [
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "back"
+                ]
+              },
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "pull_1_sa_pd",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "pull_2_scap_row",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 40kg × 5, 57.5kg × 3, then 77.5kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    },
+    {
+      "durationSec": 2804,
+      "swappedExercises": {},
+      "exerciseNames": [
+        "EZ Bar Curl (strict)",
+        "Cable Skull Crusher",
+        "Incline Cable Curls",
+        "Cable Overhead Tricep Extension",
+        "Hammer Curl",
+        "Tricep Pushdown",
+        "Bayesian Curl",
+        "Wrist Curl"
+      ],
+      "exerciseKeys": [
+        "ez_bar_curl_strict",
+        "cable_skull_crusher",
+        "incline_cable_curls",
+        "cable_overhead_tricep_extension",
+        "hammer_curl",
+        "tricep_pushdown",
+        "bayesian_curl",
+        "wrist_curl"
+      ],
+      "notes": null,
+      "techniques": [
+        null,
+        "drop_set",
+        "drop_set",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "id": "s-1780006970896",
+      "day": "ARMS",
+      "date": "2026-05-29",
+      "sets": [
+        {
+          "s1w": 30,
+          "s1r": 5,
+          "s2w": 30,
+          "s2r": 20
+        },
+        {
+          "s1w": 24,
+          "s1r": 12,
+          "s2w": 30,
+          "s2r": 12
+        },
+        {
+          "s1w": 18,
+          "s1r": 18,
+          "s2w": 24,
+          "s2r": 11
+        },
+        {
+          "s1w": 18,
+          "s1r": 18,
+          "s2w": 24,
+          "s2r": 18
+        },
+        {
+          "s1w": 12.5,
+          "s1r": 15,
+          "s2w": 15,
+          "s2r": 15
+        },
+        {
+          "s1w": 30,
+          "s1r": 20,
+          "s2w": 30,
+          "s2r": 12
+        },
+        {
+          "s1w": 24,
+          "s1r": 15,
+          "s2w": 24,
+          "s2r": 15
+        },
+        {
+          "s1w": 15,
+          "s1r": 22,
+          "s2w": 15,
+          "s2r": 22
+        }
+      ],
+      "rpe": [
+        {
+          "s1": 6,
+          "s2": 6
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 9
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 6,
+          "s2": 8
+        },
+        {
+          "s1": 8,
+          "s2": 7
+        },
+        {
+          "s1": null,
+          "s2": null
+        },
+        {
+          "s1": null,
+          "s2": null
+        }
+      ],
+      "extraSets": [
+        {
+          "sets": []
+        },
+        {
+          "sets": [
+            {
+              "weight": 24,
+              "reps": 12,
+              "rpe": 7,
+              "done": true
+            },
+            {
+              "weight": 24,
+              "reps": 12,
+              "rpe": 7,
+              "done": true,
+              "technique": "drop_set",
+              "source": "intensity"
+            }
+          ]
+        },
+        {
+          "sets": [
+            {
+              "weight": 18,
+              "reps": 18,
+              "rpe": 8,
+              "done": true,
+              "technique": "drop_set",
+              "source": "intensity"
+            }
+          ]
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        },
+        {
+          "sets": []
+        }
+      ],
+      "energyRating": null,
+      "feedback": {
+        "enjoyment": null,
+        "sessionLengthFelt": null,
+        "techniqueScore": null,
+        "painScores": {
+          "shoulder": 0,
+          "elbow": 0,
+          "lowerback": 0,
+          "knee": 0
+        },
+        "overrideReasons": null,
+        "maxPain": 0
+      },
+      "warmup": {
+        "type": "warmup",
+        "method": "targeted_warmup",
+        "id": "tw-1780004159554",
+        "date": "2026-05-29",
+        "day": "ARMS",
+        "mainLift": "arms",
+        "dayFocus": "ARMS",
+        "leadExercise": "EZ Bar Curl (strict)",
+        "rankedMuscles": [],
+        "mode": "minimal",
+        "modeLabel": "Minimal",
+        "rounds": 1,
+        "estimatedMin": "5–7",
+        "trendSignals": [
+          "high systemic fatigue load",
+          "realization/peak week",
+          "cutting phase"
+        ],
+        "inputs": {},
+        "movements": [
+          {
+            "id": "arms_1_face_pull",
+            "name": "Face Pull",
+            "prescription": "15-20 reps",
+            "purpose": "Rear delt and external rotator warm-up.",
+            "equipment": [
+              "cable",
+              "machine"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "face_pull",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          },
+          {
+            "id": "arms_2_bpa",
+            "name": "Band Pull-Apart",
+            "prescription": "20-25 reps",
+            "purpose": "Rear-delt and scapular activation before pressing.",
+            "equipment": [
+              "band",
+              "cable"
+            ],
+            "muscles": [
+              "shoulders",
+              "back"
+            ],
+            "baseId": "bpa",
+            "swapPool": [
+              {
+                "id": "scap_pu",
+                "name": "Scap Push-Up / Protraction",
+                "prescription": "10-15 reps",
+                "purpose": "Scapular mobility and serratus activation.",
+                "equipment": [
+                  "bodyweight"
+                ],
+                "muscles": [
+                  "shoulders",
+                  "chest"
+                ]
+              },
+              {
+                "id": "ext_rot",
+                "name": "DB External Rotation",
+                "prescription": "12-15 reps/side",
+                "purpose": "Rotator cuff activation before overhead or bench.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "band"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              },
+              {
+                "id": "lat_raise",
+                "name": "Light Lateral Raise",
+                "prescription": "15-20 reps",
+                "purpose": "Medial delt pump and shoulder joint prep.",
+                "equipment": [
+                  "dumbbell",
+                  "cable",
+                  "machine"
+                ],
+                "muscles": [
+                  "shoulders"
+                ]
+              }
+            ],
+            "effort": "Easy pump only. No fatigue."
+          }
+        ],
+        "completion": [
+          {
+            "movementId": "arms_1_face_pull",
+            "round": 1,
+            "completed": true
+          },
+          {
+            "movementId": "arms_2_bpa",
+            "round": 1,
+            "completed": true
+          }
+        ],
+        "rampSets": "2 ramp sets: 15kg × 5, 22.5kg × 3, then 30kg working sets.",
+        "rampCompleted": true,
+        "feedback": {
+          "postWarmupReadiness": "more_ready",
+          "jointResponse": "better",
+          "saved": true
+        }
+      }
+    }
+  ],
+  "dailyLogs": [
+    {
+      "recovery": 6,
+      "meals": [
+        {
+          "name": "High Protein BCAA Drink",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 230,
+          "protein": 40,
+          "carbs": 13,
+          "fat": 2.5
+        },
+        {
+          "name": "Salmon Onigiri (7-Eleven)",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 190,
+          "protein": 6,
+          "carbs": 32,
+          "fat": 2.5
+        },
+        {
+          "name": "Ham Cheese Sandwich",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 210,
+          "protein": 6,
+          "carbs": 21,
+          "fat": 11
+        },
+        {
+          "name": "Lactose-Free High Protein Milk Drink",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 460,
+          "protein": 80,
+          "carbs": 26,
+          "fat": 5
+        },
+        {
+          "name": "Khao Kha Mu (Braised Pork Leg with Rice)",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 650,
+          "protein": 32,
+          "carbs": 70,
+          "fat": 27
+        }
+      ],
+      "date": "2026-05-16",
+      "weight": 86.5,
+      "habits": {
+        "sleep": true
+      },
+      "kcal": 1740,
+      "protein": 164,
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null
+    },
+    {
+      "recovery": null,
+      "meals": [
+        {
+          "name": "High-Protein Lactose-Free Milk Drink",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 230,
+          "protein": 40,
+          "carbs": 13,
+          "fat": 2.5
+        },
+        {
+          "name": "Kratingdaeng With Vitamin B12",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 60,
+          "protein": 0.5,
+          "carbs": 15,
+          "fat": 0
+        },
+        {
+          "name": "Volt Energy Drink",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 70,
+          "protein": 1,
+          "carbs": 17,
+          "fat": 0
+        },
+        {
+          "name": "Benefit Protein Milk Drink",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 660,
+          "protein": 93,
+          "carbs": 36,
+          "fat": 12
+        },
+        {
+          "name": "Grilled Bacon Wrapped Cocktail (Chicken Sausage)",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 245,
+          "protein": 15,
+          "carbs": 3,
+          "fat": 19.5
+        },
+        {
+          "name": "Omelette with Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 470,
+          "protein": 15,
+          "carbs": 58,
+          "fat": 19
+        },
+        {
+          "name": "Happy Munchy Omuk-Tteok Rolls",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 150,
+          "protein": 6,
+          "carbs": 18,
+          "fat": 6
+        },
+        {
+          "name": "Kimbap Bulgogi EZGO",
+          "grams": 250,
+          "servings": 2.5,
+          "servingLabel": "2.5 servings (250g)",
+          "kcal": 475,
+          "protein": 25,
+          "carbs": 55,
+          "fat": 17.5
+        }
+      ],
+      "date": "2026-05-17",
+      "kcal": 2360,
+      "protein": 196,
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "weight": null,
+      "habits": {
+        "run": true,
+        "protein": true,
+        "water": true,
+        "sleep": false
+      },
+      "notes": null
+    },
+    {
+      "recovery": 6,
+      "meals": [
+        {
+          "name": "Wai Wai Instant Noodles",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 207,
+          "protein": 6,
+          "carbs": 35,
+          "fat": 5
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 150,
+          "protein": 27,
+          "carbs": 7,
+          "fat": 1.5
+        },
+        {
+          "name": "Half Rotisserie Chicken",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 620,
+          "protein": 78,
+          "carbs": 0,
+          "fat": 36
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 300,
+          "protein": 54,
+          "carbs": 14,
+          "fat": 3
+        },
+        {
+          "name": "Cooked White Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 410,
+          "protein": 6,
+          "carbs": 95,
+          "fat": 0.5
+        },
+        {
+          "name": "Cam Energy Drink",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 140,
+          "protein": 2,
+          "carbs": 34,
+          "fat": 0
+        },
+        {
+          "name": "BÃ‡Â dÃƒÂ¡ duÃ…Â Flavored Drink",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 70,
+          "protein": 0,
+          "carbs": 18,
+          "fat": 0
+        }
+      ],
+      "date": "2026-05-18",
+      "weight": 86.5,
+      "habits": {
+        "sleep": false
+      },
+      "kcal": 1897,
+      "protein": 173,
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null
+    },
+    {
+      "recovery": 5,
+      "meals": [
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 150,
+          "protein": 27,
+          "carbs": 7,
+          "fat": 1.5
+        },
+        {
+          "name": "Waiwai Instant Noodle",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 214,
+          "protein": 6,
+          "carbs": 34,
+          "fat": 6
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 300,
+          "protein": 54,
+          "carbs": 14,
+          "fat": 3
+        },
+        {
+          "name": "KFC Combo Meal",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 1330,
+          "protein": 77,
+          "carbs": 120,
+          "fat": 70
+        },
+        {
+          "name": "Medium Cone with Sprinkles",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 355,
+          "protein": 8,
+          "carbs": 56,
+          "fat": 11.5
+        }
+      ],
+      "date": "2026-05-19",
+      "weight": 85.3,
+      "habits": {
+        "sleep": false
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 2349,
+      "protein": 172
+    },
+    {
+      "recovery": 6,
+      "meals": [
+        {
+          "name": "Waiwai Instant Noodle",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 214,
+          "protein": 6,
+          "carbs": 34,
+          "fat": 6
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Rotisserie Chicken (Half, With Skin)",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 570,
+          "protein": 78,
+          "carbs": 0,
+          "fat": 29
+        },
+        {
+          "name": "Large Plain Wheat Bun",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 410,
+          "protein": 6,
+          "carbs": 95,
+          "fat": 0.5
+        },
+        {
+          "name": "Prepared Salad",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 180,
+          "protein": 3,
+          "carbs": 15,
+          "fat": 12
+        },
+        {
+          "name": "Caesar Salad with Grilled Chicken Breast",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 260,
+          "protein": 10,
+          "carbs": 11,
+          "fat": 19
+        },
+        {
+          "name": "Volt Energy Drink",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 140,
+          "protein": 0,
+          "carbs": 34,
+          "fat": 0
+        }
+      ],
+      "date": "2026-05-20",
+      "weight": 85.45,
+      "habits": {
+        "sleep": false
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 2224,
+      "protein": 184
+    },
+    {
+      "recovery": 7,
+      "meals": [
+        {
+          "name": "Trolli Dinorex",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 281,
+          "protein": 0.8,
+          "carbs": 67.2,
+          "fat": 0.8
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Glazed Chicken Wings",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 580,
+          "protein": 75,
+          "carbs": 25,
+          "fat": 35
+        },
+        {
+          "name": "Plus C Energy Drink (Blueberry)",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 140,
+          "protein": 2,
+          "carbs": 34,
+          "fat": 0
+        },
+        {
+          "name": "Thai Chicken Rice Meal",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 320,
+          "protein": 15,
+          "carbs": 54,
+          "fat": 4.5
+        },
+        {
+          "name": "Jasmine Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 410,
+          "protein": 8,
+          "carbs": 95,
+          "fat": 0.5
+        },
+        {
+          "name": "100% Coconut Water (Chaokoh Brand)",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 180,
+          "protein": 0,
+          "carbs": 48,
+          "fat": 0
+        }
+      ],
+      "date": "2026-05-21",
+      "weight": 84.85,
+      "habits": {
+        "sleep": true
+      },
+      "kcal": 2361,
+      "protein": 181.8,
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null
+    },
+    {
+      "recovery": 7,
+      "meals": [
+        {
+          "name": "Waiwai Instant Noodle",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 214,
+          "protein": 6,
+          "carbs": 34,
+          "fat": 6
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 150,
+          "protein": 27,
+          "carbs": 7,
+          "fat": 1.5
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 300,
+          "protein": 54,
+          "carbs": 14,
+          "fat": 3
+        },
+        {
+          "name": "Trolli Dinorex",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 281,
+          "protein": 0.8,
+          "carbs": 67.2,
+          "fat": 0.8
+        },
+        {
+          "name": "Canned Tuna in Water",
+          "grams": 400,
+          "servings": 4,
+          "servingLabel": "4 servings (400g)",
+          "kcal": 320,
+          "protein": 76,
+          "carbs": 0,
+          "fat": 2
+        },
+        {
+          "name": "Grilled Teriyaki Mackerel Onigiri",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 660,
+          "protein": 24,
+          "carbs": 80,
+          "fat": 18
+        },
+        {
+          "name": "Big Berry Drink",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 70,
+          "protein": 1,
+          "carbs": 17,
+          "fat": 0
+        },
+        {
+          "name": "Kewpie Mayo (50%)",
+          "grams": 150,
+          "servings": 1.5,
+          "servingLabel": "1.5 servings (150g)",
+          "kcal": 120,
+          "protein": 0.3,
+          "carbs": 6,
+          "fat": 10.5
+        }
+      ],
+      "date": "2026-05-22",
+      "weight": 84.6,
+      "habits": {
+        "sleep": true
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 2115,
+      "protein": 189.10000000000002
+    },
+    {
+      "recovery": 7,
+      "meals": [
+        {
+          "name": "Trolli Nite Crawler",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 292,
+          "protein": 0.8,
+          "carbs": 68,
+          "fat": 0.8
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Waiwai Instant Noodle",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 214,
+          "protein": 6,
+          "carbs": 34,
+          "fat": 6
+        },
+        {
+          "name": "Iced Sugared Coffee",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 190,
+          "protein": 0.5,
+          "carbs": 47,
+          "fat": 0
+        },
+        {
+          "name": "Thai Braised Beef Soup with Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 800,
+          "protein": 52,
+          "carbs": 60,
+          "fat": 38
+        },
+        {
+          "name": "High Protein Beverage",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 140,
+          "protein": 34,
+          "carbs": 0,
+          "fat": 0
+        },
+        {
+          "name": "Auntie Anne's Original Pretzel",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 350,
+          "protein": 8,
+          "carbs": 72,
+          "fat": 6
+        },
+        {
+          "name": "Auntie Anne's Bread Sticks",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 330,
+          "protein": 9,
+          "carbs": 66,
+          "fat": 7
+        },
+        {
+          "name": "Mixed Hainanese Chicken Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 780,
+          "protein": 52,
+          "carbs": 70,
+          "fat": 32
+        },
+        {
+          "name": "Auntie Anne's Lemonade",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 270,
+          "protein": 0,
+          "carbs": 68,
+          "fat": 0
+        }
+      ],
+      "date": "2026-05-23",
+      "weight": 84.85,
+      "habits": {
+        "sleep": true
+      },
+      "kcal": 3816,
+      "protein": 243.3,
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null
+    },
+    {
+      "recovery": 6,
+      "meals": [
+        {
+          "name": "UFC Refresh 100% Coconut Water",
+          "grams": 500,
+          "servings": 5,
+          "servingLabel": "5 servings (500g)",
+          "kcal": 225,
+          "protein": 0,
+          "carbs": 55,
+          "fat": 0
+        },
+        {
+          "name": "Kratingdaeng Extra with Zinc + Vitamin B12",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 100,
+          "protein": 0,
+          "carbs": 26,
+          "fat": 0
+        },
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Vitaday High Protein Apple Juice",
+          "grams": 200,
+          "servings": 2,
+          "servingLabel": "2 servings (200g)",
+          "kcal": 140,
+          "protein": 34,
+          "carbs": 0,
+          "fat": 0
+        },
+        {
+          "name": "Spicy Chashu Ramen",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 600,
+          "protein": 33,
+          "carbs": 45,
+          "fat": 36
+        },
+        {
+          "name": "Dairy Queen Medium Vanilla Cone with Sprinkles",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 355,
+          "protein": 8,
+          "carbs": 56,
+          "fat": 11.5
+        },
+        {
+          "name": "Chocolate Cream Donut",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 450,
+          "protein": 6,
+          "carbs": 55,
+          "fat": 25
+        },
+        {
+          "name": "Glazed Donut",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 260,
+          "protein": 3,
+          "carbs": 30,
+          "fat": 15
+        }
+      ],
+      "date": "2026-05-26",
+      "weight": 86.1,
+      "habits": {
+        "sleep": false
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 2580,
+      "protein": 165
+    },
+    {
+      "recovery": 7,
+      "meals": [
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Waiwai Instant Noodle",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 214,
+          "protein": 6,
+          "carbs": 34,
+          "fat": 6
+        },
+        {
+          "name": "Half Rotisserie Chicken",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 550,
+          "protein": 65,
+          "carbs": 1,
+          "fat": 25
+        }
+      ],
+      "date": "2026-05-27",
+      "weight": 84.2,
+      "habits": {
+        "sleep": true
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 1214,
+      "protein": 152
+    },
+    {
+      "recovery": 4,
+      "meals": [
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Trolli Dinorex",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 281,
+          "protein": 0.8,
+          "carbs": 67.2,
+          "fat": 0.8
+        },
+        {
+          "name": "Ebiko Mayonnaise Onigiri",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 200,
+          "protein": 5,
+          "carbs": 35,
+          "fat": 4.5
+        }
+      ],
+      "date": "2026-05-28",
+      "weight": 84.45,
+      "habits": {
+        "sleep": false
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 931,
+      "protein": 86.8
+    },
+    {
+      "recovery": 7,
+      "meals": [
+        {
+          "name": "Vanilla Flavor Protein Isolate",
+          "grams": 300,
+          "servings": 3,
+          "servingLabel": "3 servings (300g)",
+          "kcal": 450,
+          "protein": 81,
+          "carbs": 21,
+          "fat": 4.5
+        },
+        {
+          "name": "Half Rotisserie Chicken",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 550,
+          "protein": 65,
+          "carbs": 1,
+          "fat": 25
+        },
+        {
+          "name": "Plain White Rice",
+          "grams": 100,
+          "servings": 1,
+          "servingLabel": "1 serving (100g)",
+          "kcal": 410,
+          "protein": 6,
+          "carbs": 95,
+          "fat": 0.5
+        },
+        {
+          "name": "Charcoal Bread",
+          "grams": 150,
+          "servings": 1.5,
+          "servingLabel": "1.5 servings (150g)",
+          "kcal": 135,
+          "protein": 6,
+          "carbs": 27,
+          "fat": 0
+        }
+      ],
+      "date": "2026-05-29",
+      "weight": 85.4,
+      "habits": {
+        "sleep": false
+      },
+      "steps": null,
+      "waterMl": null,
+      "bodyFatPercent": null,
+      "leanMassKg": null,
+      "kcal": 1545,
+      "protein": 158
+    }
+  ],
+  "timer": {
+    "compoundSec": 120,
+    "midSec": 90,
+    "isolationSec": 60,
+    "sound": true
+  },
+  "measurements": [],
+  "customFoods": [
+    {
+      "id": "cf-ai-1780023311748",
+      "name": "Plain White Rice",
+      "kcal_100g": 410,
+      "protein_100g": 6,
+      "carbs_100g": 95,
+      "fat_100g": 0.5,
+      "serving_g": 100,
+      "serving_label": "1 box / 280g",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1779926028365",
+      "name": "Ebiko Mayonnaise Onigiri",
+      "kcal_100g": 200,
+      "protein_100g": 5,
+      "carbs_100g": 35,
+      "fat_100g": 4.5,
+      "serving_g": 100,
+      "serving_label": "~1 serving / 100g",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1779839760662",
+      "name": "Half Rotisserie Chicken",
+      "kcal_100g": 550,
+      "protein_100g": 65,
+      "carbs_100g": 1,
+      "fat_100g": 25,
+      "serving_g": 100,
+      "serving_label": "~1 serving / ~350g",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1779503401096",
+      "name": "Vitaday High Protein Apple Juice",
+      "kcal_100g": 70,
+      "protein_100g": 17,
+      "carbs_100g": 0,
+      "fat_100g": 0,
+      "serving_g": 100,
+      "serving_label": "~1 serving / 240ml",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-1779433653351",
+      "name": "Kewpie Mayo (50%)",
+      "kcal_100g": 80,
+      "protein_100g": 0.2,
+      "carbs_100g": 4,
+      "fat_100g": 7,
+      "serving_g": 100,
+      "serving_label": "2 Tbsp",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-1779394389498",
+      "name": "Trolli Nite Crawler",
+      "kcal_100g": 292,
+      "protein_100g": 0.8,
+      "carbs_100g": 68,
+      "fat_100g": 0.8,
+      "serving_g": 100,
+      "serving_label": "1 Pack",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-1779308085740",
+      "name": "Trolli Dinorex",
+      "kcal_100g": 281,
+      "protein_100g": 0.8,
+      "carbs_100g": 67.2,
+      "fat_100g": 0.8,
+      "serving_g": 100,
+      "serving_label": "1 Pack",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1779243292716",
+      "name": "Volt Energy Drink",
+      "kcal_100g": 70,
+      "protein_100g": 0,
+      "carbs_100g": 17,
+      "fat_100g": 0,
+      "serving_g": 100,
+      "serving_label": "1 can (310 ml)",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-1779138251019",
+      "name": "Waiwai Instant Noodle",
+      "kcal_100g": 214,
+      "protein_100g": 6,
+      "carbs_100g": 34,
+      "fat_100g": 6,
+      "serving_g": 100,
+      "serving_label": "1 Bag",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1779054462270",
+      "name": "Vanilla Flavor Protein Isolate",
+      "kcal_100g": 150,
+      "protein_100g": 27,
+      "carbs_100g": 7,
+      "fat_100g": 1.5,
+      "serving_g": 100,
+      "serving_label": "~1 serving / ~39g",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1778994123825",
+      "name": "Benefit Protein Milk Drink",
+      "kcal_100g": 220,
+      "protein_100g": 31,
+      "carbs_100g": 12,
+      "fat_100g": 4,
+      "serving_g": 100,
+      "serving_label": "~1 box / 350 ml",
+      "source": "custom",
+      "category": "custom"
+    },
+    {
+      "id": "cf-ai-1778903490432",
+      "name": "Salmon Onigiri (7-Eleven)",
+      "kcal_100g": 190,
+      "protein_100g": 6,
+      "carbs_100g": 32,
+      "fat_100g": 2.5,
+      "serving_g": 100,
+      "serving_label": "~1 serving / 1 piece",
+      "source": "custom",
+      "category": "custom"
+    }
+  ],
+  "adaptive_state": {
+    "version": 1,
+    "exerciseMemory": {
+      "smith incline bench press": {
+        "name": "Smith Incline Bench Press",
+        "exposures": 2,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6.7,
+        "avgReps": 9.4,
+        "avgSets": 3,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "smith seated ohp": {
+        "name": "Smith Seated OHP",
+        "exposures": 2,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "vertical_push",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 7.2,
+        "avgReps": 8,
+        "avgSets": 3,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "machine chest press flat": {
+        "name": "Machine Chest Press (Flat)",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 8,
+        "avgReps": 10,
+        "avgSets": 3,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-16"
+      },
+      "db lateral raise": {
+        "name": "DB Lateral Raise",
+        "exposures": 2,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "vertical_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.2,
+        "avgReps": 24.2,
+        "avgSets": 2.7,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "cable lateral raise 1 arm": {
+        "name": "Cable Lateral Raise (1-arm)",
+        "exposures": 2,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "vertical_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.4,
+        "avgReps": 16.9,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "incline db fly cable fly": {
+        "name": "Incline DB Fly / Cable Fly",
+        "exposures": 2,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6.7,
+        "avgReps": 18,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "cable oh tricep extension": {
+        "name": "Cable OH Tricep Extension",
+        "exposures": 2,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.2,
+        "avgReps": 13.8,
+        "avgSets": 2.7,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "tricep pushdown rope": {
+        "name": "Tricep Pushdown (rope)",
+        "exposures": 2,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8.5,
+        "avgReps": 12.9,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "ab rollout": {
+        "name": "Ab Rollout",
+        "exposures": 2,
+        "primaryMuscle": "abs",
+        "movementPattern": "isolation",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6.7,
+        "avgReps": 15,
+        "avgSets": 2.7,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "chest supported row": {
+        "name": "Chest Supported Row",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6.5,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "lat pulldown pronated": {
+        "name": "Lat Pulldown (pronated)",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6.5,
+        "avgReps": 12,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "seated cable row wide": {
+        "name": "Seated Cable Row (wide)",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6,
+        "avgReps": 12,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "single arm lat pulldown": {
+        "name": "Single Arm Lat Pulldown",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "face pull cable": {
+        "name": "Face Pull (cable)",
+        "exposures": 1,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6,
+        "avgReps": 25,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "straight arm pulldown": {
+        "name": "Straight Arm Pulldown",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 7,
+        "avgReps": 17.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "dumbbell rear delt fly": {
+        "name": "Dumbbell Rear Delt Fly",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 20,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "cable curl": {
+        "name": "Cable Curl",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-18"
+      },
+      "ez bar curl strict": {
+        "name": "EZ Bar Curl (strict)",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 11,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "ez bar skull crusher": {
+        "name": "EZ Bar Skull Crusher",
+        "exposures": 1,
+        "primaryMuscle": "triceps",
+        "movementPattern": "push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 8.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "incline db curl": {
+        "name": "Incline DB Curl",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 13.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "overhead db tricep extension": {
+        "name": "Overhead DB Tricep Extension",
+        "exposures": 1,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "moderate",
+        "avgRpe": 9,
+        "avgReps": 13,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "hammer curl alternating": {
+        "name": "Hammer Curl (alternating)",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "triceps pushdown straight bar": {
+        "name": "Triceps Pushdown (Straight bar)",
+        "exposures": 1,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 16,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "bayesian curls": {
+        "name": "Bayesian Curls",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "arms",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 15.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "wrist curl": {
+        "name": "Wrist Curl",
+        "exposures": 1,
+        "primaryMuscle": "forearms",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 20.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-19"
+      },
+      "hatfield squat": {
+        "name": "Hatfield Squat",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "high",
+        "jointStress": "high",
+        "avgRpe": 6,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "use sparingly when fatigue is high",
+        "updated": "2026-05-20"
+      },
+      "romanian deadlift": {
+        "name": "Romanian Deadlift",
+        "exposures": 1,
+        "primaryMuscle": "hamstrings",
+        "movementPattern": "hip_hinge",
+        "fatigueCost": "high",
+        "jointStress": "moderate",
+        "avgRpe": 6,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "use sparingly when fatigue is high",
+        "updated": "2026-05-20"
+      },
+      "hack squat": {
+        "name": "Hack Squat",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "moderate",
+        "jointStress": "high",
+        "avgRpe": 9,
+        "avgReps": 8,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-20"
+      },
+      "leg curl": {
+        "name": "Leg Curl",
+        "exposures": 1,
+        "primaryMuscle": "hamstrings",
+        "movementPattern": "knee_flexion",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 13.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-20"
+      },
+      "bulgarian split squat db ea": {
+        "name": "Bulgarian Split Squat (DB ea.)",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "high",
+        "jointStress": "high",
+        "avgRpe": 8,
+        "avgReps": 12,
+        "avgSets": 2,
+        "recommendation": "use sparingly when fatigue is high",
+        "updated": "2026-05-20"
+      },
+      "leg extension": {
+        "name": "Leg Extension",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 25,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-20"
+      },
+      "hip thrust smith": {
+        "name": "Hip Thrust (Smith)",
+        "exposures": 1,
+        "primaryMuscle": "glutes",
+        "movementPattern": "hip_hinge",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6,
+        "avgReps": 12,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-20"
+      },
+      "standing calf raise": {
+        "name": "Standing Calf Raise",
+        "exposures": 1,
+        "primaryMuscle": "calves",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 9,
+        "avgReps": 16,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-20"
+      },
+      "cable crunch": {
+        "name": "Cable Crunch",
+        "exposures": 1,
+        "primaryMuscle": "abs",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-21"
+      },
+      "chest_supported_row": {
+        "name": "Chest Supported Row",
+        "exposures": 2,
+        "primaryMuscle": "back",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 6.8,
+        "avgReps": 7.9,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "lat_pulldown_pronated": {
+        "name": "Lat Pulldown (pronated)",
+        "exposures": 2,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 7.2,
+        "avgReps": 10.6,
+        "avgSets": 2.7,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "seated_cable_row_wide": {
+        "name": "Seated Cable Row (wide)",
+        "exposures": 2,
+        "primaryMuscle": "back",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 7.4,
+        "avgReps": 11.7,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "single_arm_lat_pulldown": {
+        "name": "Single Arm Lat Pulldown",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 8,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-22"
+      },
+      "face_pull_cable": {
+        "name": "Face Pull (cable)",
+        "exposures": 2,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "horizontal_pull",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.4,
+        "avgReps": 23.3,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "straight_arm_pulldown": {
+        "name": "Straight Arm Pulldown",
+        "exposures": 2,
+        "primaryMuscle": "back",
+        "movementPattern": "vertical_pull",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 7.7,
+        "avgReps": 18,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "dumbbell_rear_delt_fly": {
+        "name": "Dumbbell Rear Delt Fly",
+        "exposures": 2,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 16.8,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "cable_curl": {
+        "name": "Cable Curl",
+        "exposures": 2,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6.5,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "ez_bar_curl_strict": {
+        "name": "EZ Bar Curl (strict)",
+        "exposures": 2,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6,
+        "avgReps": 9.4,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "cable_skull_crusher": {
+        "name": "Cable Skull Crusher",
+        "exposures": 2,
+        "primaryMuscle": "triceps",
+        "movementPattern": "push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 12,
+        "avgSets": 4,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "incline_db_curl": {
+        "name": "Incline DB Curl",
+        "exposures": 1,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8.5,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-23"
+      },
+      "overhead_db_tricep_extension": {
+        "name": "Overhead DB Tricep Extension",
+        "exposures": 1,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "moderate",
+        "avgRpe": 8,
+        "avgReps": 12,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-23"
+      },
+      "hammer_curl_alternating": {
+        "name": "Hammer Curl (alternating)",
+        "exposures": 2,
+        "primaryMuscle": "biceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 14,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "triceps_pushdown_straight_bar": {
+        "name": "Triceps Pushdown (Straight bar)",
+        "exposures": 2,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.9,
+        "avgReps": 15.7,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "bayesian_curls": {
+        "name": "Bayesian Curls",
+        "exposures": 2,
+        "primaryMuscle": "biceps",
+        "movementPattern": "arms",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 14.3,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "wrist_curl": {
+        "name": "Wrist Curl",
+        "exposures": 2,
+        "primaryMuscle": "forearms",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8.5,
+        "avgReps": 21.3,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "hatfield_squat": {
+        "name": "Hatfield Squat",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "high",
+        "jointStress": "high",
+        "avgRpe": 6,
+        "avgReps": 8,
+        "avgSets": 2,
+        "recommendation": "use sparingly when fatigue is high",
+        "updated": "2026-05-26"
+      },
+      "seated_calf_raise": {
+        "name": "Seated Calf Raise",
+        "exposures": 1,
+        "primaryMuscle": "calves",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6,
+        "avgReps": 15,
+        "avgSets": 3,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "hack_squat": {
+        "name": "Hack Squat",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "moderate",
+        "jointStress": "high",
+        "avgRpe": 8,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "leg_curl": {
+        "name": "Leg Curl",
+        "exposures": 1,
+        "primaryMuscle": "hamstrings",
+        "movementPattern": "knee_flexion",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 13.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "bulgarian_split_squat_db_ea": {
+        "name": "Bulgarian Split Squat (DB ea.)",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "high",
+        "jointStress": "high",
+        "avgRpe": 6.5,
+        "avgReps": 8,
+        "avgSets": 2,
+        "recommendation": "use sparingly when fatigue is high",
+        "updated": "2026-05-26"
+      },
+      "leg_extension": {
+        "name": "Leg Extension",
+        "exposures": 1,
+        "primaryMuscle": "quads",
+        "movementPattern": "knee_extension",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 25,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "hip_thrust_smith": {
+        "name": "Hip Thrust (Smith)",
+        "exposures": 1,
+        "primaryMuscle": "glutes",
+        "movementPattern": "hip_hinge",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": null,
+        "avgReps": 8,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "standing_calf_raise": {
+        "name": "Standing Calf Raise",
+        "exposures": 1,
+        "primaryMuscle": "calves",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": null,
+        "avgReps": 13,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-26"
+      },
+      "cable_crunch": {
+        "name": "Cable Crunch",
+        "exposures": 2,
+        "primaryMuscle": "abs",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 11.2,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "smith_incline_bench_press": {
+        "name": "Smith Incline Bench Press",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 8,
+        "avgReps": 10,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "machine_chest_press_flat": {
+        "name": "Machine Chest Press (Flat)",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": 8,
+        "avgReps": 10.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "db_lateral_raise": {
+        "name": "DB Lateral Raise",
+        "exposures": 1,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "vertical_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 18,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "cable_lateral_raise_1_arm": {
+        "name": "Cable Lateral Raise (1-arm)",
+        "exposures": 1,
+        "primaryMuscle": "shoulders",
+        "movementPattern": "vertical_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 14.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "incline_db_fly_cable_fly": {
+        "name": "Incline DB Fly / Cable Fly",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "incline_cable_fly": {
+        "name": "Incline Cable Fly",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 18,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "cable_low_fly": {
+        "name": "Cable Low Fly",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "horizontal_push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 8,
+        "avgReps": 10.5,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "ab_rollout": {
+        "name": "Ab Rollout",
+        "exposures": 1,
+        "primaryMuscle": "abs",
+        "movementPattern": "isolation",
+        "fatigueCost": "moderate",
+        "jointStress": "moderate",
+        "avgRpe": null,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-27"
+      },
+      "cable_shrug": {
+        "name": "Cable Shrug",
+        "exposures": 1,
+        "primaryMuscle": "back",
+        "movementPattern": "pull",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 6.5,
+        "avgReps": 15,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-28"
+      },
+      "incline_cable_curls": {
+        "name": "Incline Cable Curls",
+        "exposures": 1,
+        "primaryMuscle": "chest",
+        "movementPattern": "push",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7.5,
+        "avgReps": 14.5,
+        "avgSets": 3,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      },
+      "cable_oh_tricep_extension": {
+        "name": "Cable OH Tricep Extension",
+        "exposures": 1,
+        "primaryMuscle": "triceps",
+        "movementPattern": "isolation",
+        "fatigueCost": "low",
+        "jointStress": "low",
+        "avgRpe": 7,
+        "avgReps": 18,
+        "avgSets": 2,
+        "recommendation": "keep if progressing",
+        "updated": "2026-05-29"
+      }
+    },
+    "muscleMemory": {
+      "chest": {
+        "sets": 17,
+        "band": "high",
+        "localFatigue": 74.3,
+        "recommendation": "hold"
+      },
+      "back": {
+        "sets": 22.2,
+        "band": "high",
+        "localFatigue": 132,
+        "recommendation": "hold"
+      },
+      "shoulders": {
+        "sets": 12.8,
+        "band": "optimal",
+        "localFatigue": 63.4,
+        "recommendation": "maintain"
+      },
+      "biceps": {
+        "sets": 25.1,
+        "band": "over",
+        "localFatigue": 110.5,
+        "recommendation": "reduce"
+      },
+      "triceps": {
+        "sets": 18.2,
+        "band": "over",
+        "localFatigue": 73.9,
+        "recommendation": "reduce"
+      },
+      "quads": {
+        "sets": 8,
+        "band": "optimal",
+        "localFatigue": 42.9,
+        "recommendation": "maintain"
+      },
+      "hamstrings": {
+        "sets": 4,
+        "band": "low",
+        "localFatigue": 19.5,
+        "recommendation": "increase"
+      },
+      "glutes": {
+        "sets": 5.6,
+        "band": "optimal",
+        "localFatigue": 33.8,
+        "recommendation": "maintain"
+      },
+      "calves": {
+        "sets": 5,
+        "band": "low",
+        "localFatigue": 16,
+        "recommendation": "increase"
+      },
+      "forearms": {
+        "sets": 9.4,
+        "band": "optimal",
+        "localFatigue": 42.9,
+        "recommendation": "maintain"
+      },
+      "abs": {
+        "sets": 6,
+        "band": "optimal",
+        "localFatigue": 26.3,
+        "recommendation": "maintain"
+      }
+    },
+    "fatigue": {
+      "updated": "2026-05-29",
+      "days": 7,
+      "local": {
+        "back": 132,
+        "biceps": 110.5,
+        "shoulders": 63.4,
+        "forearms": 42.9,
+        "chest": 74.3,
+        "triceps": 73.9,
+        "quads": 42.9,
+        "glutes": 33.8,
+        "hamstrings": 19.5,
+        "calves": 16,
+        "abs": 26.3
+      },
+      "patterns": {
+        "horizontal_pull": 10.8,
+        "vertical_pull": 10.2,
+        "horizontal_push": 12.8,
+        "isolation": 32.6,
+        "push": 9.8,
+        "arms": 3.8,
+        "knee_extension": 6.9,
+        "knee_flexion": 1.9,
+        "hip_hinge": 1.8,
+        "vertical_push": 3.9,
+        "pull": 1.6
+      },
+      "systemic": 262.8,
+      "spinal": 5.1,
+      "elbowStress": 40.8,
+      "shoulderStress": 12.8,
+      "kneeStress": 6.9,
+      "recoveryCost": 369.6
+    },
+    "decisions": [
+      {
+        "date": "2026-05-29",
+        "confidence": 0.62,
+        "action": "drop_set",
+        "to": "Incline Cable Curls",
+        "day": "ARMS",
+        "reason": "drop set added as an accessory intensity technique.",
+        "targetMuscle": "chest"
+      },
+      {
+        "date": "2026-05-29",
+        "confidence": 0.62,
+        "action": "drop_set",
+        "to": "Cable Skull Crusher",
+        "day": "ARMS",
+        "reason": "drop set added as an accessory intensity technique.",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Flat Machine Chest Press",
+        "to": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Flat Machine Chest Press for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+        "fatigueDelta": 0,
+        "targetMuscle": "chest",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Cable OH Tricep Extension",
+        "to": "Incline DB Fly / Cable Fly",
+        "day": "PUSH",
+        "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Cable OH Tricep Extension for Incline DB Fly / Cable Fly on PUSH. High stretch stimulus, low joint stress",
+        "fatigueDelta": 0.1,
+        "targetMuscle": "chest",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Flat Machine Chest Press",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Flat Machine Chest Press.",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Machine Chest Press (Flat).",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Machine Chest Press (Flat).",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Machine Chest Press (Flat).",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Machine Chest Press (Flat).",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Tricep Pushdown (rope)",
+        "to": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Tricep Pushdown (rope) for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+        "fatigueDelta": -2.7,
+        "targetMuscle": "chest",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.7,
+        "action": "reduce_set",
+        "from": "Tricep Pushdown (rope)",
+        "day": "PUSH",
+        "reason": "triceps volume was high, so one current-session set was removed from Tricep Pushdown (rope).",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Machine Chest Press (Flat)",
+        "to": "Cable Fly",
+        "day": "PUSH",
+        "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Machine Chest Press (Flat) for Cable Fly on PUSH. Constant tension throughout ROM",
+        "fatigueDelta": 3.2,
+        "targetMuscle": "chest",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-27",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Smith Seated OHP",
+        "to": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Smith Seated OHP for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+        "fatigueDelta": -0.1,
+        "targetMuscle": "chest",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-26",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Seated Calf Raise",
+        "day": "LEGS",
+        "reason": "calves was below MEV, so one current-session set was added to Seated Calf Raise.",
+        "targetMuscle": "calves"
+      },
+      {
+        "date": "2026-05-26",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Romanian Deadlift",
+        "to": "Seated Calf Raise",
+        "day": "LEGS",
+        "reason": "calves is at 2 weighted sets (MEV 8) while back is above MAV. Swap Romanian Deadlift for Seated Calf Raise on LEGS. machine legs",
+        "fatigueDelta": 4.7,
+        "targetMuscle": "calves",
+        "donorMuscle": "back"
+      },
+      {
+        "date": "2026-05-26",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Cable Crunch",
+        "day": "LEGS",
+        "reason": "abs was below MEV, so one current-session set was added to Cable Crunch.",
+        "targetMuscle": "abs"
+      },
+      {
+        "date": "2026-05-26",
+        "confidence": 0.68,
+        "action": "add_exercise",
+        "to": "Cable Crunch",
+        "day": "LEGS",
+        "reason": "abs needed more weekly volume, so Cable Crunch was added to LEGS.",
+        "targetMuscle": "abs"
+      },
+      {
+        "date": "2026-05-23",
+        "confidence": 0.62,
+        "action": "drop_set",
+        "to": "Cable Skull Crusher",
+        "day": "ARMS",
+        "reason": "drop set added as an accessory intensity technique.",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-21",
+        "confidence": 0.9,
+        "action": "swap_exercise",
+        "from": "Machine Chest Press (Flat)",
+        "to": "Cable Crunch",
+        "day": "PUSH",
+        "reason": "abs is at 3 weighted sets (MEV 6) while triceps is above MAV. Swap Machine Chest Press (Flat) for Cable Crunch on PUSH. Loaded spinal flexion, easy to progress",
+        "fatigueDelta": 3.4,
+        "targetMuscle": "abs",
+        "donorMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.62,
+        "action": "rest_pause",
+        "to": "DB Lateral Raise",
+        "day": "PUSH",
+        "reason": "rest pause added as an accessory intensity technique.",
+        "targetMuscle": "shoulders"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Cable Crunch",
+        "day": "PUSH",
+        "reason": "abs was below MEV, so one current-session set was added to Cable Crunch.",
+        "targetMuscle": "abs"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.68,
+        "action": "add_exercise",
+        "to": "Cable Crunch",
+        "day": "PUSH",
+        "reason": "abs needed more weekly volume, so Cable Crunch was added to PUSH.",
+        "targetMuscle": "abs"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Cable OH Tricep Extension",
+        "day": "PUSH",
+        "reason": "triceps was below MEV, so one current-session set was added to Cable OH Tricep Extension.",
+        "targetMuscle": "triceps"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Smith Seated OHP",
+        "day": "PUSH",
+        "reason": "shoulders was below MEV, so one current-session set was added to Smith Seated OHP.",
+        "targetMuscle": "shoulders"
+      },
+      {
+        "date": "2026-05-16",
+        "confidence": 0.66,
+        "action": "add_set",
+        "to": "Machine Chest Press (Flat)",
+        "day": "PUSH",
+        "reason": "chest was below MEV, so one current-session set was added to Machine Chest Press (Flat).",
+        "targetMuscle": "chest"
+      }
+    ],
+    "lastUpdatedReason": "app_start"
+  },
+  "repRangeCounters": {},
+  "pendingProgramChanges": {
+    "mrv-1779311454781": {
+      "type": "mrv_swap",
+      "date": "2026-05-21",
+      "day": "PUSH",
+      "index": 2,
+      "from": "Machine Chest Press (Flat)",
+      "to": "Cable Crunch",
+      "reason": "abs is at 3 weighted sets (MEV 6) while triceps is above MAV. Swap Machine Chest Press (Flat) for Cable Crunch on PUSH. Loaded spinal flexion, easy to progress",
+      "confidence": 0.9
+    },
+    "mrv-1779745657206": {
+      "type": "mrv_swap",
+      "date": "2026-05-26",
+      "day": "LEGS",
+      "index": 1,
+      "from": "Romanian Deadlift",
+      "to": "Seated Calf Raise",
+      "reason": "calves is at 2 weighted sets (MEV 8) while back is above MAV. Swap Romanian Deadlift for Seated Calf Raise on LEGS. machine legs",
+      "confidence": 0.9
+    },
+    "mrv-1779830263178": {
+      "type": "mrv_swap",
+      "date": "2026-05-27",
+      "day": "PUSH",
+      "index": 1,
+      "from": "Smith Seated OHP",
+      "to": "Machine Chest Press (Flat)",
+      "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Smith Seated OHP for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+      "confidence": 0.9
+    },
+    "mrv-1779830544669": {
+      "type": "mrv_swap",
+      "date": "2026-05-27",
+      "day": "PUSH",
+      "index": 1,
+      "from": "Machine Chest Press (Flat)",
+      "to": "Cable Fly",
+      "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Machine Chest Press (Flat) for Cable Fly on PUSH. Constant tension throughout ROM",
+      "confidence": 0.9
+    },
+    "mrv-1779830558248": {
+      "type": "mrv_swap",
+      "date": "2026-05-27",
+      "day": "PUSH",
+      "index": 6,
+      "from": "Tricep Pushdown (rope)",
+      "to": "Machine Chest Press (Flat)",
+      "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Tricep Pushdown (rope) for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+      "confidence": 0.9
+    },
+    "mrv-1779830915452": {
+      "type": "mrv_swap",
+      "date": "2026-05-27",
+      "day": "PUSH",
+      "index": 3,
+      "from": "Cable OH Tricep Extension",
+      "to": "Incline DB Fly / Cable Fly",
+      "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Cable OH Tricep Extension for Incline DB Fly / Cable Fly on PUSH. High stretch stimulus, low joint stress",
+      "confidence": 0.9
+    },
+    "mrv-1779830926176": {
+      "type": "mrv_swap",
+      "date": "2026-05-27",
+      "day": "PUSH",
+      "index": 4,
+      "from": "Flat Machine Chest Press",
+      "to": "Machine Chest Press (Flat)",
+      "reason": "chest is at 7.6 weighted sets (MEV 8) while triceps is over MRV. Swap Flat Machine Chest Press for Machine Chest Press (Flat) on PUSH. Low fatigue, easy to control load",
+      "confidence": 0.9
+    }
+  },
+  "lastMrvSwap": {
+    "date": "2026-05-27",
+    "day": "PUSH",
+    "index": 4,
+    "previous": {
+      "name": "Machine Chest Press (Flat)",
+      "repMin": 10,
+      "repMax": 15,
+      "start": 55,
+      "exerciseKey": "machine_chest_press_flat",
+      "equipment": "machine"
+    },
+    "replacement": {
+      "name": "Machine Chest Press (Flat)",
+      "repMin": 8,
+      "repMax": 15,
+      "start": 55,
+      "exerciseKey": "flat_machine_chest_press",
+      "equipment": "machine"
+    },
+    "from": "Machine Chest Press (Flat)",
+    "to": "Machine Chest Press (Flat)"
+  },
+  "mrvAutomation": {
+    "updatedAt": "2026-05-29",
+    "sourceReview": "ascend-ai-review-2026-05-29.md",
+    "rules": [
+      "MRV set additions require projected phase volume need and effective MRV/MAV room.",
+      "Extra-set weight and reps are prescribed from the current exercise performance, not blank defaults.",
+      "MRV swaps are auto-planned before workout start and skip duplicate target exercises.",
+      "Exercise history resolves by canonical exercise key across slots."
+    ],
+    "aliasesApplied": {
+      "Smith Machine Chest Press": "Smith Machine Bench Press",
+      "Smith Machine Incline Bench Press": "Smith Incline Bench Press",
+      "Chest Press Machine": "Machine Chest Press (Flat)",
+      "Flat Machine Chest Press": "Machine Chest Press (Flat)",
+      "Seated Machine Chest Press": "Machine Chest Press (Flat)",
+      "Machine Chest Press": "Machine Chest Press (Flat)",
+      "Incline DB Fly / Cable Fly": "Incline Cable Fly",
+      "DB Lateral Raise": "Dumbbell Lateral Raise",
+      "Cable Lateral Raise (1-arm)": "Cable Lateral Raise",
+      "Face Pull (cable)": "Face Pull",
+      "Straight Arm Pulldown (rope)": "Straight Arm Pulldown",
+      "Lat Pulldown (pronated)": "Lat Pulldown",
+      "Wide Grip Lat Pulldown": "Lat Pulldown",
+      "Bayesian Curls": "Bayesian Curl",
+      "Bayesian Cable Curls": "Bayesian Curl",
+      "Incline DB Curl": "Incline Dumbbell Curl",
+      "Hammer Curl (alternating)": "Hammer Curl",
+      "Cable Triceps Pushdown": "Tricep Pushdown",
+      "Triceps Pushdown (Straight bar)": "Tricep Pushdown",
+      "Rope Pushdown": "Tricep Pushdown",
+      "Cable OH Tricep Extension": "Cable Overhead Tricep Extension",
+      "Overhead Barbell Extension": "Overhead Tricep Extension (barbell)",
+      "Good Morning (for hamstrings)": "Good Morning",
+      "Pendlay Row": "Barbell Pendlay Row",
+      "Weighted Pull-Up": "Weighted Pull-up",
+      "Standing Cable Crunch": "Cable Crunch",
+      "Reverse / Wrist Curl": "Reverse Wrist Curl",
+      "Barbell Romanian Deadlift": "Romanian Deadlift",
+      "Barbell Hip Thrust": "Hip Thrust"
+    }
+  },
+  "schemaVersion": 2
+}

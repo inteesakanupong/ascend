@@ -11,7 +11,8 @@ function normalizeExerciseName(name) {
 function exerciseKeyFor(exOrName) {
   const explicit = typeof exOrName === "object" ? (exOrName?.exerciseKey || exOrName?.id) : null;
   const raw = explicit || (typeof exOrName === "string" ? exOrName : exOrName?.name);
-  return normalizeExerciseName(raw).replace(/\s+/g, "_");
+  const canonical = typeof canonicalNameForExercise === "function" ? canonicalNameForExercise(raw) : raw;
+  return normalizeExerciseName(canonical).replace(/\s+/g, "_");
 }
 
 function activeExerciseForSlot(day, idx) {

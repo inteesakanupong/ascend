@@ -13,6 +13,7 @@ let LIFT_SET_RPE  = [];
 let LIFT_EXTRA_SETS = [];
 let LIFT_TECHNIQUES = [];
 let LIFT_DISMISSED_BANNERS = new Set(); // "exIdx-setNum" dismissed by user this session
+let LIFT_MRV_AUTOPLAN = [];
 let TARGETED_WARMUP_ACTIVE = false;
 let WORKOUT_DRAFT_RESTORING = false;
 
@@ -606,6 +607,37 @@ function mrvWarning() {
   return null;
 }
 
+function prepareMrvSessionPlan(day) {
+  LIFT_MRV_AUTOPLAN = [];
+  if (!LIFT_DRAFT || !day || typeof generateMrvRecommendations !== "function") return;
+  const usedKeys = new Set((STATE.exercises[day] || []).map(ex => exerciseKeyFor(ex)));
+  const recs = generateMrvRecommendations()
+    .filter(r => r.action === "swap" && r.day === day)
+    .filter(r => r.fromIdx != null && r.toExercise && r.fromExercise)
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  for (const rec of recs) {
+    const current = STATE.exercises[day]?.[rec.fromIdx];
+    if (!current || current.leadLift) continue;
+    if (exerciseKeyFor(current) !== exerciseKeyFor(rec.fromExercise)) continue;
+    const toKey = exerciseKeyFor(rec.toExercise);
+    const fromKey = exerciseKeyFor(current);
+    if (!toKey || toKey === fromKey) continue;
+    if (usedKeys.has(toKey)) continue;
+    const dbMatch = typeof findDbMatch === "function" ? findDbMatch(rec.toExercise) : null;
+    LIFT_DRAFT.swappedExercises[rec.fromIdx] = buildExerciseSwap(current, canonicalNameForExercise(rec.toExercise), dbMatch);
+    resetDraftSlotForExercise(day, rec.fromIdx);
+    usedKeys.delete(fromKey);
+    usedKeys.add(toKey);
+    LIFT_MRV_AUTOPLAN.push({
+      from: current.name,
+      to: canonicalNameForExercise(rec.toExercise),
+      reason: rec.reason || rec.body || "MRV balance",
+      idx: rec.fromIdx,
+      muscle: rec.muscle,
+    });
+  }
+}
+
 function selectLiftDay(day) {
   LIFT_DAY = day;
   LIFT_EDITING_ID = null;
@@ -616,6 +648,7 @@ function selectLiftDay(day) {
   LIFT_SET_RPE = [];
   LIFT_EXTRA_SETS = [];
   LIFT_TECHNIQUES = [];
+  LIFT_MRV_AUTOPLAN = [];
   LIFT_DISMISSED_BANNERS = new Set();
   $$(".day-tab").forEach(t => t.classList.toggle("active", t.dataset.day === day));
   const todayD = todayISO();
@@ -631,6 +664,7 @@ function selectLiftDay(day) {
     notes: null,
     targetedWarmup: null,
   };
+  prepareMrvSessionPlan(day);
   $("#lift-date").value = todayD;
   const liftNotesEl = document.getElementById("lift-notes");
   if (liftNotesEl) liftNotesEl.value = "";
@@ -745,7 +779,19 @@ function selectLiftDay(day) {
     const prEl    = document.getElementById("lsg-program-review");
     const prItems = document.getElementById("lsg-program-review-items");
     const pending = STATE.pendingProgramChanges?.[day];
-    if (prEl && prItems && pending && pending.length > 0) {
+    if (prEl && prItems && LIFT_MRV_AUTOPLAN.length > 0) {
+      prEl.style.display = "";
+      prItems.innerHTML = LIFT_MRV_AUTOPLAN.map(c =>
+        `<div style="margin-bottom:3px;">MRV auto-plan: ${escapeHtml(c.from)} -> ${escapeHtml(c.to)}</div>`
+      ).join("");
+      document.getElementById("btn-program-review-apply")?.addEventListener("click", () => {
+        toast("MRV PLAN ALREADY APPLIED");
+      });
+      document.getElementById("btn-program-review-dismiss")?.addEventListener("click", () => {
+        LIFT_MRV_AUTOPLAN = [];
+        prEl.style.display = "none";
+      });
+    } else if (prEl && prItems && pending && pending.length > 0) {
       prEl.style.display = "";
       prItems.innerHTML = pending.map(c =>
         `<div style="margin-bottom:3px;">• ${escapeHtml(c.reason)}</div>`
@@ -1103,6 +1149,47 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   return null; // no suggestion needed — performance is on target
 }
 
+function mrvProjectedNeedForExercise(exIdx) {
+  const ex = activeExerciseForSlot(LIFT_DAY, exIdx) || STATE.exercises[LIFT_DAY]?.[exIdx];
+  if (!ex || typeof weeklyVolumeByMuscle !== "function") return null;
+  const weights = exerciseWeightedMuscles(ex);
+  const muscles = Object.keys(weights).filter(m => weights[m] > 0 && VOLUME_LANDMARKS[m]);
+  if (!muscles.length) return null;
+  const vol = weeklyVolumeByMuscle(7);
+  const plannedExtra = (LIFT_EXTRA_SETS[exIdx]?.sets || []).filter(s => !s.done).length;
+  const candidates = muscles.map(muscle => {
+    const lm = typeof effectiveMrvLandmarksForMuscle === "function" ? effectiveMrvLandmarksForMuscle(muscle) : VOLUME_LANDMARKS[muscle];
+    const current = vol[muscle] || 0;
+    const projected = current + plannedExtra * weights[muscle];
+    const target = Math.min(lm.mav, Math.max(lm.mev, lm.mav - 1));
+    const deficit = Math.max(0, target - projected);
+    const mrvRoom = Math.max(0, lm.mrv - projected);
+    return { muscle, lm, current, projected, deficit, mrvRoom, contribution: weights[muscle] };
+  }).sort((a, b) => b.deficit - a.deficit);
+  const primary = candidates[0];
+  if (!primary || primary.deficit <= 0 || primary.mrvRoom < primary.contribution) return null;
+  const wave = juggernautWave(0, LIFT_DAY);
+  const phaseCap = wave.name === "ACCUMULATION" ? 2 : wave.name === "INTENSIFICATION" ? 1 : wave.name === "REALIZATION" ? 1 : 0;
+  if (phaseCap <= 0) return null;
+  const neededByMrv = Math.ceil(primary.deficit / primary.contribution);
+  const roomByMrv = Math.floor(primary.mrvRoom / primary.contribution);
+  const suggestedSets = Math.max(0, Math.min(phaseCap, neededByMrv, roomByMrv));
+  return suggestedSets ? { ...primary, suggestedSets, wave: wave.name } : null;
+}
+
+function projectedExtraSetPrescription(exIdx, ex, avgRpe) {
+  const set = LIFT_DRAFT.sets[exIdx] || {};
+  const inc = incrementFor(ex);
+  const p = progressionFor(LIFT_DAY, exIdx);
+  const lastWeight = set.s2w ?? set.s1w ?? p.weight;
+  const lastReps = set.s2r ?? set.s1r ?? p.reps;
+  const rpeDrop = avgRpe >= 7.25 ? inc : 0;
+  return {
+    weight: Math.max(0, roundToIncrement((lastWeight || 0) - rpeDrop, ex)),
+    reps: Math.max(ex.repMin || 8, Math.min(ex.repMax || lastReps || 12, lastReps || ex.repMin || 8)),
+  };
+}
+
 // Extra set suggestion after BOTH sets are done for an exercise
 // Returns { suggest: bool, sets: number, reason, fatigue } | null
 function extraSetSuggestion(exIdx) {
@@ -1133,6 +1220,8 @@ function extraSetSuggestion(exIdx) {
   const maxReps = Math.max(s1reps || 0, s2reps || 0);
   const inRange = maxReps >= ex.repMin; // at least hit the floor — don't require top of range
   const fatigue = sessionFatigueScore(exIdx);
+  const mrvNeed = mrvProjectedNeedForExercise(exIdx);
+  if (!mrvNeed) return null;
   const totalExercises = STATE.exercises[LIFT_DAY]?.length || 8;
   const remaining = remainingExercises(exIdx);
   const isLeadExercise = isLeadLift(LIFT_DAY, exIdx);
@@ -1155,22 +1244,27 @@ function extraSetSuggestion(exIdx) {
   if (remaining <= 1) return null; // last 2 exercises — protect them
   const fatigueCap = isLeadExercise ? 5 : (3 - sessionProgress * 1.5);
   if (fatigue > fatigueCap) return null;
+  const prescription = projectedExtraSetPrescription(exIdx, ex, avgRpe);
 
   // RPE ≤6 avg → suggest 2 extra sets
   if (avgRpe <= 6) {
     return {
-      suggestedSets: 2,
-      weight: s1w,
+      suggestedSets: Math.min(2, mrvNeed.suggestedSets),
+      weight: prescription.weight,
+      reps: prescription.reps,
       reason: `Both sets averaged RPE ${avgRpe.toFixed(1)} — you have significant reserve. ${remaining > 3 ? "Adding 2 sets here maximises stimulus." : "Adding 2 sets — note: " + remaining + " exercises still to come."}`,
+      reason: `${mrvNeed.muscle} is projected at ${roundVolume(mrvNeed.projected)} weighted sets vs target ${mrvNeed.lm.mev}-${mrvNeed.lm.mav} this phase. Avg RPE ${avgRpe.toFixed(1)} leaves room for a precise extra set at ${fmtWeight(prescription.weight)}kg x ${prescription.reps}.`,
       fatigue
     };
   }
   // RPE 7–7.5 → suggest 1 extra set
   if (avgRpe <= 7.5) {
     return {
-      suggestedSets: 1,
-      weight: s1w,
+      suggestedSets: Math.min(1, mrvNeed.suggestedSets),
+      weight: prescription.weight,
+      reps: prescription.reps,
       reason: `Both sets averaged RPE ${avgRpe.toFixed(1)} — one extra set will add volume stimulus without overreaching. ${remaining} exercise${remaining !== 1 ? "s" : ""} still to go.`,
+      reason: `${mrvNeed.muscle} still needs projected phase volume (${roundVolume(mrvNeed.projected)} now, target ${mrvNeed.lm.mev}-${mrvNeed.lm.mav}). Add 1 controlled set at ${fmtWeight(prescription.weight)}kg x ${prescription.reps}; avg RPE was ${avgRpe.toFixed(1)}.`,
       fatigue
     };
   }
@@ -1200,6 +1294,7 @@ function mrvRecommendationAlreadyApplied(rec, day = LIFT_DAY) {
     return !!set && set.s2w == null && set.s2r == null;
   }
   if (rec.action === "swap") {
+    if (rec.fromIdx != null && LIFT_DRAFT?.swappedExercises?.[rec.fromIdx] && exerciseKeyFor(LIFT_DRAFT.swappedExercises[rec.fromIdx]) === exerciseKeyFor(rec.toExercise)) return true;
     return STATE.lastMrvSwap?.from === rec.fromExercise && STATE.lastMrvSwap?.to === rec.toExercise;
   }
   return false;
@@ -1227,7 +1322,10 @@ function mrvExerciseDefaults(name, muscle) {
 
 function findCurrentDayMuscleExercise(day, muscle, preferHighestFatigue = false) {
   const candidates = (STATE.exercises[day] || [])
-    .map((ex, idx) => ({ ex, idx, weight: exerciseWeightedMuscles(ex)[muscle] || 0, fatigue: exerciseFatigueProfile(ex).recoveryCost }))
+    .map((ex, idx) => {
+      const active = activeExerciseForSlot(day, idx) || ex;
+      return { ex: active, idx, weight: exerciseWeightedMuscles(active)[muscle] || 0, fatigue: exerciseFatigueProfile(active).recoveryCost };
+    })
     .filter(c => c.weight > 0 && !c.ex.leadLift);
   if (!candidates.length) return null;
   return candidates.sort((a, b) => preferHighestFatigue ? b.fatigue - a.fatigue : b.weight - a.weight)[0];
@@ -1330,10 +1428,11 @@ function addMrvSetToCurrentLift(rec, day = LIFT_DAY) {
   const target = findCurrentDayMuscleExercise(day, rec.muscle, false);
   if (!target) return addMrvExerciseToLiftDay(rec, day);
   const p = progressionFor(day, target.idx);
+  const prescription = projectedExtraSetPrescription(target.idx, target.ex, rec.lm?.effortRpe ?? 7);
   if (!LIFT_EXTRA_SETS[target.idx]) LIFT_EXTRA_SETS[target.idx] = { dismissed: false, sets: [] };
   LIFT_EXTRA_SETS[target.idx].sets.push({
-    weight: p.weight,
-    reps: STATE.exercises[day][target.idx]?.repMin || p.reps || 10,
+    weight: prescription.weight ?? p.weight,
+    reps: prescription.reps ?? STATE.exercises[day][target.idx]?.repMin ?? p.reps ?? 10,
     rpe: null,
     done: false,
     source: "mrv",
@@ -1732,7 +1831,7 @@ function renderLiftExercises() {
         <div class="es-text">${escapeHtml(sugg.reason)}</div>
         <div class="es-text" style="margin-top:6px;"><strong>Recommended Change:</strong> Add ${toAdd} set${toAdd > 1 ? "s" : ""}.<br><strong>Expected Benefit:</strong> More stimulus while RPE and remaining-session fatigue are low.<br><strong>Risk:</strong> Extra volume can exceed recovery if joints or readiness feel poor.</div>
         <div class="es-actions">
-          <button class="btn-add-set" data-ex="${idx}" data-addsets="${toAdd}" data-weight="${sugg.weight ?? ''}">+ ADD SET${toAdd > 1 ? "S" : ""}</button>
+          <button class="btn-add-set" data-ex="${idx}" data-addsets="${toAdd}" data-weight="${sugg.weight ?? ''}" data-reps="${sugg.reps ?? ''}">+ ADD SET${toAdd > 1 ? "S" : ""}</button>
           <button class="btn-skip-set" data-ex="${idx}">SKIP</button>
         </div>
       </div>`;
@@ -2068,9 +2167,10 @@ function renderLiftExercises() {
       const idx    = +btn.dataset.ex;
       const toAdd  = +btn.dataset.addsets;
       const weight = btn.dataset.weight !== "" ? parseFloat(btn.dataset.weight) : null;
+      const reps = btn.dataset.reps !== "" ? parseInt(btn.dataset.reps, 10) : null;
       if (!LIFT_EXTRA_SETS[idx]) LIFT_EXTRA_SETS[idx] = { dismissed: false, sets: [] };
       for (let i = 0; i < toAdd; i++) {
-        LIFT_EXTRA_SETS[idx].sets.push({ weight, reps: null, rpe: null, done: false });
+        LIFT_EXTRA_SETS[idx].sets.push({ weight, reps, rpe: null, done: false, source: "mrv_projection" });
       }
       // Remove suggestion card and re-render just this exercise card
       _rerenderExCard(idx);
@@ -2250,16 +2350,17 @@ function _refreshExtraSetSugg(exIdx) {
       <div class="es-label">➕ ADD ${toAdd} SET${toAdd > 1 ? "S" : ""}?</div>
       <div class="es-text">${escapeHtml(sugg.reason)}</div>
       <div class="es-actions">
-        <button class="btn-add-set" data-ex="${exIdx}" data-addsets="${toAdd}" data-weight="${sugg.weight ?? ''}">+ ADD SET${toAdd > 1 ? "S" : ""}</button>
+        <button class="btn-add-set" data-ex="${exIdx}" data-addsets="${toAdd}" data-weight="${sugg.weight ?? ''}" data-reps="${sugg.reps ?? ''}">+ ADD SET${toAdd > 1 ? "S" : ""}</button>
         <button class="btn-skip-set" data-ex="${exIdx}">SKIP</button>
       </div>
     </div>`;
   card.insertAdjacentHTML("beforeend", html);
   card.querySelector(".btn-add-set").addEventListener("click", (btn) => {
     const weight = sugg.weight;
+    const reps = sugg.reps ?? null;
     if (!LIFT_EXTRA_SETS[exIdx]) LIFT_EXTRA_SETS[exIdx] = { dismissed: false, sets: [] };
     for (let i = 0; i < toAdd; i++) {
-      LIFT_EXTRA_SETS[exIdx].sets.push({ weight, reps: null, rpe: null, done: false });
+      LIFT_EXTRA_SETS[exIdx].sets.push({ weight, reps, rpe: null, done: false, source: "mrv_projection" });
     }
     _rerenderExCard(exIdx);
   });
@@ -2762,9 +2863,11 @@ function _renderExList() {
     <div class="ex-grp-body${collapsed ? " collapsed" : ""}">
     ${exs.map(e => {
       const isCurrent = e.name === currentName;
+      const aliases = (typeof EXERCISE_DB_ALIAS_LABELS !== "undefined" && EXERCISE_DB_ALIAS_LABELS[e.name]) ? EXERCISE_DB_ALIAS_LABELS[e.name] : [];
       return `<div class="ex-row${isCurrent ? " is-current" : ""}" data-name="${escapeHtml(e.name)}">
         <div class="ex-row-info">
           <div class="ex-row-name">${escapeHtml(e.name)}${isCurrent ? " ✓" : ""}</div>
+          ${aliases.length ? `<div style="font-size:10px;color:var(--ink-dim);line-height:1.35;margin-top:2px;">Also logged as: ${escapeHtml(aliases.slice(0,3).join(", "))}</div>` : ""}
           <div class="ex-row-tags">
             <span class="ex-tag tm">${MUSCLE_LABELS[e.muscle] || e.muscle}</span>
             <span class="ex-tag mv">${e.movement}</span>

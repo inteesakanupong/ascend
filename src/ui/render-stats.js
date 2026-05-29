@@ -44,7 +44,7 @@ function renderLifterAnalysis() {
     ${row("MEV→MRV range", (() => {
       const muscles = ["chest","back","quads"];
       return muscles.map(m => {
-        const lm = VOLUME_LANDMARKS[m];
+        const lm = typeof effectiveMrvLandmarksForMuscle === "function" ? effectiveMrvLandmarksForMuscle(m) : VOLUME_LANDMARKS[m];
         const mrv = analysis.mrvEstimates?.[m];
         return lm ? `${MUSCLE_LABELS[m]||m} ${lm.mev}→${mrv ?? lm.mrv}` : null;
       }).filter(Boolean).join(" · ") || "—";
@@ -121,7 +121,7 @@ function renderStats() {
     volWrap.innerHTML = muscleGroups.map(group => {
       const rows = group.muscles.map(m => {
         const sets = vol[m] || 0;
-        const lm = VOLUME_LANDMARKS[m];
+        const lm = typeof effectiveMrvLandmarksForMuscle === "function" ? effectiveMrvLandmarksForMuscle(m) : VOLUME_LANDMARKS[m];
         if (!lm) return "";
         const max = lm.mrv * 1.2;
         const pct = Math.min(100, (sets / max) * 100);
