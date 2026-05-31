@@ -48,6 +48,46 @@ function sessionExerciseMatches(session, idx, exOrName) {
   return !!targetName && !!sessionName && targetName === sessionName;
 }
 
+function sessionSetDone(session, idx, setKey) {
+  const completion = session?.setCompletion?.[idx];
+  if (completion && Object.prototype.hasOwnProperty.call(completion, setKey)) return !!completion[setKey];
+  const set = session?.sets?.[idx] || {};
+  const reps = set[setKey === "s1" ? "s1r" : "s2r"];
+  return reps != null && reps > 0;
+}
+
+function completedSessionSet(session, idx) {
+  const set = { ...(session?.sets?.[idx] || {}) };
+  if (!session?.setCompletion) return set;
+  if (!sessionSetDone(session, idx, "s1")) {
+    set.s1w = null;
+    set.s1r = null;
+  }
+  if (!sessionSetDone(session, idx, "s2")) {
+    set.s2w = null;
+    set.s2r = null;
+  }
+  return set;
+}
+
+function sessionCompletionRatio(session) {
+  const sets = session?.sets || [];
+  if (!sets.length) return 0;
+  let planned = 0;
+  let done = 0;
+  sets.forEach((set, idx) => {
+    if (set?.s1r != null || set?.s1w != null) {
+      planned++;
+      if (sessionSetDone(session, idx, "s1")) done++;
+    }
+    if (set?.s2r != null || set?.s2w != null) {
+      planned++;
+      if (sessionSetDone(session, idx, "s2")) done++;
+    }
+  });
+  return planned > 0 ? done / planned : 0;
+}
+
 function defaultStartWeightForExercise(ex) {
   if (ex?.start != null && !isNaN(+ex.start)) return +ex.start;
   const eq = typeof detectEquipment === "function" ? detectEquipment(ex?.name, ex) : ex?.equipment;

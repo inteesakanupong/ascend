@@ -95,8 +95,8 @@ function sessionExerciseName(session, idx) {
 function sessionSetCount(session, idx) {
   const set = session.sets?.[idx] || {};
   let sets = 0;
-  if (set.s1r != null && set.s1r > 0) sets++;
-  if (set.s2r != null && set.s2r > 0) sets++;
+  if (sessionSetDone(session, idx, "s1") && set.s1r != null && set.s1r > 0) sets++;
+  if (sessionSetDone(session, idx, "s2") && set.s2r != null && set.s2r > 0) sets++;
   for (const extra of (session.extraSets?.[idx]?.sets || [])) {
     if (extra.done && extra.reps != null && extra.reps > 0) sets++;
   }
@@ -120,7 +120,7 @@ function exerciseFor(session, idx) {
 function prsInSession(session) {
   let count = 0;
   for (let i = 0; i < session.sets.length; i++) {
-    const set = session.sets[i];
+    const set = completedSessionSet(session, i);
     if (isPRSet(session.day, i, set.s1w, set.s1r, session.id)) count++;
     // Don't double-count if both sets PR'd; treat the session as one PR per ex
     else if (isPRSet(session.day, i, set.s2w, set.s2r, session.id)) count++;
@@ -133,7 +133,7 @@ function sessionVolume(session) {
   const bw = latestWeighIn()?.weight || STATE.profile.bodyweight || 87.5;
   for (let i = 0; i < session.sets.length; i++) {
     const ex = exerciseFor(session, i);
-    const set = session.sets[i];
+    const set = completedSessionSet(session, i);
     const isBW = isBodyweightExercise(ex);
     const add = (w, r) => {
       if (w == null || r == null) return;

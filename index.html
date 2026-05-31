@@ -2675,6 +2675,10 @@ function phase2RestraintGate() {
     typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0,10)
   ) : { score: null };
   const poorReadiness = readiness.score != null && readiness.score <= 2;
+  const adherence = typeof trainingAdherenceSignal === "function" ? trainingAdherenceSignal(
+    typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0,10)
+  ) : { penalty: 0, factors: [] };
+  const adherenceRisk = adherence.penalty >= 0.5;
 
   // Phase 5: Check most recent session pain score
   const recentSession = STATE.sessions && STATE.sessions.length
@@ -2695,6 +2699,7 @@ function phase2RestraintGate() {
     !isDeload &&
     !aggCut &&
     !poorReadiness &&
+    !adherenceRisk &&
     !highPain &&
     sessionMinutes < 75;
 
@@ -2702,6 +2707,7 @@ function phase2RestraintGate() {
                          isDeload      ? "deload week" :
                          aggCut        ? "cutting aggressively (>0.8kg/wk)" :
                          poorReadiness ? "poor readiness today" :
+                         adherenceRisk ? (adherence.factors[0] || "recent missed/incomplete training") :
                          sessionMinutes >= 75 ? "session too long (75+ min)" :
                          null;
 
@@ -2713,6 +2719,7 @@ function phase2RestraintGate() {
     isCutting,
     aggCut,
     poorReadiness,
+    adherenceRisk,
     sessionMinutes,
   };
 }
@@ -3429,6 +3436,8 @@ function nextSessionDay() {
     .sort((a, b) => a.date.localeCompare(b.date));
   if (sorted.length === 0) return "PUSH";
   const last = sorted[sorted.length - 1].day;
+  const lastRatio = typeof sessionCompletionRatio === "function" ? sessionCompletionRatio(sorted[sorted.length - 1]) : 1;
+  if (lastRatio > 0 && lastRatio < 0.5) return last;
   const i = DAY_ORDER.indexOf(last);
   return DAY_ORDER[(i + 1) % 4];
 }

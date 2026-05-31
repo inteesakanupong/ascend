@@ -1,5 +1,34 @@
 // Readiness calculation from daily log data
 
+function trainingAdherenceSignal(date) {
+  const sessions = [...(STATE.sessions || [])]
+    .filter(s => s.date < date)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const factors = [];
+  let penalty = 0;
+
+  const last = sessions[0] || null;
+  if (last) {
+    const gap = daysBetween(last.date, date);
+    if (gap >= 4) {
+      penalty += 0.5;
+      factors.push(`No workout for ${gap} days ↓`);
+    } else if (gap >= 3) {
+      penalty += 0.25;
+      factors.push(`Missed training day (${gap}d gap)`);
+    }
+  }
+
+  const recentIncomplete = sessions.slice(0, 3).find(s => typeof sessionCompletionRatio === "function" && sessionCompletionRatio(s) < 0.85);
+  if (recentIncomplete) {
+    const pct = Math.round(sessionCompletionRatio(recentIncomplete) * 100);
+    penalty += pct < 60 ? 0.75 : 0.5;
+    factors.push(`${recentIncomplete.day} incomplete (${pct}% sets) ↓`);
+  }
+
+  return { penalty, factors, lastSession: last };
+}
+
 function calculateReadiness(date) {
   const log = getDailyLog(date);
   if (!log) return { score: null, factors: [], adjustment: 0 };
@@ -30,6 +59,12 @@ function calculateReadiness(date) {
   if (recent.length >= 4) {
     const drop3d = recent[3].weight - recent[0].weight;
     if (drop3d > 0.7) { score -= 0.5; factors.push(`Rapid weight drop (-${drop3d.toFixed(1)}kg/3d)`); }
+  }
+
+  const adherence = trainingAdherenceSignal(date);
+  if (adherence.penalty) {
+    score -= adherence.penalty;
+    factors.push(...adherence.factors);
   }
 
   // Clamp 1-5

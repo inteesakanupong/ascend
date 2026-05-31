@@ -105,7 +105,10 @@ function exerciseHistoryFor(day, exIdx, ex, opts = {}) {
   const exactEntries = [];
   daySessions.forEach(s => {
     (s.sets || []).forEach((set, idx) => {
-      if (set?.s1r != null && sessionExerciseMatches(s, idx, ex)) exactEntries.push({ session: s, idx, set });
+      const completed = completedSessionSet(s, idx);
+      if ((completed.s1r != null || completed.s2r != null) && sessionExerciseMatches(s, idx, ex)) {
+        exactEntries.push({ session: s, idx, set: completed });
+      }
     });
   });
   const allowSlotFallback = opts.allowSlotFallback !== false;
@@ -113,7 +116,8 @@ function exerciseHistoryFor(day, exIdx, ex, opts = {}) {
     ? []
     : daySessions
         .filter(s => s.sets?.[exIdx]?.s1r != null)
-        .map(s => ({ session: s, idx: exIdx, set: s.sets[exIdx] }));
+        .map(s => ({ session: s, idx: exIdx, set: completedSessionSet(s, exIdx) }))
+        .filter(e => e.set.s1r != null || e.set.s2r != null);
   const entries = exactEntries.length ? exactEntries : fallbackEntries;
   return {
     key,

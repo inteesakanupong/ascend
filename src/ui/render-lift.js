@@ -3468,6 +3468,7 @@ $("#btn-save-session").addEventListener("click", () => {
     exerciseKeys: LIFT_DRAFT.sets.map((_, idx) => exerciseKeyFor(activeExerciseForSlot(LIFT_DRAFT.day, idx) || STATE.exercises[LIFT_DRAFT.day]?.[idx])),
     notes: (document.getElementById("lift-notes")?.value?.trim() || null),
     rpe: LIFT_SET_RPE.map(r => ({ s1: r.s1, s2: r.s2 })),
+    setCompletion: LIFT_SET_DONE.map(d => ({ s1: !!d.s1, s2: !!d.s2 })),
     extraSets: LIFT_EXTRA_SETS.map(e => ({ sets: (e?.sets || []).filter(s => s.done) })),
     techniques: LIFT_TECHNIQUES.map(t => (t && t !== "skipped") ? t : null),
     energyRating: null, // sourced from morning log, not lift gate
@@ -3476,6 +3477,15 @@ $("#btn-save-session").addEventListener("click", () => {
     durationSec: isEditing
       ? (existingSession?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
+  };
+  const plannedSetCount = session.sets.reduce((sum, set) => sum + (set.s1r != null || set.s1w != null ? 1 : 0) + (set.s2r != null || set.s2w != null ? 1 : 0), 0);
+  const completedSetCount = session.setCompletion.reduce((sum, c) => sum + (c.s1 ? 1 : 0) + (c.s2 ? 1 : 0), 0)
+    + session.extraSets.reduce((sum, e) => sum + (e.sets || []).length, 0);
+  session.completionSummary = {
+    plannedSets: plannedSetCount,
+    completedSets: completedSetCount,
+    completionRatio: plannedSetCount ? Math.round((completedSetCount / plannedSetCount) * 100) / 100 : 0,
+    incomplete: plannedSetCount > 0 && completedSetCount < plannedSetCount,
   };
 
   // PR detection BEFORE saving (so we compare against pre-save state)
