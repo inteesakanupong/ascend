@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-06-02.1";
+const CACHE = "ascend-2026-06-02.2";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -1283,9 +1283,19 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-02.1";
+const APP_VERSION = "2026-06-02.2";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-02.2",
+    title: "Lead Lift TM Repair",
+    items: [
+      "Lead lift training maxes now repair upward from recent JTM-prescribed lead sessions when a stored max is lower than the workout history supports.",
+      "Empty or unfinished accidental saves no longer count as training wave sessions.",
+      "Realization AMRAP saves now require the final lead set to be completed with RPE before updating the training max.",
+      "A single low AMRAP result no longer automatically lowers the stored training max.",
+    ]
+  },
   {
     version: "2026-06-02.1",
     title: "Automatic MRV And Deload Stress Review",

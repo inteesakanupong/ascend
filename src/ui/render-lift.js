@@ -3743,6 +3743,10 @@ $("#btn-save-session").addEventListener("click", () => {
     toast(`Need at least the lead lift (${STATE.exercises[LIFT_DRAFT.day][leadIdx]?.name || "Ex 1"}) Set 1`);
     return;
   }
+  if (!LIFT_EDITING_ID && !LIFT_SET_DONE[leadIdx]?.s1) {
+    toast("MARK LEAD SET 1 DONE BEFORE SAVING");
+    return;
+  }
 
   // Build session object
   const isEditing = !!LIFT_EDITING_ID;
@@ -3835,14 +3839,21 @@ $("#btn-save-session").addEventListener("click", () => {
       const leadSet = session.sets[leadIdx];
       const amrapReps = leadSet?.s2r ?? null;
       const amrapWeight = leadSet?.s2w ?? null;
-      if (amrapReps != null && amrapWeight != null && amrapReps > 0) {
+      const amrapDone = typeof sessionSetDone === "function" ? sessionSetDone(session, leadIdx, "s2") : !!session.setCompletion?.[leadIdx]?.s2;
+      const amrapRpe = session.rpe?.[leadIdx]?.s2 ?? null;
+      if (amrapDone && amrapRpe != null && amrapRpe >= 7 && amrapReps != null && amrapWeight != null && amrapReps > 0) {
         const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight);
-        if (newWM > 0) {
+        const currentWM = getWorkingMax(session.day, leadIdx) || 0;
+        if (newWM > 0 && (!currentWM || newWM >= currentWM)) {
           setWorkingMax(session.day, leadIdx, newWM);
           saveState();
           const oneRmDisplay = Math.round(estimateOneRm(amrapWeight, amrapReps));
           setTimeout(() => toast(`🏆 NEW TM: ${newWM}kg (1RM ≈ ${oneRmDisplay}kg × 90%) — next cycle weights updated`), 2000);
+        } else if (newWM > 0 && currentWM && newWM < currentWM) {
+          setTimeout(() => toast(`TM HELD AT ${fmtWeight(currentWM)}kg — low AMRAP not auto-applied`), 2000);
         }
+      } else {
+        setTimeout(() => toast("TM HELD — AMRAP needs final-set DONE + RPE"), 2000);
       }
     }
 
