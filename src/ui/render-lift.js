@@ -169,9 +169,13 @@ function activateLiftSession() {
   LIFT_SESSION_ACTIVE = true;
   TARGETED_WARMUP_ACTIVE = false;
   LIFT_SESSION_START_MS = Date.now();
+  const plannedExtraSets = LIFT_EXTRA_SETS;
   LIFT_SET_DONE = STATE.exercises[LIFT_DAY].map(() => ({ s1: false, s2: false }));
   LIFT_SET_RPE  = STATE.exercises[LIFT_DAY].map(() => ({ s1: null, s2: null }));
-  LIFT_EXTRA_SETS = STATE.exercises[LIFT_DAY].map(() => ({ dismissed: false, sets: [] }));
+  LIFT_EXTRA_SETS = STATE.exercises[LIFT_DAY].map((_, idx) => ({
+    dismissed: !!plannedExtraSets[idx]?.dismissed,
+    sets: (plannedExtraSets[idx]?.sets || []).map(s => ({ ...s })),
+  }));
   LIFT_TECHNIQUES = STATE.exercises[LIFT_DAY].map(() => null);
   LIFT_DISMISSED_BANNERS = new Set();
 
@@ -607,10 +611,280 @@ function mrvWarning() {
   return null;
 }
 
+function sessionAverageLoggedRpe(session) {
+  let total = 0;
+  let count = 0;
+  (session?.rpe || []).forEach((entry, idx) => {
+    const values = typeof entry === "number"
+      ? [entry]
+      : [entry?.s1, entry?.s2];
+    values.forEach((rpe, setIdx) => {
+      if (rpe == null) return;
+      const key = setIdx === 0 ? "s1" : "s2";
+      if (typeof sessionSetDone === "function" && !sessionSetDone(session, idx, key)) return;
+      total += rpe;
+      count++;
+    });
+  });
+  return count ? total / count : null;
+}
+
+function programStressReview(today = todayISO()) {
+  const sessions = sortSessionsChronological((STATE.sessions || []).filter(s => s.date && s.date <= today));
+  if (!sessions.length) {
+    return {
+      stressScore: 0,
+      recommendation: "skip_deload",
+      canSkipDeload: true,
+      text: "No completed sessions are recorded yet, so accumulated training stress is low.",
+      factors: ["0 sessions/week", "0 completed sets/week"],
+    };
+  }
+
+  const programStart = STATE.profile?.programStart || sessions[0].date;
+  let programSessions = sessions.filter(s => s.date >= programStart);
+  if (!programSessions.length) programSessions = sessions;
+  const firstDate = programSessions[0]?.date || programStart || today;
+  const elapsedWeeks = Math.max(1 / 7, (daysBetween(firstDate, today) + 1) / 7);
+  const completedSets = programSessions.reduce((sum, s) => {
+    const base = (s.sets || []).reduce((inner, _, idx) => inner + sessionSetCount(s, idx), 0);
+    const extras = (s.extraSets || []).reduce((inner, e) => inner + (e.sets || []).length, 0);
+    return sum + base + extras;
+  }, 0);
+  const sessionsPerWeek = programSessions.length / elapsedWeeks;
+  const completedSetsPerWeek = completedSets / elapsedWeeks;
+  const completionRows = programSessions
+    .map(s => typeof sessionCompletionRatio === "function" ? sessionCompletionRatio(s) : s.completionSummary?.completionRatio)
+    .filter(v => v != null);
+  const avgCompletion = completionRows.length ? completionRows.reduce((a, b) => a + b, 0) / completionRows.length : 1;
+  const incompleteSessions = programSessions.filter(s => {
+    const ratio = typeof sessionCompletionRatio === "function" ? sessionCompletionRatio(s) : s.completionSummary?.completionRatio;
+    return ratio != null && ratio < 0.85;
+  }).length;
+
+  const rpeRows = programSessions.map(sessionAverageLoggedRpe).filter(v => v != null);
+  const avgRpe = rpeRows.length ? rpeRows.reduce((a, b) => a + b, 0) / rpeRows.length : null;
+  const recovery = recentRecoveryAverage(14);
+  const fatigue = typeof computeFatigueSummary === "function" ? computeFatigueSummary(28) : null;
+
+  const volumeTotals = {};
+  for (const s of programSessions) {
+    (s.sets || []).forEach((_, idx) => {
+      const name = sessionExerciseName(s, idx);
+      if (!name) return;
+      const sets = sessionSetCount(s, idx);
+      if (!sets) return;
+      const weights = exerciseWeightedMuscles(name);
+      Object.entries(weights).forEach(([muscle, weight]) => {
+        volumeTotals[muscle] = (volumeTotals[muscle] || 0) + sets * weight;
+      });
+    });
+  }
+  const weeklyVolume = {};
+  Object.entries(volumeTotals).forEach(([muscle, sets]) => {
+    weeklyVolume[muscle] = roundVolume(sets / elapsedWeeks);
+  });
+  const overMrv = [];
+  const nearMrv = [];
+  Object.entries(VOLUME_LANDMARKS).forEach(([muscle, lm]) => {
+    const sets = weeklyVolume[muscle] || 0;
+    if (sets > lm.mrv) overMrv.push(muscle);
+    else if (sets >= Math.max(lm.mav, lm.mrv * 0.85)) nearMrv.push(muscle);
+  });
+
+  const gaps = [];
+  for (let i = 1; i < programSessions.length; i++) {
+    gaps.push(daysBetween(programSessions[i - 1].date, programSessions[i].date));
+  }
+  const longestGap = gaps.length ? Math.max(...gaps) : daysBetween(programSessions[0].date, today);
+
+  let stressScore = 0;
+  stressScore += Math.min(28, completedSetsPerWeek * 1.25);
+  stressScore += Math.min(18, sessionsPerWeek * 4);
+  if (avgRpe != null) stressScore += Math.max(0, (avgRpe - 6) * 10);
+  if (recovery != null && recovery < 6) stressScore += (6 - recovery) * 6;
+  stressScore += overMrv.length * 12 + nearMrv.length * 5;
+  stressScore += Math.min(15, (fatigue?.recoveryCost || 0) / 18);
+  if (avgCompletion < 0.75) stressScore += 10;
+  if (sessionsPerWeek < 2.5 && avgCompletion >= 0.85) stressScore -= 12;
+  if (longestGap >= 4 && avgCompletion >= 0.85) stressScore -= 6;
+  stressScore = Math.round(clamp(stressScore, 0, 100));
+
+  const mustDeload = stressScore >= 65 || (avgRpe != null && avgRpe >= 8.5) || overMrv.length > 0 || (recovery != null && recovery <= 4.5) || avgCompletion < 0.7;
+  const canSkip = !mustDeload && stressScore <= 48 && sessionsPerWeek <= 4.5 && avgCompletion >= 0.8 && (avgRpe == null || avgRpe < 8.2);
+  const recommendation = mustDeload ? "take_deload" : canSkip ? "skip_deload" : "optional_deload";
+  const factors = [
+    `${roundVolume(sessionsPerWeek)} sessions/week across ${roundVolume(elapsedWeeks)} weeks`,
+    `${roundVolume(completedSetsPerWeek)} completed sets/week`,
+    `completion ${Math.round(avgCompletion * 100)}%`,
+  ];
+  if (avgRpe != null) factors.push(`avg RPE ${avgRpe.toFixed(1)}`);
+  if (recovery != null) factors.push(`recovery ${recovery.toFixed(1)}/10`);
+  if (nearMrv.length) factors.push(`near MRV: ${nearMrv.slice(0, 3).join(", ")}`);
+  if (overMrv.length) factors.push(`over MRV: ${overMrv.slice(0, 3).join(", ")}`);
+  if (incompleteSessions) factors.push(`${incompleteSessions} incomplete session${incompleteSessions !== 1 ? "s" : ""}`);
+  if (longestGap >= 3) factors.push(`${longestGap}d longest training gap`);
+
+  const text = recommendation === "take_deload"
+    ? "Accumulated stress is high enough that the deload should stay in place."
+    : recommendation === "skip_deload"
+    ? "Actual weekly exposure is low enough that you can skip the deload and start the next accumulation wave."
+    : "Stress is moderate. Either choice is reasonable; keep the deload if joints, sleep, or motivation feel worse than the numbers show.";
+
+  return { stressScore, recommendation, canSkipDeload: recommendation !== "take_deload", text, factors, weeklyVolume };
+}
+
+function setDeloadSkipChoice(day, shouldSkip) {
+  if (!STATE.profile) STATE.profile = {};
+  if (!STATE.profile.skipDeloadNext) STATE.profile.skipDeloadNext = {};
+  if (shouldSkip) STATE.profile.skipDeloadNext[day] = true;
+  else delete STATE.profile.skipDeloadNext[day];
+  saveState();
+  selectLiftDay(day);
+  toast(shouldSkip ? "DELOAD SKIPPED FOR THIS SESSION" : "DELOAD KEPT");
+}
+
+function renderDeloadStressReview(day, wave) {
+  const el = document.getElementById("lsg-deload-review");
+  if (!el) return;
+  const isDecisionPoint = wave?.name === "DELOAD" || wave?.deloadSkipped || STATE.profile?.skipDeloadNext?.[day];
+  if (!isDecisionPoint) {
+    el.style.display = "none";
+    return;
+  }
+  const review = programStressReview(todayISO());
+  const label = document.getElementById("lsg-deload-label");
+  const score = document.getElementById("lsg-deload-score");
+  const text = document.getElementById("lsg-deload-text");
+  const factors = document.getElementById("lsg-deload-factors");
+  const actions = document.getElementById("lsg-deload-actions");
+  const takeBtn = document.getElementById("btn-deload-take");
+  const skipBtn = document.getElementById("btn-deload-skip");
+  const skipActive = !!STATE.profile?.skipDeloadNext?.[day];
+  el.style.display = "";
+  const color = review.recommendation === "take_deload" ? "var(--bad)" : review.recommendation === "skip_deload" ? "var(--good)" : "#d4a017";
+  el.style.borderLeftColor = color;
+  if (label) {
+    label.style.color = color;
+    label.textContent = skipActive ? "DELOAD SKIPPED" : "DELOAD STRESS REVIEW";
+  }
+  if (score) score.textContent = `${review.stressScore}/100 STRESS`;
+  if (text) text.textContent = skipActive ? "Skip choice is active for this workout. Press TAKE DELOAD to restore the deload prescription." : review.text;
+  if (factors) factors.textContent = review.factors.join(" · ");
+  if (actions) actions.style.display = "";
+  if (skipBtn) {
+    skipBtn.disabled = !review.canSkipDeload && !skipActive;
+    skipBtn.style.opacity = skipBtn.disabled ? "0.45" : "1";
+    skipBtn.textContent = skipActive ? "SKIP ACTIVE" : "SKIP DELOAD";
+    skipBtn.onclick = () => {
+      if (!review.canSkipDeload && !skipActive) {
+        toast("STRESS TOO HIGH TO SKIP");
+        return;
+      }
+      setDeloadSkipChoice(day, true);
+    };
+  }
+  if (takeBtn) takeBtn.onclick = () => setDeloadSkipChoice(day, false);
+}
+
+function addMrvExerciseToDraft(day, rec) {
+  const suggestion = rec.exercise || rec.toExercise || (MRV_EXERCISE_SUGGESTIONS[rec.muscle] || [])[0]?.name;
+  if (!suggestion || !STATE.exercises?.[day]) return null;
+  const targetKey = exerciseKeyFor(suggestion);
+  const existingIdx = STATE.exercises[day].findIndex(ex => exerciseKeyFor(ex) === targetKey);
+  if (existingIdx >= 0) {
+    return { ex: activeExerciseForSlot(day, existingIdx) || STATE.exercises[day][existingIdx], idx: existingIdx, added: false };
+  }
+  const added = mrvExerciseDefaults(canonicalNameForExercise(suggestion), rec.muscle);
+  STATE.exercises[day].push(added);
+  const idx = STATE.exercises[day].length - 1;
+  if (LIFT_DRAFT?.day === day) {
+    const p = progressionFor(day, idx);
+    LIFT_DRAFT.sets.push({ s1w: p.weight, s1r: p.reps, s2w: p.weight, s2r: p.reps });
+    LIFT_SET_DONE.push({ s1: false, s2: false });
+    LIFT_SET_RPE.push({ s1: null, s2: null });
+    LIFT_EXTRA_SETS.push({ dismissed: false, sets: [] });
+    LIFT_TECHNIQUES.push(null);
+  }
+  return { ex: added, idx, added: true };
+}
+
+function planMrvSetForDraft(day, rec) {
+  let target = findCurrentDayMuscleExercise(day, rec.muscle, false);
+  let addedExercise = false;
+  if (!target) {
+    const added = addMrvExerciseToDraft(day, rec);
+    if (!added) return false;
+    target = { ex: added.ex, idx: added.idx };
+    addedExercise = added.added;
+  }
+  const already = (LIFT_EXTRA_SETS[target.idx]?.sets || []).some(s =>
+    ["mrv", "mrv_projection", "mrv_autoplan"].includes(s.source) && s.muscle === rec.muscle
+  );
+  if (already) return false;
+  const p = progressionFor(day, target.idx);
+  const prescription = projectedExtraSetPrescription(target.idx, target.ex, rec.lm?.effortRpe ?? 7);
+  if (!LIFT_EXTRA_SETS[target.idx]) LIFT_EXTRA_SETS[target.idx] = { dismissed: false, sets: [] };
+  LIFT_EXTRA_SETS[target.idx].sets.push({
+    weight: prescription.weight ?? p.weight,
+    reps: prescription.reps ?? target.ex?.repMin ?? p.reps ?? 10,
+    rpe: null,
+    done: false,
+    source: "mrv_autoplan",
+    muscle: rec.muscle,
+  });
+  LIFT_MRV_AUTOPLAN.push({
+    type: addedExercise ? "add_exercise_set" : "add_set",
+    exercise: target.ex.name,
+    weight: prescription.weight ?? p.weight,
+    reps: prescription.reps ?? target.ex?.repMin ?? p.reps ?? 10,
+    avgRpe: rec.lm?.effortRpe ?? 7,
+    reason: rec.reason || rec.body || `${rec.muscle} is below target volume`,
+    idx: target.idx,
+    muscle: rec.muscle,
+  });
+  recordAdaptiveDecision({
+    action: addedExercise ? "add_exercise" : "add_set",
+    to: target.ex.name,
+    day,
+    reason: `${rec.muscle} was below target volume, so ${target.ex.name} was auto-planned before the session.`,
+    confidence: rec.confidence || 0.66,
+    targetMuscle: rec.muscle,
+  });
+  return true;
+}
+
+function refreshMrvAutoplanSetPrescriptions() {
+  for (const item of LIFT_MRV_AUTOPLAN) {
+    if (!["add_set", "add_exercise_set"].includes(item.type)) continue;
+    const ex = activeExerciseForSlot(LIFT_DAY, item.idx) || STATE.exercises[LIFT_DAY]?.[item.idx];
+    if (!ex) continue;
+    const prescription = projectedExtraSetPrescription(item.idx, ex, item.avgRpe ?? 7);
+    const planned = (LIFT_EXTRA_SETS[item.idx]?.sets || []).find(s =>
+      s.source === "mrv_autoplan" && s.muscle === item.muscle && !s.done
+    );
+    if (planned) {
+      planned.weight = prescription.weight;
+      planned.reps = prescription.reps;
+    }
+    item.weight = prescription.weight;
+    item.reps = prescription.reps;
+  }
+}
+
+function mrvAutoplanReportHtml() {
+  return LIFT_MRV_AUTOPLAN.map(c => {
+    if (c.type === "swap") return `<div style="margin-bottom:3px;">MRV auto-plan: ${escapeHtml(c.from)} -> ${escapeHtml(c.to)}</div>`;
+    if (c.type === "add_exercise_set") return `<div style="margin-bottom:3px;">MRV auto-plan: added ${escapeHtml(c.exercise)} and 1 set at ${fmtWeight(c.weight)}kg x ${escapeHtml(String(c.reps))}</div>`;
+    return `<div style="margin-bottom:3px;">MRV auto-plan: added 1 set to ${escapeHtml(c.exercise)} at ${fmtWeight(c.weight)}kg x ${escapeHtml(String(c.reps))}</div>`;
+  }).join("");
+}
+
 function prepareMrvSessionPlan(day) {
   LIFT_MRV_AUTOPLAN = [];
   if (!LIFT_DRAFT || !day || typeof generateMrvRecommendations !== "function") return;
   const usedKeys = new Set((STATE.exercises[day] || []).map(ex => exerciseKeyFor(ex)));
+  let changed = false;
   const recs = generateMrvRecommendations()
     .filter(r => r.action === "swap" && r.day === day)
     .filter(r => r.fromIdx != null && r.toExercise && r.fromExercise)
@@ -629,12 +903,25 @@ function prepareMrvSessionPlan(day) {
     usedKeys.delete(fromKey);
     usedKeys.add(toKey);
     LIFT_MRV_AUTOPLAN.push({
+      type: "swap",
       from: current.name,
       to: canonicalNameForExercise(rec.toExercise),
       reason: rec.reason || rec.body || "MRV balance",
       idx: rec.fromIdx,
       muscle: rec.muscle,
     });
+    changed = true;
+  }
+  const addRecs = generateMrvRecommendations()
+    .filter(r => r.action === "add" && mrvRecommendationAppliesToDay(r, day))
+    .filter(r => !mrvRecommendationAlreadyApplied(r, day))
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  for (const rec of addRecs) {
+    if (planMrvSetForDraft(day, rec)) changed = true;
+  }
+  if (changed) {
+    updateAdaptiveStateSnapshot("mrv_session_autoplan");
+    saveState();
   }
 }
 
@@ -706,9 +993,12 @@ function selectLiftDay(day) {
       waveLabel.textContent = `WEEK ${wave.waveWeek}/4 · ${wave.name}`;
       if (waveCycle) waveCycle.textContent = `CYCLE ${wave.cycleNum} · WEEK ${wave.weekNum}`;
       const mode = STATE.athleteProfile?.programMode || "hypertrophy";
-      waveNote.textContent = (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
+      waveNote.textContent = wave.deloadSkipped
+        ? "Deload skipped by stress review. Starting the next accumulation wave with normal readiness controls."
+        : (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
       if (waveRpe) waveRpe.textContent = `Target RPE: ${wave.rpeTarget[0]}–${wave.rpeTarget[1]} · ${mode.toUpperCase()} MODE`;
     }
+    renderDeloadStressReview(day, wave);
 
     // MRV warning
     const mrvWarn = mrvWarning();
@@ -752,15 +1042,11 @@ function selectLiftDay(day) {
           mrvRecText.textContent += ` (+${dayRecs.length - 1} more — see STATS)`;
         }
         if (mrvApplyBtn) {
-          if (["swap", "add", "reduce", "watch"].includes(topRec.action)) {
+          if (["reduce", "watch"].includes(topRec.action)) {
             mrvApplyBtn.style.display = "";
             const baseLabel = mrvLiftActionButtonLabel(topRec, day);
-            mrvApplyBtn.textContent = baseLabel === "ADD SET" ? "ADD SET AFTER START" : baseLabel;
+            mrvApplyBtn.textContent = baseLabel;
             mrvApplyBtn.onclick = () => {
-              if (topRec.action === "add" && findCurrentDayMuscleExercise(day, topRec.muscle, false)) {
-                toast("START SESSION FIRST");
-                return;
-              }
               applyMrvLiftRecommendation(topRec._idx);
             };
           } else {
@@ -781,13 +1067,19 @@ function selectLiftDay(day) {
     const pending = STATE.pendingProgramChanges?.[day];
     if (prEl && prItems && LIFT_MRV_AUTOPLAN.length > 0) {
       prEl.style.display = "";
-      prItems.innerHTML = LIFT_MRV_AUTOPLAN.map(c =>
-        `<div style="margin-bottom:3px;">MRV auto-plan: ${escapeHtml(c.from)} -> ${escapeHtml(c.to)}</div>`
-      ).join("");
-      document.getElementById("btn-program-review-apply")?.addEventListener("click", () => {
+      prItems.innerHTML = mrvAutoplanReportHtml();
+      const applyReviewBtn = document.getElementById("btn-program-review-apply");
+      const dismissReviewBtn = document.getElementById("btn-program-review-dismiss");
+      if (applyReviewBtn) {
+        applyReviewBtn.textContent = "AUTO-APPLIED";
+        applyReviewBtn.disabled = true;
+        applyReviewBtn.style.opacity = "0.65";
+      }
+      if (dismissReviewBtn) dismissReviewBtn.textContent = "HIDE";
+      applyReviewBtn?.addEventListener("click", () => {
         toast("MRV PLAN ALREADY APPLIED");
       });
-      document.getElementById("btn-program-review-dismiss")?.addEventListener("click", () => {
+      dismissReviewBtn?.addEventListener("click", () => {
         LIFT_MRV_AUTOPLAN = [];
         prEl.style.display = "none";
       });
@@ -796,8 +1088,16 @@ function selectLiftDay(day) {
       prItems.innerHTML = pending.map(c =>
         `<div style="margin-bottom:3px;">• ${escapeHtml(c.reason)}</div>`
       ).join("");
+      const applyReviewBtn = document.getElementById("btn-program-review-apply");
+      const dismissReviewBtn = document.getElementById("btn-program-review-dismiss");
+      if (applyReviewBtn) {
+        applyReviewBtn.textContent = "APPLY CHANGES";
+        applyReviewBtn.disabled = false;
+        applyReviewBtn.style.opacity = "1";
+      }
+      if (dismissReviewBtn) dismissReviewBtn.textContent = "DISMISS";
       // APPLY button: apply all stall_deload changes
-      document.getElementById("btn-program-review-apply")?.addEventListener("click", () => {
+      applyReviewBtn?.addEventListener("click", () => {
         pending.forEach(c => applyProgramChange(day, c));
         STATE.pendingProgramChanges[day] = null;
         saveState();
@@ -805,7 +1105,7 @@ function selectLiftDay(day) {
         selectLiftDay(day); // re-render start gate with updated weights
         toast("PROGRAM UPDATED");
       });
-      document.getElementById("btn-program-review-dismiss")?.addEventListener("click", () => {
+      dismissReviewBtn?.addEventListener("click", () => {
         STATE.pendingProgramChanges[day] = null;
         saveState();
         prEl.style.display = "none";
@@ -840,6 +1140,8 @@ function selectLiftDay(day) {
           return { s1w: adjW, s1r: p.reps, s2w: adjW, s2r: p.reps };
         });
         LIFT_DRAFT.readinessAdjustment = readiness.adjustment;
+        refreshMrvAutoplanSetPrescriptions();
+        if (prItems && LIFT_MRV_AUTOPLAN.length > 0) prItems.innerHTML = mrvAutoplanReportHtml();
       }
     } else if (rEl) {
       rEl.style.display = "none";
@@ -1252,7 +1554,6 @@ function extraSetSuggestion(exIdx) {
       suggestedSets: Math.min(2, mrvNeed.suggestedSets),
       weight: prescription.weight,
       reps: prescription.reps,
-      reason: `Both sets averaged RPE ${avgRpe.toFixed(1)} — you have significant reserve. ${remaining > 3 ? "Adding 2 sets here maximises stimulus." : "Adding 2 sets — note: " + remaining + " exercises still to come."}`,
       reason: `${mrvNeed.muscle} is projected at ${roundVolume(mrvNeed.projected)} weighted sets vs target ${mrvNeed.lm.mev}-${mrvNeed.lm.mav} this phase. Avg RPE ${avgRpe.toFixed(1)} leaves room for a precise extra set at ${fmtWeight(prescription.weight)}kg x ${prescription.reps}.`,
       fatigue
     };
@@ -1263,7 +1564,6 @@ function extraSetSuggestion(exIdx) {
       suggestedSets: Math.min(1, mrvNeed.suggestedSets),
       weight: prescription.weight,
       reps: prescription.reps,
-      reason: `Both sets averaged RPE ${avgRpe.toFixed(1)} — one extra set will add volume stimulus without overreaching. ${remaining} exercise${remaining !== 1 ? "s" : ""} still to go.`,
       reason: `${mrvNeed.muscle} still needs projected phase volume (${roundVolume(mrvNeed.projected)} now, target ${mrvNeed.lm.mev}-${mrvNeed.lm.mav}). Add 1 controlled set at ${fmtWeight(prescription.weight)}kg x ${prescription.reps}; avg RPE was ${avgRpe.toFixed(1)}.`,
       fatigue
     };
@@ -1282,10 +1582,13 @@ function mrvRecommendationAlreadyApplied(rec, day = LIFT_DAY) {
   if (rec.action === "add") {
     const existing = findCurrentDayMuscleExercise(day, rec.muscle, false);
     if (existing) {
-      return (LIFT_EXTRA_SETS[existing.idx]?.sets || []).some(s => s.source === "mrv" && s.muscle === rec.muscle);
+      return (LIFT_EXTRA_SETS[existing.idx]?.sets || []).some(s =>
+        ["mrv", "mrv_projection", "mrv_autoplan"].includes(s.source) && s.muscle === rec.muscle
+      );
     }
     const plannedName = rec.exercise || rec.toExercise || (MRV_EXERCISE_SUGGESTIONS[rec.muscle] || [])[0]?.name;
-    return !!plannedName && (STATE.exercises[day] || []).some(ex => normalizeExerciseName(ex.name) === normalizeExerciseName(plannedName));
+    const plannedKey = exerciseKeyFor(plannedName);
+    return !!plannedKey && (STATE.exercises[day] || []).some(ex => exerciseKeyFor(ex) === plannedKey);
   }
   if (rec.action === "reduce" || rec.action === "watch") {
     const target = findCurrentDayMuscleExercise(day, rec.muscle || rec.fromMuscle, true);
@@ -1511,7 +1814,7 @@ function applyMrvLiftRecommendation(index) {
 
 function mrvLiftActionPanel() {
   if (!LIFT_SESSION_ACTIVE) return "";
-  const recs = mrvLiftRecommendationsForDay(LIFT_DAY);
+  const recs = mrvLiftRecommendationsForDay(LIFT_DAY).filter(rec => !["add", "swap"].includes(rec.action));
   if (!recs.length) return "";
   const visible = recs.slice(0, 3);
   return `
@@ -3457,6 +3760,9 @@ $("#btn-save-session").addEventListener("click", () => {
   const warmupData = !isEditing
     ? savedTargetedWarmup(LIFT_DRAFT.targetedWarmup)
     : (existingSession?.warmup ?? null);
+  const sessionWaveOverride = !isEditing
+    ? juggernautWave(0, LIFT_DRAFT.day)
+    : (existingSession?.waveOverride ?? juggernautWave(0, LIFT_DRAFT.day));
 
   const session = {
     id: isEditing ? LIFT_EDITING_ID : `s-${Date.now()}`,
@@ -3474,6 +3780,10 @@ $("#btn-save-session").addEventListener("click", () => {
     energyRating: null, // sourced from morning log, not lift gate
     feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
     warmup: warmupData, // Phase 8: Targeted Warm-Up context only; ignored by volume/progression.
+    waveOverride: sessionWaveOverride,
+    deloadStressReview: (sessionWaveOverride.name === "DELOAD" || sessionWaveOverride.deloadSkipped)
+      ? programStressReview(LIFT_DRAFT.date)
+      : null,
     durationSec: isEditing
       ? (existingSession?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
@@ -3497,6 +3807,9 @@ $("#btn-save-session").addEventListener("click", () => {
     if (i >= 0) STATE.sessions[i] = session;
   } else {
     STATE.sessions.push(session);
+    if (sessionWaveOverride.deloadSkipped && STATE.profile?.skipDeloadNext?.[LIFT_DRAFT.day]) {
+      delete STATE.profile.skipDeloadNext[LIFT_DRAFT.day];
+    }
   }
   updateExerciseMemoryFromSession(session);
   saveState();
