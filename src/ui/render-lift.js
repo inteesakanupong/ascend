@@ -778,6 +778,10 @@ function renderDeloadStressReview(day, wave) {
   const takeBtn = document.getElementById("btn-deload-take");
   const skipBtn = document.getElementById("btn-deload-skip");
   const skipActive = !!STATE.profile?.skipDeloadNext?.[day];
+  if (!review.canSkipDeload && !skipActive) {
+    el.style.display = "none";
+    return;
+  }
   el.style.display = "";
   const color = review.recommendation === "take_deload" ? "var(--bad)" : review.recommendation === "skip_deload" ? "var(--good)" : "#d4a017";
   el.style.borderLeftColor = color;
@@ -928,6 +932,87 @@ function mrvAutoplanReportHtml() {
   }).join("");
 }
 
+function mrvAutoplanPlanRows() {
+  return LIFT_MRV_AUTOPLAN.map(c => {
+    if (c.type === "swap") return { label: "Swap", text: `${c.from} -> ${c.to}` };
+    if (c.type === "reduce_set") return { label: "Volume", text: `Removed 1 set from ${c.exercise}` };
+    if (c.type === "add_exercise_set") return { label: "Volume", text: `Added ${c.exercise}: ${fmtWeight(c.weight)}kg x ${c.reps}` };
+    return { label: "Volume", text: `Added 1 set to ${c.exercise}: ${fmtWeight(c.weight)}kg x ${c.reps}` };
+  });
+}
+
+function renderTodayPlanSummary(day, wave, readiness, deloadReview) {
+  const summary = document.getElementById("lsg-plan-summary");
+  const chip = document.getElementById("lsg-plan-chip");
+  const rowsEl = document.getElementById("lsg-plan-rows");
+  const details = document.getElementById("lsg-plan-details");
+  const detailBody = document.getElementById("lsg-plan-detail-body");
+  if (!summary || !rowsEl) return;
+  const rows = [];
+  const detailsHtml = [];
+  rows.push({ label: "Wave", text: `${wave.name}${wave.deloadSkipped ? " skipped deload" : ""} · target RPE ${wave.rpeTarget[0]}-${wave.rpeTarget[1]}` });
+  const mode = STATE.athleteProfile?.programMode || "hypertrophy";
+  const waveText = wave.deloadSkipped
+    ? "Deload skipped by stress review. Starting the next accumulation wave with normal readiness controls."
+    : (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
+  if (waveText) {
+    detailsHtml.push(`
+      <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid var(--accent);">
+        <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">WAVE INTENT</div>
+        <div style="font-size:11px;line-height:1.45;color:var(--ink);">${escapeHtml(waveText)}</div>
+      </div>
+    `);
+  }
+  if (deloadReview) {
+    const verdict = deloadReview.recommendation === "take_deload" ? "Deload recommended"
+      : deloadReview.recommendation === "skip_deload" ? "Skip available"
+      : "Deload default";
+    rows.push({ label: "Deload", text: `${verdict} · ${deloadReview.stressScore}/100 stress` });
+    detailsHtml.push(`
+      <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid ${deloadReview.recommendation === "take_deload" ? "var(--bad)" : deloadReview.recommendation === "skip_deload" ? "var(--good)" : "#d4a017"};">
+        <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">DELOAD LOGIC</div>
+        <div style="font-size:11px;line-height:1.45;color:var(--ink);">${escapeHtml(deloadReview.text)}</div>
+        <div style="font-size:10px;line-height:1.45;color:var(--ink-dim);margin-top:4px;">${escapeHtml((deloadReview.drivers || deloadReview.factors || []).join(" · "))}</div>
+      </div>
+    `);
+  }
+  mrvAutoplanPlanRows().forEach(r => rows.push(r));
+  if (readiness?.score != null) {
+    const adjustmentText = wave.name === "DELOAD" || !readiness.adjustment
+      ? readinessLabel(readiness.score)
+      : `${readinessLabel(readiness.score)} · ${Math.round(readiness.adjustment * 100) > 0 ? "+" : ""}${Math.round(readiness.adjustment * 100)}%`;
+    rows.push({ label: "Readiness", text: `${readiness.score}/5 ${adjustmentText}` });
+    if (readiness.factors?.length) {
+      detailsHtml.push(`
+        <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid ${readinessColor(readiness.score)};">
+          <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">READINESS CONTEXT</div>
+          <div style="font-size:10px;line-height:1.45;color:var(--ink-dim);">${escapeHtml(readiness.factors.join(" · "))}</div>
+        </div>
+      `);
+    }
+  }
+  if (LIFT_MRV_AUTOPLAN.length) {
+    detailsHtml.push(`
+      <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid #d4a017;">
+        <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">AUTO-APPLIED</div>
+        <div style="font-size:11px;line-height:1.55;color:var(--ink);">${mrvAutoplanReportHtml()}</div>
+      </div>
+    `);
+  }
+  summary.style.display = "";
+  if (chip) chip.textContent = `${rows.length} SIGNAL${rows.length !== 1 ? "S" : ""}`;
+  rowsEl.innerHTML = rows.map(row => `
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:5px 0;border-top:1px solid var(--line);">
+      <span style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--ink-dim);text-transform:uppercase;">${escapeHtml(row.label)}</span>
+      <span style="text-align:right;font-weight:700;">${escapeHtml(row.text)}</span>
+    </div>
+  `).join("");
+  if (details && detailBody) {
+    details.style.display = detailsHtml.length ? "" : "none";
+    detailBody.innerHTML = detailsHtml.join("");
+  }
+}
+
 function prepareMrvSessionPlan(day) {
   LIFT_MRV_AUTOPLAN = [];
   if (!LIFT_DRAFT || !day || typeof generateMrvRecommendations !== "function") return;
@@ -1053,6 +1138,12 @@ function selectLiftDay(day) {
         : (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
       if (waveRpe) waveRpe.textContent = `Target RPE: ${wave.rpeTarget[0]}–${wave.rpeTarget[1]} · ${mode.toUpperCase()} MODE`;
     }
+    if (waveEl) waveEl.style.display = "none";
+    const deloadReview = (wave?.name === "DELOAD" || wave?.deloadSkipped || STATE.profile?.skipDeloadNext?.[day])
+      ? programStressReview(todayISO())
+      : null;
+    const readiness = calculateReadiness(todayISO());
+    renderTodayPlanSummary(day, wave, readiness, deloadReview);
     renderDeloadStressReview(day, wave);
 
     // MRV warning
@@ -1075,6 +1166,7 @@ function selectLiftDay(day) {
         mrvEl.style.display = "none";
       }
     }
+    if (mrvEl) mrvEl.style.display = "none";
 
     // MRV volume recommendation banner for this day
     const mrvRecEl    = document.getElementById("lsg-mrv-rec");
@@ -1109,6 +1201,7 @@ function selectLiftDay(day) {
         }
       }
     }
+    if (mrvRecEl) mrvRecEl.style.display = "none";
     const prEl    = document.getElementById("lsg-program-review");
     const prItems = document.getElementById("lsg-program-review-items");
     const pending = STATE.pendingProgramChanges?.[day];
@@ -1163,9 +1256,9 @@ function selectLiftDay(day) {
     } else if (prEl) {
       prEl.style.display = "none";
     }
+    if (prEl && LIFT_MRV_AUTOPLAN.length > 0) prEl.style.display = "none";
 
     // Readiness banner with auto-adjust
-    const readiness = calculateReadiness(todayISO());
     const rEl = document.getElementById("lsg-readiness");
     const rScore = document.getElementById("lsg-readiness-score");
     const rDetail = document.getElementById("lsg-readiness-detail");
@@ -1195,6 +1288,7 @@ function selectLiftDay(day) {
         refreshMrvAutoplanSetPrescriptions();
         if (prItems && LIFT_MRV_AUTOPLAN.length > 0) prItems.innerHTML = mrvAutoplanReportHtml();
       }
+      if (rEl) rEl.style.display = "none";
     } else if (rEl) {
       rEl.style.display = "none";
     }
@@ -2132,6 +2226,7 @@ function renderLiftExercises() {
             ${isDone ? '<span class="done-check">✓</span> DONE' : '<span class="done-check">○</span> DONE'}
           </button>
         </div>
+        <div class="set-flow-hint" data-rpe-hint="${idx}-${setNum}">${curRpe ? escapeHtml(RPE_HINTS[curRpe]) : ""}</div>
         ${bromleyHtml}
       </div>
     `;
@@ -2168,6 +2263,7 @@ function renderLiftExercises() {
               ${isDone ? '<span class="done-check">✓</span> DONE' : '<span class="done-check">○</span> DONE'}
             </button>
           </div>
+          <div class="set-flow-hint" data-extra-rpe-hint="${idx}-${si}">${curRpe ? escapeHtml(RPE_HINTS[curRpe]) : ""}</div>
         </div>`;
     }).join("");
   }
@@ -2412,6 +2508,8 @@ function renderLiftExercises() {
       btn.closest(".set-block").querySelectorAll(".rpe-btn").forEach(b => {
         b.classList.toggle("active", +b.dataset.rpe === cur);
       });
+      const hint = btn.closest(".set-block")?.querySelector(".set-flow-hint");
+      if (hint) hint.textContent = cur ? RPE_HINTS[cur] : "";
       // Refresh Bromley banner for this set in-place
       _refreshBromleyBanner(idx, setNum);
     });
@@ -2429,8 +2527,34 @@ function renderLiftExercises() {
       btn.closest(".set-block").querySelectorAll(".rpe-btn").forEach(b => {
         b.classList.toggle("active", +b.dataset.rpe === cur);
       });
+      const hint = btn.closest(".set-block")?.querySelector(".set-flow-hint");
+      if (hint) hint.textContent = cur ? RPE_HINTS[cur] : "";
     });
   });
+
+  function nextUnfinishedSetBlock(fromBlock) {
+    const blocks = Array.from(wrap.querySelectorAll(".set-block"));
+    const start = Math.max(0, blocks.indexOf(fromBlock) + 1);
+    return blocks.slice(start).find(block => {
+      if (block.dataset.setBlock) {
+        const parts = block.dataset.setBlock.split("-").map(Number);
+        return !LIFT_SET_DONE[parts[0]]?.[`s${parts[1]}`];
+      }
+      if (block.dataset.extraBlock) {
+        const parts = block.dataset.extraBlock.split("-").map(Number);
+        return !LIFT_EXTRA_SETS[parts[0]]?.sets?.[parts[1]]?.done;
+      }
+      return false;
+    });
+  }
+
+  function guideToNextSet(fromBlock) {
+    const next = nextUnfinishedSetBlock(fromBlock);
+    if (!next) return;
+    next.classList.add("set-next-focus");
+    setTimeout(() => next.classList.remove("set-next-focus"), 1200);
+    setTimeout(() => next.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+  }
 
   // Wire up DONE buttons (standard sets)
   wrap.querySelectorAll(".btn-set-done:not(.btn-extra-done)").forEach(btn => {
@@ -2452,6 +2576,7 @@ function renderLiftExercises() {
         _refreshBromleyBanner(idx, setNum);
         // After Set 2 done: check extra set suggestion
         if (setNum === 2) _refreshExtraSetSugg(idx);
+        guideToNextSet(block);
       }
     });
   });
@@ -2473,6 +2598,7 @@ function renderLiftExercises() {
         RestTimer.start({ ex: STATE.exercises[LIFT_DAY][idx], exIdx: idx, setNum, day: LIFT_DAY });
         // Check if more extra sets should be suggested
         _refreshExtraSetSugg(idx);
+        guideToNextSet(block);
       }
     });
   });

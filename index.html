@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-06-03.1";
+const CACHE = "ascend-2026-06-03.2";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -341,6 +341,19 @@ self.addEventListener("fetch", e => {
       <div class="lsg-sub" id="lsg-sub-label">—</div>
 
       <!-- Juggernaut wave intent -->
+      <div id="lsg-plan-summary" style="display:none; margin: 10px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-elev-2); border-left: 3px solid var(--accent); text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+          <span id="lsg-plan-label" style="font-family:var(--f-mono); font-size:10px; font-weight:800; letter-spacing:0.14em; color:var(--accent);">TODAY'S PLAN</span>
+          <span id="lsg-plan-chip" style="font-family:var(--f-mono); font-size:9px; color:var(--ink-dim); letter-spacing:0.08em;">—</span>
+        </div>
+        <div id="lsg-plan-rows" style="display:grid; gap:5px; font-size:11px; color:var(--ink); line-height:1.4;"></div>
+      </div>
+
+      <details id="lsg-plan-details" style="display:none; margin: 6px 0 10px; text-align:left;">
+        <summary style="cursor:pointer; font-family:var(--f-mono); font-size:10px; font-weight:800; letter-spacing:0.12em; color:var(--ink-dim); padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg-elev-2);">WHY THIS PLAN?</summary>
+        <div id="lsg-plan-detail-body" style="margin-top:6px; display:grid; gap:6px;"></div>
+      </details>
+
       <div id="lsg-wave-intent" style="display:none; margin: 10px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-elev-2); border-left: 3px solid var(--accent);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <span id="lsg-wave-label" style="font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.14em; color:var(--accent); text-transform:uppercase;">WEEK —</span>
@@ -1283,9 +1296,19 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-03.1";
+const APP_VERSION = "2026-06-03.2";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-03.2",
+    title: "Smoother Workout Flow",
+    items: [
+      "Added a compact Today's Plan summary with expandable reasoning before each workout.",
+      "Set completion now gives clearer feedback and scrolls to the next unfinished set.",
+      "RPE taps now show immediate effort cues so logging feels more responsive.",
+      "Post-session review now highlights completed sets, average RPE, and what changed for the next session.",
+    ]
+  },
   {
     version: "2026-06-03.1",
     title: "Cleaner Session Plan Report",
@@ -3685,6 +3708,23 @@ function showPostSessionReview(session) {
   const vol = sessionVolume(session);
   const dur = session.durationSec ? Math.round(session.durationSec / 60) : null;
   const fb  = session.feedback || {};
+  var completedSets = 0;
+  var plannedSets = 0;
+  var rpeTotal = 0;
+  var rpeCount = 0;
+  (session.sets || []).forEach(function(set, idx) {
+    ["s1", "s2"].forEach(function(key) {
+      if (set && (set[key + "w"] != null || set[key + "r"] != null)) plannedSets++;
+      var done = typeof sessionSetDone === "function" ? sessionSetDone(session, idx, key) : true;
+      if (done && set && (set[key + "w"] != null || set[key + "r"] != null)) completedSets++;
+      var rpe = session.rpe && session.rpe[idx] ? session.rpe[idx][key] : null;
+      if (done && rpe != null) { rpeTotal += rpe; rpeCount++; }
+    });
+  });
+  (session.extraSets || []).forEach(function(entry) {
+    completedSets += (entry.sets || []).length;
+  });
+  var avgRpe = rpeCount ? (rpeTotal / rpeCount) : null;
 
   // Build per-exercise summary
   const lines = [];
@@ -3717,6 +3757,12 @@ function showPostSessionReview(session) {
 
   // Build review HTML for sheet
   var html = '<h3 style="margin-bottom:12px;">' + day + ' \u2014 Session Review</h3>';
+
+  var completionPct = plannedSets ? Math.min(100, Math.round((completedSets / plannedSets) * 100)) : 0;
+  html += '<div style="background:var(--bg-elev-2);border-left:3px solid var(--good);border-radius:8px;padding:10px 12px;margin-bottom:12px;">';
+  html += '<div style="font-family:var(--f-mono);font-size:10px;font-weight:800;letter-spacing:0.14em;color:var(--good);margin-bottom:4px;">SESSION RESULT</div>';
+  html += '<div style="font-size:13px;line-height:1.45;color:var(--ink);">' + completedSets + ' sets completed' + (avgRpe != null ? ' · avg RPE ' + avgRpe.toFixed(1) : '') + ' · ' + completionPct + '% completion</div>';
+  html += '</div>';
 
   // Stats row
   html += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';

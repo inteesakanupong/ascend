@@ -352,6 +352,23 @@
   border-color: var(--good);
   color: white;
 }
+.set-flow-hint {
+  min-height: 15px;
+  margin-top: 5px;
+  font-family: var(--f-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.set-next-focus {
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(224, 48, 32, 0.05);
+  box-shadow: 0 0 0 1px rgba(224, 48, 32, 0.16);
+  transition: background 180ms, box-shadow 180ms;
+}
 
 /* Bromley in-session suggestion banner */
 .bromley-banner {
