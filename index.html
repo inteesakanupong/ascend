@@ -1296,9 +1296,18 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-18.1";
+const APP_VERSION = "2026-06-18.2";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-18.2",
+    title: "Muscle Activation Editor",
+    items: [
+      "Built-in exercises can now be edited from the exercise library with a full muscle activation sheet.",
+      "Custom exercises now support main and secondary movers instead of only a single primary muscle field.",
+      "Program exercise settings now expose the same activation controls, and renamed custom exercises keep their saved activation ratings.",
+    ]
+  },
   {
     version: "2026-06-18.1",
     title: "Automatic Progression Fixes",
@@ -4478,6 +4487,7 @@ const _progCollapsed = new Set(["PUSH","PULL","ARMS","LEGS"]);
 function openExerciseSheet(day, idx) {
   const ex = STATE.exercises[day][idx];
   const isLead = !!ex.leadLift;
+  window._refreshMuscleActivationEditor = () => openExerciseSheet(day, idx);
   $("#sheet-body").innerHTML = `
     <h3>${day} · Exercise ${idx+1}</h3>
     <div class="muted" style="font-size:11px;margin-bottom:14px;letter-spacing:0.08em;">EDIT EXERCISE</div>
@@ -4503,6 +4513,7 @@ function openExerciseSheet(day, idx) {
       </div>
       <input type="checkbox" id="ex-lead" ${isLead ? "checked" : ""} style="width:22px;height:22px;accent-color:var(--accent);" />
     </div>
+    ${typeof muscleActivationEditorHtmlForExercise === "function" ? muscleActivationEditorHtmlForExercise(ex) : ""}
     <button class="btn primary full" style="margin-top:14px;" id="btn-ex-save">SAVE</button>
   `;
   openSheet();

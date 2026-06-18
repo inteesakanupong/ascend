@@ -2059,25 +2059,46 @@ function currentMuscleActivationWeights(ex) {
   return manual ? { ...manual } : { ...exerciseWeightedMuscles(ex) };
 }
 
-function muscleActivationEditorHtml(exIdx, ex) {
-  const weights = currentMuscleActivationWeights(ex);
+function jsString(value) {
+  return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function muscleActivationTargetFor(exOrName) {
+  const name = typeof exOrName === "string" ? exOrName : exOrName?.name;
+  const db = typeof findDbMatch === "function" ? findDbMatch(name) : null;
+  return {
+    ...(db || {}),
+    ...(typeof exOrName === "object" ? exOrName : {}),
+    name: name || db?.name || "Exercise",
+    exerciseKey: exerciseKeyFor(exOrName),
+  };
+}
+
+function muscleActivationEditorHtmlForExercise(exOrName) {
+  const target = muscleActivationTargetFor(exOrName);
+  const key = exerciseKeyFor(target);
+  const weights = currentMuscleActivationWeights(target);
   const muscles = Object.entries(MUSCLE_LABELS).filter(([m]) => VOLUME_LANDMARKS[m]);
   return `
     <div style="font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.14em; color:var(--ink-dim); margin:16px 0 8px;">MUSCLE ACTIVATION</div>
-    <div style="font-size:11px;color:var(--ink-dim);line-height:1.4;margin-bottom:8px;">Assign main and secondary movers for this exercise. These ratings drive volume, MRV, fatigue, and coaching.</div>
+    <div style="font-size:11px;color:var(--ink-dim);line-height:1.4;margin-bottom:8px;">Assign all main and secondary movers. These ratings drive volume, MRV, fatigue, and coaching.</div>
     <div style="display:grid;gap:6px;">
       ${muscles.map(([muscle, label]) => {
         const rating = activationRatingFromWeight(weights[muscle] || 0);
         return `
-          <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg-elev-2);">
+          <div style="display:grid;grid-template-columns:minmax(86px,1fr) auto auto;gap:6px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg-elev-2);">
             <div style="font-size:12px;font-weight:700;">${escapeHtml(label)}</div>
-            <button class="btn sm ${rating === "secondary" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivation(${exIdx}, '${muscle}', 'secondary')">SECONDARY</button>
-            <button class="btn sm ${rating === "main" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivation(${exIdx}, '${muscle}', 'main')">MAIN</button>
+            <button class="btn sm ${rating === "secondary" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivationByKey('${jsString(key)}', '${jsString(target.name)}', '${jsString(muscle)}', 'secondary')">SECONDARY</button>
+            <button class="btn sm ${rating === "main" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivationByKey('${jsString(key)}', '${jsString(target.name)}', '${jsString(muscle)}', 'main')">MAIN</button>
           </div>`;
       }).join("")}
     </div>
-    <button class="btn ghost sm" style="width:100%;margin-top:8px;" onclick="resetExerciseMuscleActivation(${exIdx})">RESET TO DEFAULT ACTIVATION</button>
+    <button class="btn ghost sm" style="width:100%;margin-top:8px;" onclick="resetExerciseMuscleActivationByKey('${jsString(key)}')">RESET TO DEFAULT ACTIVATION</button>
   `;
+}
+
+function muscleActivationEditorHtml(exIdx, ex) {
+  return muscleActivationEditorHtmlForExercise(ex);
 }
 
 function openEquipmentPicker(exIdx) {
@@ -2096,6 +2117,7 @@ function openEquipmentPicker(exIdx) {
     { value: "bodyweight", label: "Bodyweight",      inc: "+2.5kg" },
   ];
   const current = ex.equipment || null;
+  window._refreshMuscleActivationEditor = () => openEquipmentPicker(exIdx);
 
   $("#sheet-body").innerHTML = `
     <div style="padding: 4px 0 16px;">
@@ -2188,8 +2210,13 @@ function setExerciseMuscleActivation(exIdx, muscle, rating) {
   if (!day) return;
   const ex = STATE.exercises[day]?.[exIdx];
   if (!ex) return;
+  setExerciseMuscleActivationByKey(exerciseKeyFor(ex), ex.name, muscle, rating);
+}
+
+function setExerciseMuscleActivationByKey(key, name, muscle, rating) {
+  if (!key) return;
   if (!STATE.exerciseMuscleActivations) STATE.exerciseMuscleActivations = {};
-  const key = exerciseKeyFor(ex);
+  const ex = { name, exerciseKey: key };
   const weights = currentMuscleActivationWeights(ex);
   const currentRating = activationRatingFromWeight(weights[muscle] || 0);
   if (currentRating === rating) {
@@ -2202,7 +2229,7 @@ function setExerciseMuscleActivation(exIdx, muscle, rating) {
   });
   if (Object.keys(weights).length) {
     STATE.exerciseMuscleActivations[key] = {
-      name: ex.name,
+      name,
       weights,
       updatedAt: todayISO(),
     };
@@ -2210,7 +2237,11 @@ function setExerciseMuscleActivation(exIdx, muscle, rating) {
     delete STATE.exerciseMuscleActivations[key];
   }
   saveState();
-  openEquipmentPicker(exIdx);
+  if (typeof window._refreshMuscleActivationEditor === "function") {
+    window._refreshMuscleActivationEditor();
+  } else if (typeof renderLiftExercises === "function") {
+    renderLiftExercises();
+  }
 }
 
 function resetExerciseMuscleActivation(exIdx) {
@@ -2218,10 +2249,18 @@ function resetExerciseMuscleActivation(exIdx) {
   if (!day) return;
   const ex = STATE.exercises[day]?.[exIdx];
   if (!ex) return;
-  const key = exerciseKeyFor(ex);
+  resetExerciseMuscleActivationByKey(exerciseKeyFor(ex));
+}
+
+function resetExerciseMuscleActivationByKey(key) {
+  if (!key) return;
   if (STATE.exerciseMuscleActivations) delete STATE.exerciseMuscleActivations[key];
   saveState();
-  openEquipmentPicker(exIdx);
+  if (typeof window._refreshMuscleActivationEditor === "function") {
+    window._refreshMuscleActivationEditor();
+  } else if (typeof renderLiftExercises === "function") {
+    renderLiftExercises();
+  }
 }
 
 // ── Lead lift detection ──────────────────────────────────────────────────
@@ -3494,7 +3533,7 @@ function _renderExList() {
         ${e.custom ? `
           <button class="ex-edit-btn" data-custom-name="${escapeHtml(e.name)}" style="padding:6px 8px;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:7px;font-size:12px;cursor:pointer;flex-shrink:0;margin-right:4px;" title="Edit">✎</button>
           <button class="ex-del-btn" data-custom-name="${escapeHtml(e.name)}" style="padding:6px 8px;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:7px;font-size:12px;cursor:pointer;flex-shrink:0;color:var(--ink-dim);" title="Delete">✕</button>
-        ` : `<span style="color:var(--ink-dim);font-size:14px;">›</span>`}
+        ` : `<button class="ex-activation-btn" data-ex-name="${escapeHtml(e.name)}" style="padding:6px 8px;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:7px;font-family:var(--f-mono);font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;flex-shrink:0;color:var(--ink-mid);" title="Muscle activation">MUSCLES</button>`}
       </div>`;
     }).join("")}
     </div>`;
@@ -3518,7 +3557,7 @@ function _renderExList() {
 
   list.querySelectorAll(".ex-row").forEach(row => {
     row.addEventListener("click", (e) => {
-      if (e.target.classList.contains("ex-edit-btn") || e.target.classList.contains("ex-del-btn")) return;
+      if (e.target.classList.contains("ex-edit-btn") || e.target.classList.contains("ex-del-btn") || e.target.classList.contains("ex-activation-btn")) return;
       _applyExerciseSelection(row.dataset.name);
     });
   });
@@ -3527,6 +3566,13 @@ function _renderExList() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       _openCustomExerciseEditor(btn.dataset.customName);
+    });
+  });
+
+  list.querySelectorAll(".ex-activation-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      _openExerciseActivationEditor(btn.dataset.exName);
     });
   });
 
@@ -3543,6 +3589,20 @@ function _renderExList() {
   });
 }
 
+function _openExerciseActivationEditor(name) {
+  const db = findDbMatch(name) || EXERCISE_DB.find(e => e.name === name);
+  const ex = { ...(db || {}), name };
+  document.getElementById("ex-selector-overlay")?.classList.remove("open");
+  window._refreshMuscleActivationEditor = () => _openExerciseActivationEditor(name);
+  $("#sheet-body").innerHTML = `
+    <h3>${escapeHtml(name)}</h3>
+    <div class="muted" style="font-size:11px;margin-bottom:14px;letter-spacing:0.08em;">EDIT MUSCLE ACTIVATION</div>
+    ${muscleActivationEditorHtmlForExercise(ex)}
+    <button class="btn primary full" style="margin-top:14px;" onclick="closeSheet(); document.getElementById('ex-selector-overlay')?.classList.add('open');">DONE</button>
+  `;
+  openSheet();
+}
+
 function _openCustomExerciseEditor(name) {
   if (!STATE.customExercises) STATE.customExercises = [];
   const idx = STATE.customExercises.findIndex(e => e.name === name);
@@ -3555,6 +3615,7 @@ function _openCustomExerciseEditor(name) {
 
   // Temporarily close the selector overlay (re-open after save)
   document.getElementById("ex-selector-overlay")?.classList.remove("open");
+  window._refreshMuscleActivationEditor = () => _openCustomExerciseEditor(STATE.customExercises[idx]?.name || name);
 
   $("#sheet-body").innerHTML = `
     <h3>Edit Custom Exercise</h3>
@@ -3580,6 +3641,7 @@ function _openCustomExerciseEditor(name) {
         ${EQUIP_OPTS.map(e2 => `<option value="${e2}"${ex.equipment===e2?" selected":""}>${e2}</option>`).join("")}
       </select>
     </div>
+    ${muscleActivationEditorHtmlForExercise(ex)}
     <div style="display:flex;gap:8px;">
       <button class="btn primary" style="flex:1;" id="btn-cex-save">SAVE</button>
       <button class="btn danger" id="btn-cex-delete">DELETE</button>
@@ -3592,6 +3654,16 @@ function _openCustomExerciseEditor(name) {
     const movement = document.getElementById("cex-movement").value;
     const muscle   = document.getElementById("cex-muscle").value;
     const equipment= document.getElementById("cex-equipment").value;
+    const oldKey = exerciseKeyFor(ex);
+    const newKey = exerciseKeyFor(newName);
+    if (oldKey !== newKey && STATE.exerciseMuscleActivations?.[oldKey]) {
+      STATE.exerciseMuscleActivations[newKey] = {
+        ...STATE.exerciseMuscleActivations[oldKey],
+        name: newName,
+        updatedAt: todayISO(),
+      };
+      delete STATE.exerciseMuscleActivations[oldKey];
+    }
     STATE.customExercises[idx] = { ...ex, name: newName, movement, muscle, equipment };
     saveState();
     closeSheet();
