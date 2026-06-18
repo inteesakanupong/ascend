@@ -1296,9 +1296,21 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-03.2";
+const APP_VERSION = "2026-06-18.1";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-18.1",
+    title: "Automatic Progression Fixes",
+    items: [
+      "Accessory progression now reads both set weights correctly, so sessions like 18kg x 18 then 24kg x 12 display and prescribe from the real heavier set.",
+      "Mid-workout weight and rep adjustments now apply automatically in the background instead of asking for Apply or Dismiss.",
+      "Heavier second-set trials after an easy top set now hold the new load and rebuild reps instead of triggering an incorrect deload.",
+      "Exercise settings now include manual main and secondary muscle activation ratings that feed volume, MRV, fatigue, and coaching.",
+      "Coaching now uses same-exercise performance trends and recognizes improving strength instead of flagging mixed-day changes as decline.",
+      "Realization-week Training Max updates now account for high-rep AMRAP performance and can raise the next-cycle TM when the set clearly earns it.",
+    ]
+  },
   {
     version: "2026-06-03.2",
     title: "Smoother Workout Flow",
