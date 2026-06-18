@@ -245,9 +245,18 @@ function progressionFor(day, exIdx) {
   const lastStr = !set2Incomplete
     ? `${fmtWeight(s1w)}kg × ${s1r}, ${s2r}`
     : `${fmtWeight(s1w)}kg × ${s1r} (set 2 incomplete)`;
-  const workingWeight = s1w;
-
   const lastRpeVals = [lastSession.rpe?.[lastIdx]?.s1, lastSession.rpe?.[lastIdx]?.s2].filter(v => v != null);
+  const s1Rpe = lastSession.rpe?.[lastIdx]?.s1 ?? null;
+  const set2WeightIncreased = !set2Incomplete && s2w > s1w;
+  const set2NearRepFloor = s2r >= Math.max(1, ex.repMin - 2);
+  const set2WasLoadFinding = set2WeightIncreased && s1r >= ex.repMax && (s1Rpe == null || s1Rpe <= 7);
+  const workingWeight = (set2WeightIncreased && set2NearRepFloor) ? s2w : s1w;
+  const displayLastStr = !set2Incomplete
+    ? (s1w === s2w
+        ? `${fmtWeight(s1w)}kg x ${s1r}, ${s2r}`
+        : `${fmtWeight(s1w)}kg x ${s1r} - ${fmtWeight(s2w)}kg x ${s2r}`)
+    : `${fmtWeight(s1w)}kg x ${s1r} (set 2 incomplete)`;
+
   const avgLastRpe = lastRpeVals.length ? lastRpeVals.reduce((a, b) => a + b, 0) / lastRpeVals.length : null;
   const readiness = calculateReadiness(todayISO());
   const profile = exerciseFatigueProfile(ex.name);
@@ -264,7 +273,7 @@ function progressionFor(day, exIdx) {
       verdict: "HOLD",
       weight: workingWeight,
       reps: Math.min(ex.repMax, Math.max(ex.repMin, s1r)),
-      last: lastStr,
+      last: displayLastStr,
       note: "Set 2 was incomplete or skipped. Hold the same load next time; do not reset or progress from a partial exercise.",
       wavePhase: wave.name
     });
@@ -289,7 +298,7 @@ function progressionFor(day, exIdx) {
     const startWeight = defaultStartWeightForExercise(ex);
     const inferredTM = startWeight ? roundToIncrement(startWeight / 0.60, ex) : null;
     const TM = storedTM || derivedTM || inferredTM || workingWeight;
-    return withIdentity(leadTmPrescription(ex, wave, TM, lastStr));
+    return withIdentity(leadTmPrescription(ex, wave, TM, displayLastStr));
     // Note: execution never reaches accessory logic below for lead lifts.
   }
 
@@ -304,7 +313,7 @@ function progressionFor(day, exIdx) {
       verdict: "DELOAD_WAVE",
       weight: deloadW,
       reps: ex.repMin,
-      last: lastStr,
+      last: displayLastStr,
       note: "Deload week — " + fmtWeight(deloadW) + "kg (≨87.5% of " + fmtWeight(workingWeight) + "kg). Stay RPE 5-6, feel fresh.",
       wavePhase: "DELOAD",
       confidence: 1.0,
@@ -362,7 +371,7 @@ function progressionFor(day, exIdx) {
       verdict: verdict,
       weight: weight,
       reps: reps,
-      last: lastStr,
+      last: displayLastStr,
       note: note,
       wavePhase: wave.name,
       confidence: Math.round(confidence * 100) / 100,
@@ -371,6 +380,12 @@ function progressionFor(day, exIdx) {
   }
 
   // ── Below rep range
+  if (set2WasLoadFinding && s2r < ex.repMin) {
+    const targetReps = Math.min(ex.repMax, Math.max(ex.repMin, s2r + 1));
+    return accessoryResult("HOLD", s2w, targetReps,
+      "Set 2 was a heavier load-finding set after an easy top set. Hold " + fmtWeight(s2w) + "kg and rebuild reps; do not deload from a successful weight increase.");
+  }
+
   if (s1r < ex.repMin || s2r < ex.repMin) {
     if (recentSameMisses < 2 && (avgLastRpe == null || avgLastRpe <= 8.5)) {
       return accessoryResult("HOLD", workingWeight, ex.repMin,

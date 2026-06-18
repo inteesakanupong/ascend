@@ -1,6 +1,29 @@
 // Volume calculations: session, weekly, muscle-specific
 
+const MUSCLE_ACTIVATION_RATING_WEIGHTS = {
+  main: 1,
+  secondary: 0.55,
+  support: 0.25,
+};
+
+function muscleActivationOverrideFor(exOrName) {
+  if (typeof STATE === "undefined") return null;
+  const key = exerciseKeyFor(exOrName);
+  const saved = key ? STATE.exerciseMuscleActivations?.[key] : null;
+  const weights = saved?.weights;
+  if (!weights || typeof weights !== "object") return null;
+  const cleaned = {};
+  Object.entries(weights).forEach(([muscle, value]) => {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) cleaned[muscle] = Math.round(n * 100) / 100;
+  });
+  return Object.keys(cleaned).length ? cleaned : null;
+}
+
 function exerciseWeightedMuscles(exOrName) {
+  const manual = muscleActivationOverrideFor(exOrName);
+  if (manual) return manual;
+
   const name = typeof exOrName === "string" ? exOrName : exOrName?.name;
   const n = normalizeExerciseName(name);
   const db = typeof findDbMatch === "function" ? findDbMatch(name) : null;

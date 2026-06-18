@@ -53,6 +53,7 @@ function freshDefaultState() {
   s.measurements = [];
   s.customFoods = [];
   s.customExercises = [];
+  s.exerciseMuscleActivations = {};
   s.repRangeCounters = {};
   s.pendingProgramChanges = {};
   s.lastMrvSwap = null;

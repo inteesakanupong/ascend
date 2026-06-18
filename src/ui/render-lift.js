@@ -230,14 +230,23 @@ const JUG_WAVES = [
 // Chad's formula: (reps performed - targetReps) × incrementPerRep + currentMax
 // For PPL accessory work (not powerlifting comp lifts), we simplify:
 // If reps > repMax consistently: add weight. If reps < repMin: deload.
-function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight) {
+function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight, opts = {}) {
   const ex = STATE.exercises[day][exIdx];
   // Juggernaut Method: AMRAP → estimate 1RM (Epley) → Training Max = 90% of 1RM
   // This TM is stored as the working max and drives all future wave percentages.
   if (!amrapWeight || !amrapReps || amrapReps < 1) return getWorkingMax(day, exIdx) || ex.start;
-  const estimatedOneRm = estimateOneRm(amrapWeight, amrapReps);
-  const newTM = roundToIncrement(estimatedOneRm * 0.90, ex);
-  return newTM;
+  const rpe = opts.rpe ?? null;
+  const effectiveReps = amrapReps + (rpe != null && rpe <= 8 ? 2 : rpe === 9 ? 1 : 0);
+  const estimatedOneRm = estimateOneRm(amrapWeight, effectiveReps);
+  const epleyTM = roundToIncrement(estimatedOneRm * 0.90, ex);
+  const currentTM = opts.currentTM ?? getWorkingMax(day, exIdx) ?? null;
+  const targetReps = opts.targetReps ?? (JUG_TM_PCTS.REALIZATION?.reps || ex.repMin || 1);
+  if (!currentTM || effectiveReps <= targetReps + 1) return epleyTM;
+
+  const repsOverTarget = effectiveReps - targetReps;
+  const bonusSteps = Math.min(4, Math.max(1, Math.floor(repsOverTarget / 3) + 1));
+  const performanceFloor = roundToIncrement(currentTM + bonusSteps * incrementFor(ex), ex);
+  return Math.max(epleyTM, performanceFloor);
 }
 
 // ── Phase-1: Stall detection ──────────────────────────────────────────────────
@@ -1460,8 +1469,8 @@ function bromleyWeightSuggestion(exIdx, setNum) {
     const targetReps = p?.reps ?? reps;
     const isLastSet = setNum === 2;
     if (wave.name === "REALIZATION" && isLastSet) {
-      const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight);
       const currentWM = getWorkingMax(LIFT_DAY, exIdx) || weight;
+      const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight, { currentTM: currentWM, targetReps, rpe });
       const wmChange = newWM > currentWM ? `+${fmtWeight(newWM - currentWM)}kg` : "holding";
       return {
         verdict: "amrap_result",
@@ -1487,6 +1496,12 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   const inRange      = reps >= ex.repMin && reps <= ex.repMax;
   const isLastSet    = setNum === 2;
   const nextLabel    = isLastSet ? "next session" : "Set 2";
+  const firstSet = LIFT_DRAFT.sets[exIdx] || {};
+  const firstSetRpe = LIFT_SET_RPE[exIdx]?.s1 ?? null;
+  const isHeavierSecondSetTrial = setNum === 2
+    && weight > (firstSet.s1w ?? 0)
+    && (firstSet.s1r ?? 0) >= ex.repMax
+    && (firstSetRpe == null || firstSetRpe <= 7);
 
   // DELOAD WEEK: suppress all push/progress suggestions — only flag if dangerously high RPE
   if (wave.name === "DELOAD") {
@@ -1508,8 +1523,8 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   // Any RPE on an AMRAP set is expected and fine. Show a positive message instead.
   const isRealizationAMRAP = wave.name === "REALIZATION" && isLastSet && isLeadLift(LIFT_DAY, exIdx);
   if (isRealizationAMRAP) {
-    const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight);
     const currentWM = getWorkingMax(LIFT_DAY, exIdx) || weight;
+    const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight, { currentTM: currentWM, targetReps: JUG_TM_PCTS.REALIZATION?.reps, rpe });
     const wmChange = newWM > currentWM ? `+${fmtWeight(newWM - currentWM)}kg` : "holding";
     return {
       verdict: "amrap_result",
@@ -1521,6 +1536,16 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   }
 
   // RPE 10 — absolute max, must drop
+  if (isHeavierSecondSetTrial && missedReps) {
+    return {
+      verdict: "load_find_hold",
+      newWeight: null, newReps: null,
+      label: `Higher-load trial logged`,
+      text: `Set 1 earned the increase. Hold ${fmtWeight(weight)}kg next session and rebuild reps; no deload is applied.`,
+      color: "good"
+    };
+  }
+
   if (rpe === 10) {
     const drop = missedReps ? inc * 2 : inc;
     return {
@@ -1595,6 +1620,44 @@ function bromleyWeightSuggestion(exIdx, setNum) {
     };
   }
   return null; // no suggestion needed — performance is on target
+}
+
+function bromleySuggestionHasAction(sugg) {
+  return !!sugg && (sugg.newWeight != null || sugg.newReps != null);
+}
+
+function applyBromleySuggestionAutomatically(exIdx, setNum, sugg, opts = {}) {
+  if (!bromleySuggestionHasAction(sugg)) return false;
+  const nextSet = setNum + 1;
+  if (nextSet > 2) {
+    LIFT_DISMISSED_BANNERS.add(`${exIdx}-${setNum}`);
+    return true;
+  }
+  if (LIFT_SET_DONE[exIdx]?.[`s${nextSet}`]) return false;
+
+  if (sugg.newWeight != null) {
+    LIFT_DRAFT.sets[exIdx][`s${nextSet}w`] = Math.max(0, sugg.newWeight);
+    const wInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}w"]`);
+    if (wInp) wInp.value = LIFT_DRAFT.sets[exIdx][`s${nextSet}w`];
+  }
+  if (sugg.newReps != null) {
+    LIFT_DRAFT.sets[exIdx][`s${nextSet}r`] = Math.max(1, sugg.newReps);
+    const rInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}r"]`);
+    if (rInp) rInp.value = LIFT_DRAFT.sets[exIdx][`s${nextSet}r`];
+  }
+
+  LIFT_DISMISSED_BANNERS.add(`${exIdx}-${setNum}`);
+  if (opts.toast) {
+    const w = LIFT_DRAFT.sets[exIdx][`s${nextSet}w`];
+    const r = LIFT_DRAFT.sets[exIdx][`s${nextSet}r`];
+    toast(`SET ${nextSet} AUTO-UPDATED: ${fmtWeight(w)}kg x ${r}`);
+  }
+  return true;
+}
+
+function shouldShowBromleyInfo(sugg) {
+  if (!sugg || bromleySuggestionHasAction(sugg)) return false;
+  return ["amrap_result", "jtm_target_miss", "load_find_hold"].includes(sugg.verdict);
 }
 
 function mrvProjectedNeedForExercise(exIdx) {
@@ -1984,6 +2047,39 @@ function mrvLiftActionPanel() {
   `;
 }
 
+function activationRatingFromWeight(weight) {
+  if (weight >= 0.85) return "main";
+  if (weight >= 0.4) return "secondary";
+  return null;
+}
+
+function currentMuscleActivationWeights(ex) {
+  const key = exerciseKeyFor(ex);
+  const manual = key ? STATE.exerciseMuscleActivations?.[key]?.weights : null;
+  return manual ? { ...manual } : { ...exerciseWeightedMuscles(ex) };
+}
+
+function muscleActivationEditorHtml(exIdx, ex) {
+  const weights = currentMuscleActivationWeights(ex);
+  const muscles = Object.entries(MUSCLE_LABELS).filter(([m]) => VOLUME_LANDMARKS[m]);
+  return `
+    <div style="font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.14em; color:var(--ink-dim); margin:16px 0 8px;">MUSCLE ACTIVATION</div>
+    <div style="font-size:11px;color:var(--ink-dim);line-height:1.4;margin-bottom:8px;">Assign main and secondary movers for this exercise. These ratings drive volume, MRV, fatigue, and coaching.</div>
+    <div style="display:grid;gap:6px;">
+      ${muscles.map(([muscle, label]) => {
+        const rating = activationRatingFromWeight(weights[muscle] || 0);
+        return `
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg-elev-2);">
+            <div style="font-size:12px;font-weight:700;">${escapeHtml(label)}</div>
+            <button class="btn sm ${rating === "secondary" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivation(${exIdx}, '${muscle}', 'secondary')">SECONDARY</button>
+            <button class="btn sm ${rating === "main" ? "primary" : "ghost"}" style="font-size:9px;padding:5px 8px;" onclick="setExerciseMuscleActivation(${exIdx}, '${muscle}', 'main')">MAIN</button>
+          </div>`;
+      }).join("")}
+    </div>
+    <button class="btn ghost sm" style="width:100%;margin-top:8px;" onclick="resetExerciseMuscleActivation(${exIdx})">RESET TO DEFAULT ACTIVATION</button>
+  `;
+}
+
 function openEquipmentPicker(exIdx) {
   const day = LIFT_DAY;
   if (!day) return;
@@ -2040,6 +2136,7 @@ function openEquipmentPicker(exIdx) {
           ${opt.kg != null ? `<span style="font-family:var(--f-mono); font-size:10px; opacity:0.7;">${opt.kg}kg bar</span>` : ""}
         </button>`;
       }).join("")}
+      ${muscleActivationEditorHtml(exIdx, ex)}
     </div>`;
   openSheet();
 }
@@ -2084,6 +2181,47 @@ function setBarType(exIdx, barType) {
   saveState();
   closeSheet();
   renderLiftExercises();
+}
+
+function setExerciseMuscleActivation(exIdx, muscle, rating) {
+  const day = LIFT_DAY;
+  if (!day) return;
+  const ex = STATE.exercises[day]?.[exIdx];
+  if (!ex) return;
+  if (!STATE.exerciseMuscleActivations) STATE.exerciseMuscleActivations = {};
+  const key = exerciseKeyFor(ex);
+  const weights = currentMuscleActivationWeights(ex);
+  const currentRating = activationRatingFromWeight(weights[muscle] || 0);
+  if (currentRating === rating) {
+    delete weights[muscle];
+  } else {
+    weights[muscle] = MUSCLE_ACTIVATION_RATING_WEIGHTS[rating] || 0;
+  }
+  Object.keys(weights).forEach(m => {
+    if (!weights[m] || weights[m] <= 0) delete weights[m];
+  });
+  if (Object.keys(weights).length) {
+    STATE.exerciseMuscleActivations[key] = {
+      name: ex.name,
+      weights,
+      updatedAt: todayISO(),
+    };
+  } else {
+    delete STATE.exerciseMuscleActivations[key];
+  }
+  saveState();
+  openEquipmentPicker(exIdx);
+}
+
+function resetExerciseMuscleActivation(exIdx) {
+  const day = LIFT_DAY;
+  if (!day) return;
+  const ex = STATE.exercises[day]?.[exIdx];
+  if (!ex) return;
+  const key = exerciseKeyFor(ex);
+  if (STATE.exerciseMuscleActivations) delete STATE.exerciseMuscleActivations[key];
+  saveState();
+  openEquipmentPicker(exIdx);
 }
 
 // ── Lead lift detection ──────────────────────────────────────────────────
@@ -2194,16 +2332,16 @@ function renderLiftExercises() {
     if (isDone && curRpe != null && !LIFT_DISMISSED_BANNERS.has(`${idx}-${setNum}`)) {
       const sugg = bromleyWeightSuggestion(idx, setNum);
       if (sugg) {
-        const hasApply = sugg.newWeight != null || sugg.newReps != null;
+        const autoApplied = applyBromleySuggestionAutomatically(idx, setNum, sugg);
+        if (autoApplied || !shouldShowBromleyInfo(sugg)) {
+          bromleyHtml = "";
+        } else {
         bromleyHtml = `
           <div class="bromley-banner ${sugg.color}" data-bb="${idx}-${setNum}">
             <div class="bb-label">📊 ${sugg.label}</div>
             <div class="bb-text">${escapeHtml(sugg.text)}</div>
-            <div class="bb-actions">
-              ${hasApply ? `<button class="btn-bb-apply" data-ex="${idx}" data-set="${setNum}" data-weight="${sugg.newWeight ?? ''}" data-reps="${sugg.newReps ?? ''}">APPLY</button>` : ""}
-              <button class="btn-bb-dismiss" data-ex="${idx}" data-set="${setNum}">DISMISS</button>
-            </div>
           </div>`;
+        }
       }
     }
 
@@ -2769,15 +2907,12 @@ function _refreshBromleyBanner(exIdx, setNum) {
   if (LIFT_DISMISSED_BANNERS.has(`${exIdx}-${setNum}`)) return;
   const sugg = bromleyWeightSuggestion(exIdx, setNum);
   if (!sugg) return;
-  const hasApply = sugg.newWeight != null || sugg.newReps != null;
+  if (applyBromleySuggestionAutomatically(exIdx, setNum, sugg, { toast: true })) return;
+  if (!shouldShowBromleyInfo(sugg)) return;
   const html = `
     <div class="bromley-banner ${sugg.color}" data-bb="${exIdx}-${setNum}">
       <div class="bb-label">📊 ${sugg.label}</div>
       <div class="bb-text">${escapeHtml(sugg.text)}</div>
-      <div class="bb-actions">
-        ${hasApply ? `<button class="btn-bb-apply" data-ex="${exIdx}" data-set="${setNum}" data-weight="${sugg.newWeight ?? ''}" data-reps="${sugg.newReps ?? ''}">APPLY</button>` : ""}
-        <button class="btn-bb-dismiss" data-ex="${exIdx}" data-set="${setNum}">DISMISS</button>
-      </div>
     </div>`;
   block.insertAdjacentHTML("beforeend", html);
   // Wire buttons
@@ -4020,8 +4155,9 @@ $("#btn-save-session").addEventListener("click", () => {
       const amrapDone = typeof sessionSetDone === "function" ? sessionSetDone(session, leadIdx, "s2") : !!session.setCompletion?.[leadIdx]?.s2;
       const amrapRpe = session.rpe?.[leadIdx]?.s2 ?? null;
       if (amrapDone && amrapRpe != null && amrapRpe >= 7 && amrapReps != null && amrapWeight != null && amrapReps > 0) {
-        const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight);
         const currentWM = getWorkingMax(session.day, leadIdx) || 0;
+        const targetReps = JUG_TM_PCTS.REALIZATION?.reps || STATE.exercises[session.day]?.[leadIdx]?.repMin || 1;
+        const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight, { currentTM: currentWM, targetReps, rpe: amrapRpe });
         if (newWM > 0 && (!currentWM || newWM >= currentWM)) {
           setWorkingMax(session.day, leadIdx, newWM);
           saveState();

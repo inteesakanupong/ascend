@@ -139,6 +139,7 @@ function migrateState(s) {
     return migrated;
   });
   if (!s.repRangeCounters)        s.repRangeCounters = {};
+  if (!s.exerciseMuscleActivations) s.exerciseMuscleActivations = {};
   if (!s.pendingProgramChanges)   s.pendingProgramChanges = {};
   if (s.lastMrvSwap === undefined) s.lastMrvSwap = null;
   if (!s.adaptive_state) {
@@ -191,8 +192,6 @@ function migrateState(s) {
     const storedWM = s.profile[wmKey];
     // Skip only if already set to something different from ex.start
     // (ex.start as WM = bad initialization — we should fix it from session data)
-    if (storedWM != null && storedWM !== (ex?.start ?? storedWM)) return;
-
     // Find the last REALIZATION session (waveWeek 3 = session index 2, 6, 10...)
     // waveWeek = ((sessionNumber-1) % 4) + 1, so REALIZATION = waveWeek 3 → (n-1)%4 === 2
     for (let i = daySessions.length - 1; i >= 0; i--) {
@@ -205,10 +204,19 @@ function migrateState(s) {
       const amrapW = sets.s2w ?? 0;
       if (!amrapW || amrapReps === 0) break;
       // Juggernaut TM: AMRAP → 1RM (Epley) → TM = 90% of 1RM
-      const epleyOneRm = amrapW * (1 + amrapReps / 30);
-      const computedWM = Math.round((epleyOneRm * 0.90) / 2.5) * 2.5;
+      const rpe = sess.rpe?.[li]?.s2 ?? null;
+      const effectiveReps = amrapReps + (rpe != null && rpe <= 8 ? 2 : rpe === 9 ? 1 : 0);
+      const epleyOneRm = amrapW * (1 + effectiveReps / 30);
+      const inc = typeof incrementFor === "function" ? incrementFor(ex) : 2.5;
+      let computedWM = Math.round((epleyOneRm * 0.90) / inc) * inc;
+      const targetReps = JUG_TM_PCTS?.REALIZATION?.reps || ex.repMin || 1;
+      if (storedWM && effectiveReps > targetReps + 1) {
+        const repsOverTarget = effectiveReps - targetReps;
+        const bonusSteps = Math.min(4, Math.max(1, Math.floor(repsOverTarget / 3) + 1));
+        computedWM = Math.max(computedWM, Math.round((storedWM + bonusSteps * inc) / inc) * inc);
+      }
       // Only set if sensible (greater than zero, not inflated from ex.start)
-      if (computedWM > 0 && computedWM < (ex.start || 9999) * 1.5) {
+      if (computedWM > 0 && (!storedWM || computedWM > storedWM) && (!storedWM || computedWM <= storedWM * 1.25)) {
         s.profile[wmKey] = computedWM;
       }
       break; // only use the most recent REALIZATION

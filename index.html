@@ -4205,6 +4205,56 @@ function bestAndStalledLifts() {
   };
 }
 
+function setPerformanceScore(weight, reps, rpe = null) {
+  if (!weight || !reps) return null;
+  const effortCredit = rpe == null ? 1 : rpe <= 6 ? 1.04 : rpe <= 7 ? 1.02 : rpe >= 9 ? 0.98 : 1;
+  return weight * (1 + reps / 30) * effortCredit;
+}
+
+function trainingPerformanceTrend() {
+  const byExercise = {};
+  sortSessionsChronological(STATE.sessions || []).forEach(session => {
+    (session.sets || []).forEach((_, idx) => {
+      const key = sessionExerciseKey(session, idx);
+      if (!key) return;
+      const set = completedSessionSet(session, idx);
+      const s1 = setPerformanceScore(set.s1w, set.s1r, session.rpe?.[idx]?.s1);
+      const s2 = setPerformanceScore(set.s2w, set.s2r, session.rpe?.[idx]?.s2);
+      const score = Math.max(s1 || 0, s2 || 0);
+      if (!score) return;
+      if (!byExercise[key]) byExercise[key] = [];
+      byExercise[key].push({ score, date: session.date, name: sessionExerciseName(session, idx) });
+    });
+  });
+
+  const comparisons = Object.values(byExercise).map(entries => {
+    if (entries.length < 2) return null;
+    const latest = entries[entries.length - 1];
+    const previous = entries[entries.length - 2];
+    return {
+      name: latest.name,
+      pct: previous.score > 0 ? (latest.score - previous.score) / previous.score : 0,
+    };
+  }).filter(Boolean);
+  if (!comparisons.length) return { direction: "unknown", avgPct: null, improved: 0, declined: 0, examples: [] };
+
+  const improved = comparisons.filter(c => c.pct >= 0.015);
+  const declined = comparisons.filter(c => c.pct <= -0.015);
+  const avgPct = comparisons.reduce((sum, c) => sum + c.pct, 0) / comparisons.length;
+  const direction = improved.length >= declined.length + 2 || avgPct >= 0.02
+    ? "improving"
+    : declined.length >= improved.length + 2 || avgPct <= -0.03
+      ? "declining"
+      : "stable";
+  return {
+    direction,
+    avgPct,
+    improved: improved.length,
+    declined: declined.length,
+    examples: improved.sort((a, b) => b.pct - a.pct).slice(0, 3).map(x => x.name),
+  };
+}
+
 function buildLifterAnalysis() {
   syncCalibrationProfiles();
   const logs = [...STATE.dailyLogs].sort((a, b) => a.date.localeCompare(b.date));
@@ -4300,6 +4350,8 @@ function buildLifterAnalysis() {
       performanceDeclining = older2 > 0 && (recent2 / older2) < 0.97; // >3% drop = declining
     }
   }
+  const performanceTrend = trainingPerformanceTrend();
+  performanceDeclining = performanceTrend.direction === "declining";
   if (STATE.cut.mode === "cut") {
     if (performanceDeclining && trend28 != null && trend28 < -0.8) {
       recommendations.push("Performance declining alongside rapid weight loss — consider adding 150-200 kcal to protect muscle and training quality.");
@@ -4354,7 +4406,11 @@ function buildLifterAnalysis() {
   }
   const mode = STATE.cut.mode === "bulk" ? "lean gaining" : STATE.cut.mode === "maintain" ? "maintaining/recomping" : "cutting";
   const trendText = trend28 == null ? "insufficient weight trend data" : `${Math.abs(trend28).toFixed(2)} kg/week ${trend28 < 0 ? "loss" : "gain"}`;
-  const perfNote = performanceDeclining ? " Performance is declining." : "";
+  const perfNote = performanceDeclining
+    ? " Performance is declining."
+    : performanceTrend.direction === "improving"
+      ? ` Performance is improving across ${performanceTrend.improved} movements.`
+      : "";
   const coachingVerdict = `${mode[0].toUpperCase() + mode.slice(1)} with ${trendText}.${perfNote} ${fatigueRisks[0] || "No major fatigue risk is dominant."} ${recommendations[0]}`;
   return {
     strengthBalance,
@@ -4365,7 +4421,7 @@ function buildLifterAnalysis() {
     progressionDrivers: liftResponse.best.map(x => x.name),
     recommendations,
     mrvEstimates,
-    trainingResponse: { ...liftResponse, nearMrv, belowMev },
+    trainingResponse: { ...liftResponse, nearMrv, belowMev, performanceTrend },
     coachingVerdict,
     exerciseRotationSuggestions,
   };
