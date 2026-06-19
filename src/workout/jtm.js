@@ -42,12 +42,21 @@ function juggernautWaveForSession(session) {
   return { ...JUG_WAVES[waveWeek - 1], waveWeek, weekNum: sessionNum, cycleNum };
 }
 
-function getWorkingMax(day, exIdx) {
+function getWorkingMax(day, exIdx, exOrName = null) {
   const key = `wm_${day}_${exIdx}`;
-  return STATE.profile[key] ?? null;
+  const value = STATE.profile[key] ?? null;
+  if (value == null || !exOrName) return value;
+  const storedExerciseKey = STATE.profile[`${key}_exerciseKey`];
+  if (storedExerciseKey && storedExerciseKey !== exerciseKeyFor(exOrName)) return null;
+  return value;
 }
 
-function setWorkingMax(day, exIdx, value) {
+function setWorkingMax(day, exIdx, value, exOrName = null) {
   const key = `wm_${day}_${exIdx}`;
   STATE.profile[key] = value;
+  const ex = exOrName || STATE.exercises?.[day]?.[exIdx];
+  if (ex) {
+    STATE.profile[`${key}_exerciseKey`] = exerciseKeyFor(ex);
+    STATE.profile[`${key}_exerciseName`] = typeof ex === "string" ? ex : ex.name;
+  }
 }

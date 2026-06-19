@@ -154,10 +154,11 @@ function leadTrainingMaxFloorFromHistory(day, exIdx, ex) {
   const sessions = trainingSessionsForDay(day);
   let floor = null;
   sessions.forEach((session, index) => {
+    if (!sessionExerciseMatches(session, exIdx, ex)) return;
     const wave = historicalWaveForDaySession(index, session);
     const pct = JUG_TM_PCTS[wave?.name]?.pct;
     if (!pct || wave.name === "DELOAD") return;
-    const set = session.sets?.[exIdx];
+    const set = completedSessionSet(session, exIdx);
     const weight = set?.s1w ?? set?.s2w;
     if (!weight || weight <= 0) return;
     if (typeof sessionSetDone === "function" && session.setCompletion && !sessionSetDone(session, exIdx, "s1")) return;
@@ -167,19 +168,61 @@ function leadTrainingMaxFloorFromHistory(day, exIdx, ex) {
   return floor;
 }
 
+function leadTrainingMaxFromRealizationHistory(day, exIdx, ex) {
+  const sessions = trainingSessionsForDay(day);
+  let best = null;
+  sessions.forEach((session, index) => {
+    if (!sessionExerciseMatches(session, exIdx, ex)) return;
+    const wave = historicalWaveForDaySession(index, session);
+    if (wave?.name !== "REALIZATION") return;
+    if (typeof sessionSetDone === "function" && !sessionSetDone(session, exIdx, "s2")) return;
+    const set = completedSessionSet(session, exIdx);
+    const amrapWeight = set?.s2w ?? set?.s1w;
+    const amrapReps = set?.s2r ?? set?.s1r;
+    if (!amrapWeight || !amrapReps || amrapReps <= 0) return;
+    const rpe = session.rpe?.[exIdx]?.s2 ?? null;
+    const effectiveReps = amrapReps + (rpe != null && rpe <= 8 ? 2 : rpe === 9 ? 1 : 0);
+    const tm = roundToIncrement(estimateOneRm(amrapWeight, effectiveReps) * 0.90, ex);
+    if (tm > 0) best = Math.max(best || 0, tm);
+  });
+  return best;
+}
+
 function reconciledLeadTrainingMax(day, exIdx, ex, storedTM) {
-  const floor = leadTrainingMaxFloorFromHistory(day, exIdx, ex);
-  if (!floor) return storedTM;
-  const inc = incrementFor(ex);
-  const shouldRepair = !storedTM || floor > storedTM + inc * 2;
-  if (!shouldRepair) return storedTM;
   const key = `wm_${day}_${exIdx}`;
+  const targetExerciseKey = exerciseKeyFor(ex);
+  const storedExerciseKey = STATE.profile?.[`${key}_exerciseKey`];
+  if (storedTM && storedExerciseKey && storedExerciseKey !== targetExerciseKey) storedTM = null;
+
+  const realizationTM = leadTrainingMaxFromRealizationHistory(day, exIdx, ex);
+  const floor = leadTrainingMaxFloorFromHistory(day, exIdx, ex);
+  const supportedTM = Math.max(realizationTM || 0, floor || 0) || null;
+  if (!supportedTM) return storedTM;
+
+  const inc = incrementFor(ex);
+  const legacySlotOnly = storedTM && !storedExerciseKey;
+  const unsupportedLegacyHigh = legacySlotOnly && storedTM > supportedTM + inc * 4;
+  if (unsupportedLegacyHigh) {
+    if (!STATE.profile) STATE.profile = {};
+    STATE.profile[key] = supportedTM;
+    STATE.profile[`${key}_exerciseKey`] = targetExerciseKey;
+    STATE.profile[`${key}_exerciseName`] = ex.name;
+    STATE.profile[`${key}_repairedAt`] = typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10);
+    STATE.profile[`${key}_repairReason`] = "Lowered stale slot-based Training Max because exact exercise history supports a lower value.";
+    if (typeof saveState === "function") saveState();
+    return supportedTM;
+  }
+
+  const shouldRepair = !storedTM || supportedTM > storedTM + inc * 2;
+  if (!shouldRepair) return storedTM;
   if (!STATE.profile) STATE.profile = {};
-  STATE.profile[key] = floor;
+  STATE.profile[key] = supportedTM;
+  STATE.profile[`${key}_exerciseKey`] = targetExerciseKey;
+  STATE.profile[`${key}_exerciseName`] = ex.name;
   STATE.profile[`${key}_repairedAt`] = typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10);
   STATE.profile[`${key}_repairReason`] = "Raised from recent lead-lift prescriptions after stored TM was lower than session history.";
   if (typeof saveState === "function") saveState();
-  return floor;
+  return supportedTM;
 }
 
 function progressionFor(day, exIdx) {
@@ -197,7 +240,7 @@ function progressionFor(day, exIdx) {
   if (sessions.length === 0) {
     if (isLead) {
       // PHASE 1 FIX: Lead lifts must NEVER fall back to accessory rep logic.
-      const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
+      const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx, ex);
       const storedTM = reconciledLeadTrainingMax(day, exIdx, ex, rawStoredTM);
       if (storedTM) return withIdentity(leadTmPrescription(ex, wave, storedTM));
       // No TM stored: infer from start weight so JTM reps are always correct
@@ -221,7 +264,7 @@ function progressionFor(day, exIdx) {
   if (!last || last.s1r == null) {
     if (isLead) {
       // PHASE 1 FIX: Lead lift with missing set data must still use JTM, not accessory fallback.
-      const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
+      const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx, ex);
       const storedTM = reconciledLeadTrainingMax(day, exIdx, ex, rawStoredTM);
       if (storedTM) return withIdentity(leadTmPrescription(ex, wave, storedTM));
       const startWeight = defaultStartWeightForExercise(ex);
@@ -287,7 +330,7 @@ function progressionFor(day, exIdx) {
   //   3. Inferred from start weight (60% pct back-calculation)
   // Lead lifts NEVER fall through to accessory double-progression.
   if (isLead) {
-    const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx);
+    const rawStoredTM = isActiveExerciseSwapped(day, exIdx) ? null : getWorkingMax(day, exIdx, ex);
     const storedTM = reconciledLeadTrainingMax(day, exIdx, ex, rawStoredTM);
     // Priority 2: Derive TM from last session AMRAP (s2 = final/AMRAP set)
     const amrapW = s2w || s1w;

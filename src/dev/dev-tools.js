@@ -139,7 +139,7 @@
         nextWave: `${wave.name} C${wave.cycleNum} W${wave.waveWeek}`,
         leadLift: lead?.name || null,
         prescription: p ? `${p.verdict} ${p.weight}kg x ${p.reps}` : "missing",
-        trainingMax: p?.trainingMax || getWorkingMax(day, leadIdx) || null,
+        trainingMax: p?.trainingMax || getWorkingMax(day, leadIdx, lead) || null,
         progressionLogic: lead ? (isLeadLift(day, leadIdx) ? "JTM" : "accessory") : "missing",
         exerciseKey: p?.exerciseKey || (lead ? exerciseKeyFor(lead) : null),
         historySource: p?.historySource || "unknown"

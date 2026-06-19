@@ -234,12 +234,12 @@ function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight, opts = {}) {
   const ex = STATE.exercises[day][exIdx];
   // Juggernaut Method: AMRAP → estimate 1RM (Epley) → Training Max = 90% of 1RM
   // This TM is stored as the working max and drives all future wave percentages.
-  if (!amrapWeight || !amrapReps || amrapReps < 1) return getWorkingMax(day, exIdx) || ex.start;
+  if (!amrapWeight || !amrapReps || amrapReps < 1) return getWorkingMax(day, exIdx, ex) || ex.start;
   const rpe = opts.rpe ?? null;
   const effectiveReps = amrapReps + (rpe != null && rpe <= 8 ? 2 : rpe === 9 ? 1 : 0);
   const estimatedOneRm = estimateOneRm(amrapWeight, effectiveReps);
   const epleyTM = roundToIncrement(estimatedOneRm * 0.90, ex);
-  const currentTM = opts.currentTM ?? getWorkingMax(day, exIdx) ?? null;
+  const currentTM = opts.currentTM ?? getWorkingMax(day, exIdx, ex) ?? null;
   const targetReps = opts.targetReps ?? (JUG_TM_PCTS.REALIZATION?.reps || ex.repMin || 1);
   if (!currentTM || effectiveReps <= targetReps + 1) return epleyTM;
 
@@ -431,7 +431,7 @@ function savePendingProgramChanges(day, changes) {
 // Apply a stall_deload change: adjust the working max downward
 function applyProgramChange(day, change) {
   if (change.type !== "stall_deload") return; // info-only changes don't auto-apply
-  setWorkingMax(day, change.exIdx, change.newWeight);
+  setWorkingMax(day, change.exIdx, change.newWeight, STATE.exercises?.[day]?.[change.exIdx]);
   // Also clear any stale stall counters
   if (STATE.repRangeCounters) STATE.repRangeCounters[`${day}:${change.exIdx}`] = { hitTop: 0, missMin: 0 };
   saveState();
@@ -1469,7 +1469,7 @@ function bromleyWeightSuggestion(exIdx, setNum) {
     const targetReps = p?.reps ?? reps;
     const isLastSet = setNum === 2;
     if (wave.name === "REALIZATION" && isLastSet) {
-      const currentWM = getWorkingMax(LIFT_DAY, exIdx) || weight;
+      const currentWM = getWorkingMax(LIFT_DAY, exIdx, STATE.exercises?.[LIFT_DAY]?.[exIdx]) || weight;
       const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight, { currentTM: currentWM, targetReps, rpe });
       const wmChange = newWM > currentWM ? `+${fmtWeight(newWM - currentWM)}kg` : "holding";
       return {
@@ -1523,7 +1523,7 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   // Any RPE on an AMRAP set is expected and fine. Show a positive message instead.
   const isRealizationAMRAP = wave.name === "REALIZATION" && isLastSet && isLeadLift(LIFT_DAY, exIdx);
   if (isRealizationAMRAP) {
-    const currentWM = getWorkingMax(LIFT_DAY, exIdx) || weight;
+    const currentWM = getWorkingMax(LIFT_DAY, exIdx, STATE.exercises?.[LIFT_DAY]?.[exIdx]) || weight;
     const newWM = recalcWorkingMax(LIFT_DAY, exIdx, reps, weight, { currentTM: currentWM, targetReps: JUG_TM_PCTS.REALIZATION?.reps, rpe });
     const wmChange = newWM > currentWM ? `+${fmtWeight(newWM - currentWM)}kg` : "holding";
     return {
@@ -4227,11 +4227,11 @@ $("#btn-save-session").addEventListener("click", () => {
       const amrapDone = typeof sessionSetDone === "function" ? sessionSetDone(session, leadIdx, "s2") : !!session.setCompletion?.[leadIdx]?.s2;
       const amrapRpe = session.rpe?.[leadIdx]?.s2 ?? null;
       if (amrapDone && amrapRpe != null && amrapRpe >= 7 && amrapReps != null && amrapWeight != null && amrapReps > 0) {
-        const currentWM = getWorkingMax(session.day, leadIdx) || 0;
+        const currentWM = getWorkingMax(session.day, leadIdx, STATE.exercises?.[session.day]?.[leadIdx]) || 0;
         const targetReps = JUG_TM_PCTS.REALIZATION?.reps || STATE.exercises[session.day]?.[leadIdx]?.repMin || 1;
         const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight, { currentTM: currentWM, targetReps, rpe: amrapRpe });
         if (newWM > 0 && (!currentWM || newWM >= currentWM)) {
-          setWorkingMax(session.day, leadIdx, newWM);
+          setWorkingMax(session.day, leadIdx, newWM, STATE.exercises?.[session.day]?.[leadIdx]);
           saveState();
           const oneRmDisplay = Math.round(estimateOneRm(amrapWeight, amrapReps));
           setTimeout(() => toast(`🏆 NEW TM: ${newWM}kg (1RM ≈ ${oneRmDisplay}kg × 90%) — next cycle weights updated`), 2000);

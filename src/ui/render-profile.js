@@ -11,7 +11,7 @@ function renderTrainingMax() {
     const ex        = STATE.exercises[day]?.[leadIdx];
     if (!ex) return null;
 
-    const wm        = getWorkingMax(day, leadIdx);
+    const wm        = getWorkingMax(day, leadIdx, ex);
     const prescription = progressionFor(day, leadIdx);
     const lastSess  = STATE.sessions.filter(s => s.day === day)
                         .sort((a,b) => b.date.localeCompare(a.date))[0];
