@@ -18,16 +18,6 @@ function juggernautWave(dayNum, day) {
   }
   const waveWeek = ((weekNum - 1) % 4) + 1; // 1, 2, 3, 4, 1, 2, 3, 4...
   const cycleNum  = Math.floor((weekNum - 1) / 4) + 1;
-  if (day && waveWeek === 4 && STATE.profile?.skipDeloadNext?.[day]) {
-    return {
-      ...JUG_WAVES[0],
-      waveWeek: 1,
-      weekNum: weekNum + 1,
-      cycleNum: cycleNum + 1,
-      deloadSkipped: true,
-      skippedDeloadWeekNum: weekNum,
-    };
-  }
   return { ...JUG_WAVES[waveWeek - 1], waveWeek, weekNum, cycleNum };
 }
 

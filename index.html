@@ -363,19 +363,6 @@ self.addEventListener("fetch", e => {
         <div id="lsg-wave-rpe" style="font-family:var(--f-mono); font-size:10px; color:var(--ink-dim); margin-top:4px; letter-spacing:0.06em;">—</div>
       </div>
 
-      <div id="lsg-deload-review" style="display:none; margin: 6px 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--bg-elev-2); border-left: 3px solid var(--good);">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;">
-          <span id="lsg-deload-label" style="font-family:var(--f-mono); font-size:9px; font-weight:700; letter-spacing:0.14em; color:var(--good);">DELOAD REVIEW</span>
-          <span id="lsg-deload-score" style="font-family:var(--f-mono); font-size:10px; color:var(--ink-dim); letter-spacing:0.08em;">—</span>
-        </div>
-        <div id="lsg-deload-text" style="font-size:11px; color:var(--ink); line-height:1.5;">—</div>
-        <div id="lsg-deload-factors" style="font-size:10px; color:var(--ink-dim); line-height:1.45; margin-top:4px;">—</div>
-        <div id="lsg-deload-actions" style="display:flex; gap:6px; margin-top:8px;">
-          <button id="btn-deload-take" style="flex:1; padding:8px; background:var(--bg-elev-2); border:1px solid var(--line); border-radius:7px; color:var(--ink); font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.1em; cursor:pointer;">TAKE DELOAD</button>
-          <button id="btn-deload-skip" style="flex:1; padding:8px; background:var(--accent); border:none; border-radius:7px; color:white; font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.1em; cursor:pointer;">SKIP DELOAD</button>
-        </div>
-      </div>
-
       <!-- MRV warning -->
       <div id="lsg-mrv-warn" style="display:none; margin: 6px 0 10px; padding: 8px 12px; border-radius: 8px; background: rgba(224,112,32,0.08); border-left: 3px solid #e07020;">
         <div style="font-family:var(--f-mono); font-size:9px; font-weight:700; letter-spacing:0.14em; color:#e07020; margin-bottom:3px;">⚠️ MRV SIGNAL</div>
@@ -1296,9 +1283,18 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-21.1";
+const APP_VERSION = "2026-06-21.2";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-21.2",
+    title: "Deload Enforcement",
+    items: [
+      "Removed the deload skip/recommendation flow.",
+      "Week 4 deload is now always enforced for every program day.",
+      "Old saved deload-skip flags are cleared automatically so they cannot move a day into accumulation early.",
+    ]
+  },
   {
     version: "2026-06-21.1",
     title: "Deload Training Max Fix",

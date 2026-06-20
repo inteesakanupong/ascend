@@ -111,6 +111,7 @@ function migrateState(s) {
   if (s.profile.programTemplate === undefined)  s.profile.programTemplate = "balanced_hypertrophy";
   if (s.profile.trainingProgramStartedAt === undefined) s.profile.trainingProgramStartedAt = s.profile.programStart || todayISO();
   if (s.profile.dietProgramStartedAt === undefined)     s.profile.dietProgramStartedAt = s.profile.programStart || todayISO();
+  delete s.profile.skipDeloadNext;
   // Per-session new fields: durationSec (number|null), swappedExercises (object), notes (string)
   s.sessions = (s.sessions || []).map(sess => ({
     durationSec: null,

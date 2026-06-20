@@ -631,187 +631,11 @@ function sessionAverageLoggedRpe(session) {
   return count ? total / count : null;
 }
 
-function programStressReview(today = todayISO()) {
-  const sessions = sortSessionsChronological((STATE.sessions || []).filter(s => s.date && s.date <= today));
-  if (!sessions.length) {
-    return {
-      stressScore: 0,
-      recommendation: "skip_deload",
-      canSkipDeload: true,
-      text: "No completed sessions are recorded yet, so accumulated training stress is low.",
-      factors: ["0 sessions/week", "0 completed sets/week"],
-    };
+function clearLegacyDeloadSkipFlags() {
+  if (STATE.profile?.skipDeloadNext) {
+    delete STATE.profile.skipDeloadNext;
+    saveState();
   }
-
-  const programStart = STATE.profile?.programStart || sessions[0].date;
-  let programSessions = sessions.filter(s => s.date >= programStart);
-  if (!programSessions.length) programSessions = sessions;
-  const firstDate = programSessions[0]?.date || programStart || today;
-  const elapsedWeeks = Math.max(1 / 7, (daysBetween(firstDate, today) + 1) / 7);
-  const completedSets = programSessions.reduce((sum, s) => {
-    const base = (s.sets || []).reduce((inner, _, idx) => inner + sessionSetCount(s, idx), 0);
-    const extras = (s.extraSets || []).reduce((inner, e) => inner + (e.sets || []).length, 0);
-    return sum + base + extras;
-  }, 0);
-  const sessionsPerWeek = programSessions.length / elapsedWeeks;
-  const completedSetsPerWeek = completedSets / elapsedWeeks;
-  const completionRows = programSessions
-    .map(s => typeof sessionCompletionRatio === "function" ? sessionCompletionRatio(s) : s.completionSummary?.completionRatio)
-    .filter(v => v != null);
-  const avgCompletion = completionRows.length ? completionRows.reduce((a, b) => a + b, 0) / completionRows.length : 1;
-  const incompleteSessions = programSessions.filter(s => {
-    const ratio = typeof sessionCompletionRatio === "function" ? sessionCompletionRatio(s) : s.completionSummary?.completionRatio;
-    return ratio != null && ratio < 0.85;
-  }).length;
-
-  const rpeRows = programSessions.map(sessionAverageLoggedRpe).filter(v => v != null);
-  const avgRpe = rpeRows.length ? rpeRows.reduce((a, b) => a + b, 0) / rpeRows.length : null;
-  const recovery = recentRecoveryAverage(14);
-  const fatigue = typeof computeFatigueSummary === "function" ? computeFatigueSummary(28) : null;
-
-  const volumeTotals = {};
-  for (const s of programSessions) {
-    (s.sets || []).forEach((_, idx) => {
-      const name = sessionExerciseName(s, idx);
-      if (!name) return;
-      const sets = sessionSetCount(s, idx);
-      if (!sets) return;
-      const weights = exerciseWeightedMuscles(name);
-      Object.entries(weights).forEach(([muscle, weight]) => {
-        volumeTotals[muscle] = (volumeTotals[muscle] || 0) + sets * weight;
-      });
-    });
-  }
-  const weeklyVolume = {};
-  Object.entries(volumeTotals).forEach(([muscle, sets]) => {
-    weeklyVolume[muscle] = roundVolume(sets / elapsedWeeks);
-  });
-  const overMrv = [];
-  const nearMrv = [];
-  Object.entries(VOLUME_LANDMARKS).forEach(([muscle, lm]) => {
-    const sets = weeklyVolume[muscle] || 0;
-    if (sets > lm.mrv) overMrv.push(muscle);
-    else if (sets >= Math.max(lm.mav, lm.mrv * 0.85)) nearMrv.push(muscle);
-  });
-
-  const gaps = [];
-  for (let i = 1; i < programSessions.length; i++) {
-    gaps.push(daysBetween(programSessions[i - 1].date, programSessions[i].date));
-  }
-  const longestGap = gaps.length ? Math.max(...gaps) : daysBetween(programSessions[0].date, today);
-
-  let performanceScore = 0;
-  performanceScore += Math.min(30, completedSetsPerWeek * 1.25);
-  performanceScore += Math.min(16, sessionsPerWeek * 3.5);
-  if (avgRpe != null) performanceScore += Math.max(0, (avgRpe - 6) * 9);
-  performanceScore += overMrv.length * 14 + nearMrv.length * 6;
-  performanceScore += Math.min(14, (fatigue?.recoveryCost || 0) / 22);
-  if (avgCompletion < 0.75) performanceScore += 8;
-
-  let readinessModifier = 0;
-  if (recovery != null && recovery < 6) readinessModifier += Math.min(6, (6 - recovery) * 3);
-  if (recovery != null && recovery >= 8 && avgRpe != null && avgRpe < 7.2) readinessModifier -= 2;
-  if (sessionsPerWeek < 2.5 && avgCompletion >= 0.85) readinessModifier -= 8;
-  if (longestGap >= 4 && avgCompletion >= 0.85) readinessModifier -= 4;
-  const stressScore = Math.round(clamp(performanceScore + readinessModifier, 0, 100));
-
-  const performanceRequiresDeload = performanceScore >= 62 || overMrv.length > 0 || completedSetsPerWeek >= 80 || (avgRpe != null && avgRpe >= 8.2);
-  const mustDeload = performanceRequiresDeload || avgCompletion < 0.7;
-  const canSkip = !mustDeload && stressScore <= 46 && sessionsPerWeek <= 4.25 && avgCompletion >= 0.85 && (avgRpe == null || avgRpe < 7.8);
-  const recommendation = mustDeload ? "take_deload" : canSkip ? "skip_deload" : "optional_deload";
-  const drivers = [
-    `${roundVolume(completedSetsPerWeek)} completed sets/week`,
-    `${roundVolume(sessionsPerWeek)} sessions/week over ${roundVolume(elapsedWeeks)} weeks`,
-  ];
-  if (avgRpe != null) drivers.push(`avg RPE ${avgRpe.toFixed(1)}`);
-  if (overMrv.length) drivers.push(`over MRV: ${overMrv.slice(0, 3).join(", ")}`);
-  if (nearMrv.length) drivers.push(`near MRV: ${nearMrv.slice(0, 3).join(", ")}`);
-  const context = [
-    `completion ${Math.round(avgCompletion * 100)}%`,
-  ];
-  if (recovery != null) context.push(`check-in recovery ${recovery.toFixed(1)}/10`);
-  if (incompleteSessions) context.push(`${incompleteSessions} incomplete session${incompleteSessions !== 1 ? "s" : ""}`);
-  if (longestGap >= 3) context.push(`${longestGap}d longest gap`);
-
-  const text = recommendation === "take_deload"
-    ? "Do the deload today. Program stress is high enough that recovery work is the plan."
-    : recommendation === "skip_deload"
-    ? "Skip is available. Actual program stress is low enough to move into the next accumulation wave."
-    : "Default to the deload. Stress is moderate, so only skip if joints, motivation, and sleep feel clearly strong.";
-
-  return {
-    stressScore,
-    performanceScore: Math.round(clamp(performanceScore, 0, 100)),
-    readinessModifier: Math.round(readinessModifier),
-    recommendation,
-    canSkipDeload: recommendation === "skip_deload",
-    text,
-    factors: [...drivers, ...context],
-    drivers,
-    context,
-    weeklyVolume,
-  };
-}
-
-function setDeloadSkipChoice(day, shouldSkip) {
-  if (!STATE.profile) STATE.profile = {};
-  if (!STATE.profile.skipDeloadNext) STATE.profile.skipDeloadNext = {};
-  if (shouldSkip) STATE.profile.skipDeloadNext[day] = true;
-  else delete STATE.profile.skipDeloadNext[day];
-  saveState();
-  selectLiftDay(day);
-  toast(shouldSkip ? "DELOAD SKIPPED FOR THIS SESSION" : "DELOAD KEPT");
-}
-
-function renderDeloadStressReview(day, wave) {
-  const el = document.getElementById("lsg-deload-review");
-  if (!el) return;
-  const isDecisionPoint = wave?.name === "DELOAD" || wave?.deloadSkipped || STATE.profile?.skipDeloadNext?.[day];
-  if (!isDecisionPoint) {
-    el.style.display = "none";
-    return;
-  }
-  const review = programStressReview(todayISO());
-  const label = document.getElementById("lsg-deload-label");
-  const score = document.getElementById("lsg-deload-score");
-  const text = document.getElementById("lsg-deload-text");
-  const factors = document.getElementById("lsg-deload-factors");
-  const actions = document.getElementById("lsg-deload-actions");
-  const takeBtn = document.getElementById("btn-deload-take");
-  const skipBtn = document.getElementById("btn-deload-skip");
-  const skipActive = !!STATE.profile?.skipDeloadNext?.[day];
-  if (!review.canSkipDeload && !skipActive) {
-    el.style.display = "none";
-    return;
-  }
-  el.style.display = "";
-  const color = review.recommendation === "take_deload" ? "var(--bad)" : review.recommendation === "skip_deload" ? "var(--good)" : "#d4a017";
-  el.style.borderLeftColor = color;
-  if (label) {
-    label.style.color = color;
-    label.textContent = skipActive ? "DELOAD SKIPPED" : "DELOAD STRESS REVIEW";
-  }
-  if (score) score.textContent = `${review.stressScore}/100 STRESS`;
-  if (text) text.textContent = skipActive ? "Skip choice is active for this workout. Press TAKE DELOAD to restore the deload prescription." : review.text;
-  if (factors) {
-    const driverText = review.drivers?.length ? `Performance: ${review.drivers.join(" · ")}` : "";
-    const contextText = review.context?.length ? `Context: ${review.context.join(" · ")}` : "";
-    factors.innerHTML = [driverText, contextText].filter(Boolean).map(escapeHtml).join("<br>");
-  }
-  if (actions) actions.style.display = (review.canSkipDeload || skipActive) ? "" : "none";
-  if (skipBtn) {
-    skipBtn.disabled = !review.canSkipDeload && !skipActive;
-    skipBtn.style.opacity = skipBtn.disabled ? "0.45" : "1";
-    skipBtn.textContent = skipActive ? "SKIP ACTIVE" : "SKIP DELOAD";
-    skipBtn.onclick = () => {
-      if (!review.canSkipDeload && !skipActive) {
-        toast("STRESS TOO HIGH TO SKIP");
-        return;
-      }
-      setDeloadSkipChoice(day, true);
-    };
-  }
-  if (takeBtn) takeBtn.onclick = () => setDeloadSkipChoice(day, false);
 }
 
 function addMrvExerciseToDraft(day, rec) {
@@ -943,7 +767,7 @@ function mrvAutoplanPlanRows() {
   });
 }
 
-function renderTodayPlanSummary(day, wave, readiness, deloadReview) {
+function renderTodayPlanSummary(day, wave, readiness) {
   const summary = document.getElementById("lsg-plan-summary");
   const chip = document.getElementById("lsg-plan-chip");
   const rowsEl = document.getElementById("lsg-plan-rows");
@@ -952,29 +776,14 @@ function renderTodayPlanSummary(day, wave, readiness, deloadReview) {
   if (!summary || !rowsEl) return;
   const rows = [];
   const detailsHtml = [];
-  rows.push({ label: "Wave", text: `${wave.name}${wave.deloadSkipped ? " skipped deload" : ""} · target RPE ${wave.rpeTarget[0]}-${wave.rpeTarget[1]}` });
+  rows.push({ label: "Wave", text: `${wave.name} · target RPE ${wave.rpeTarget[0]}-${wave.rpeTarget[1]}` });
   const mode = STATE.athleteProfile?.programMode || "hypertrophy";
-  const waveText = wave.deloadSkipped
-    ? "Deload skipped by stress review. Starting the next accumulation wave with normal readiness controls."
-    : (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
+  const waveText = (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
   if (waveText) {
     detailsHtml.push(`
       <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid var(--accent);">
         <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">WAVE INTENT</div>
         <div style="font-size:11px;line-height:1.45;color:var(--ink);">${escapeHtml(waveText)}</div>
-      </div>
-    `);
-  }
-  if (deloadReview) {
-    const verdict = deloadReview.recommendation === "take_deload" ? "Deload recommended"
-      : deloadReview.recommendation === "skip_deload" ? "Skip available"
-      : "Deload default";
-    rows.push({ label: "Deload", text: `${verdict} · ${deloadReview.stressScore}/100 stress` });
-    detailsHtml.push(`
-      <div style="padding:8px 10px;border-radius:8px;background:var(--bg-elev-2);border-left:3px solid ${deloadReview.recommendation === "take_deload" ? "var(--bad)" : deloadReview.recommendation === "skip_deload" ? "var(--good)" : "#d4a017"};">
-        <div style="font-family:var(--f-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--ink-dim);margin-bottom:3px;">DELOAD LOGIC</div>
-        <div style="font-size:11px;line-height:1.45;color:var(--ink);">${escapeHtml(deloadReview.text)}</div>
-        <div style="font-size:10px;line-height:1.45;color:var(--ink-dim);margin-top:4px;">${escapeHtml((deloadReview.drivers || deloadReview.factors || []).join(" · "))}</div>
       </div>
     `);
   }
@@ -1135,18 +944,13 @@ function selectLiftDay(day) {
       waveLabel.textContent = `WEEK ${wave.waveWeek}/4 · ${wave.name}`;
       if (waveCycle) waveCycle.textContent = `CYCLE ${wave.cycleNum} · WEEK ${wave.weekNum}`;
       const mode = STATE.athleteProfile?.programMode || "hypertrophy";
-      waveNote.textContent = wave.deloadSkipped
-        ? "Deload skipped by stress review. Starting the next accumulation wave with normal readiness controls."
-        : (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
+      waveNote.textContent = (mode === "hypertrophy" && wave.hypertrophyNote) ? wave.hypertrophyNote : wave.intensityNote;
       if (waveRpe) waveRpe.textContent = `Target RPE: ${wave.rpeTarget[0]}–${wave.rpeTarget[1]} · ${mode.toUpperCase()} MODE`;
     }
     if (waveEl) waveEl.style.display = "none";
-    const deloadReview = (wave?.name === "DELOAD" || wave?.deloadSkipped || STATE.profile?.skipDeloadNext?.[day])
-      ? programStressReview(todayISO())
-      : null;
     const readiness = calculateReadiness(todayISO());
-    renderTodayPlanSummary(day, wave, readiness, deloadReview);
-    renderDeloadStressReview(day, wave);
+    renderTodayPlanSummary(day, wave, readiness);
+    clearLegacyDeloadSkipFlags();
 
     // MRV warning
     const mrvWarn = wave.name === "DELOAD" ? null : mrvWarning();
@@ -4163,9 +3967,7 @@ $("#btn-save-session").addEventListener("click", () => {
     feedback: p5data, // Phase 5: technique, pain, enjoyment, overrides
     warmup: warmupData, // Phase 8: Targeted Warm-Up context only; ignored by volume/progression.
     waveOverride: sessionWaveOverride,
-    deloadStressReview: (sessionWaveOverride.name === "DELOAD" || sessionWaveOverride.deloadSkipped)
-      ? programStressReview(LIFT_DRAFT.date)
-      : null,
+    deloadStressReview: null,
     durationSec: isEditing
       ? (existingSession?.durationSec ?? null)
       : (LIFT_SESSION_START_MS ? Math.floor((Date.now() - LIFT_SESSION_START_MS) / 1000) : null),
@@ -4189,9 +3991,6 @@ $("#btn-save-session").addEventListener("click", () => {
     if (i >= 0) STATE.sessions[i] = session;
   } else {
     STATE.sessions.push(session);
-    if (sessionWaveOverride.deloadSkipped && STATE.profile?.skipDeloadNext?.[LIFT_DRAFT.day]) {
-      delete STATE.profile.skipDeloadNext[LIFT_DRAFT.day];
-    }
   }
   updateExerciseMemoryFromSession(session);
   saveState();
