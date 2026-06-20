@@ -773,7 +773,7 @@ self.addEventListener("fetch", e => {
     <div class="card">
       <div class="card-head">
         <div class="card-label">Training Max</div>
-        <div class="card-meta">LEAD LIFTS · JUGGERNAUT CYCLE</div>
+        <button class="btn ghost sm" id="btn-auto-calibrate-tm" style="font-size:9px;padding:6px 9px;">AUTO CALIBRATE</button>
       </div>
       <div id="stats-training-max"></div>
     </div>
@@ -1296,9 +1296,18 @@ self.addEventListener("fetch", e => {
 // Bump APP_VERSION every deployment. Format: YYYY-MM-DD.N (N = build number)
 // The app compares this to localStorage("ppal-seen-version") on every launch.
 // If different → show the changelog sheet.
-const APP_VERSION = "2026-06-19.1";
+const APP_VERSION = "2026-06-21.1";
 
 const CHANGELOG = [
+  {
+    version: "2026-06-21.1",
+    title: "Deload Training Max Fix",
+    items: [
+      "Realization AMRAP updates now anchor Training Max to the actual AMRAP estimate instead of carrying forward an inflated previous max.",
+      "Deload-week lead lift targets now repair unsupported high Training Maxes for all program days before prescribing the next load.",
+      "Added an Auto Calibrate button to the Training Max card so all lead-lift maxes can be rebuilt from exact realization history if data ever drifts again.",
+    ]
+  },
   {
     version: "2026-06-19.1",
     title: "Training Max Identity Fix",

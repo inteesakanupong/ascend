@@ -188,41 +188,68 @@ function leadTrainingMaxFromRealizationHistory(day, exIdx, ex) {
   return best;
 }
 
+function leadTrainingMaxSupportedByHistory(day, exIdx, ex) {
+  const realizationTM = leadTrainingMaxFromRealizationHistory(day, exIdx, ex);
+  const floor = leadTrainingMaxFloorFromHistory(day, exIdx, ex);
+  return Math.max(realizationTM || 0, floor || 0) || null;
+}
+
+function repairLeadTrainingMax(day, exIdx, ex, value, reason) {
+  const key = `wm_${day}_${exIdx}`;
+  if (!STATE.profile) STATE.profile = {};
+  STATE.profile[key] = value;
+  STATE.profile[`${key}_exerciseKey`] = exerciseKeyFor(ex);
+  STATE.profile[`${key}_exerciseName`] = ex.name;
+  STATE.profile[`${key}_repairedAt`] = typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10);
+  STATE.profile[`${key}_repairReason`] = reason;
+  if (typeof saveState === "function") saveState();
+}
+
 function reconciledLeadTrainingMax(day, exIdx, ex, storedTM) {
   const key = `wm_${day}_${exIdx}`;
   const targetExerciseKey = exerciseKeyFor(ex);
   const storedExerciseKey = STATE.profile?.[`${key}_exerciseKey`];
   if (storedTM && storedExerciseKey && storedExerciseKey !== targetExerciseKey) storedTM = null;
 
-  const realizationTM = leadTrainingMaxFromRealizationHistory(day, exIdx, ex);
-  const floor = leadTrainingMaxFloorFromHistory(day, exIdx, ex);
-  const supportedTM = Math.max(realizationTM || 0, floor || 0) || null;
+  const supportedTM = leadTrainingMaxSupportedByHistory(day, exIdx, ex);
   if (!supportedTM) return storedTM;
 
   const inc = incrementFor(ex);
   const legacySlotOnly = storedTM && !storedExerciseKey;
-  const unsupportedLegacyHigh = legacySlotOnly && storedTM > supportedTM + inc * 4;
-  if (unsupportedLegacyHigh) {
-    if (!STATE.profile) STATE.profile = {};
-    STATE.profile[key] = supportedTM;
-    STATE.profile[`${key}_exerciseKey`] = targetExerciseKey;
-    STATE.profile[`${key}_exerciseName`] = ex.name;
-    STATE.profile[`${key}_repairedAt`] = typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10);
-    STATE.profile[`${key}_repairReason`] = "Lowered stale slot-based Training Max because exact exercise history supports a lower value.";
-    if (typeof saveState === "function") saveState();
+  const unsupportedHigh = storedTM && storedTM > supportedTM + inc * 4;
+  if (unsupportedHigh) {
+    const reason = legacySlotOnly
+      ? "Lowered stale slot-based Training Max because exact exercise history supports a lower value."
+      : "Lowered unsupported Training Max because exact realization history supports a lower value.";
+    repairLeadTrainingMax(day, exIdx, ex, supportedTM, reason);
     return supportedTM;
   }
 
   const shouldRepair = !storedTM || supportedTM > storedTM + inc * 2;
   if (!shouldRepair) return storedTM;
-  if (!STATE.profile) STATE.profile = {};
-  STATE.profile[key] = supportedTM;
-  STATE.profile[`${key}_exerciseKey`] = targetExerciseKey;
-  STATE.profile[`${key}_exerciseName`] = ex.name;
-  STATE.profile[`${key}_repairedAt`] = typeof todayISO === "function" ? todayISO() : new Date().toISOString().slice(0, 10);
-  STATE.profile[`${key}_repairReason`] = "Raised from recent lead-lift prescriptions after stored TM was lower than session history.";
-  if (typeof saveState === "function") saveState();
+  repairLeadTrainingMax(day, exIdx, ex, supportedTM, "Raised from recent lead-lift prescriptions after stored TM was lower than session history.");
   return supportedTM;
+}
+
+function autoCalibrateTrainingMaxes(opts = {}) {
+  const force = !!opts.force;
+  const changes = [];
+  (typeof DAY_ORDER !== "undefined" ? DAY_ORDER : ["PUSH", "PULL", "ARMS", "LEGS"]).forEach(day => {
+    const leadIdx = getLeadLiftIdx(day);
+    const ex = STATE.exercises?.[day]?.[leadIdx];
+    if (!ex) return;
+    const supportedTM = leadTrainingMaxSupportedByHistory(day, leadIdx, ex);
+    if (!supportedTM) return;
+    const key = `wm_${day}_${leadIdx}`;
+    const current = STATE.profile?.[key] ?? null;
+    const inc = incrementFor(ex);
+    const changed = !current || Math.abs(current - supportedTM) >= inc;
+    const shouldSet = force || changed;
+    if (!shouldSet) return;
+    repairLeadTrainingMax(day, leadIdx, ex, supportedTM, "Auto-calibrated from exact lead-lift realization history.");
+    if (changed) changes.push({ day, exIdx: leadIdx, exercise: ex.name, oldTM: current, newTM: supportedTM });
+  });
+  return changes;
 }
 
 function progressionFor(day, exIdx) {

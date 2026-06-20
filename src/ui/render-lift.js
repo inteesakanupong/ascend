@@ -239,14 +239,7 @@ function recalcWorkingMax(day, exIdx, amrapReps, amrapWeight, opts = {}) {
   const effectiveReps = amrapReps + (rpe != null && rpe <= 8 ? 2 : rpe === 9 ? 1 : 0);
   const estimatedOneRm = estimateOneRm(amrapWeight, effectiveReps);
   const epleyTM = roundToIncrement(estimatedOneRm * 0.90, ex);
-  const currentTM = opts.currentTM ?? getWorkingMax(day, exIdx, ex) ?? null;
-  const targetReps = opts.targetReps ?? (JUG_TM_PCTS.REALIZATION?.reps || ex.repMin || 1);
-  if (!currentTM || effectiveReps <= targetReps + 1) return epleyTM;
-
-  const repsOverTarget = effectiveReps - targetReps;
-  const bonusSteps = Math.min(4, Math.max(1, Math.floor(repsOverTarget / 3) + 1));
-  const performanceFloor = roundToIncrement(currentTM + bonusSteps * incrementFor(ex), ex);
-  return Math.max(epleyTM, performanceFloor);
+  return epleyTM;
 }
 
 // ── Phase-1: Stall detection ──────────────────────────────────────────────────
@@ -4227,11 +4220,13 @@ $("#btn-save-session").addEventListener("click", () => {
       const amrapDone = typeof sessionSetDone === "function" ? sessionSetDone(session, leadIdx, "s2") : !!session.setCompletion?.[leadIdx]?.s2;
       const amrapRpe = session.rpe?.[leadIdx]?.s2 ?? null;
       if (amrapDone && amrapRpe != null && amrapRpe >= 7 && amrapReps != null && amrapWeight != null && amrapReps > 0) {
-        const currentWM = getWorkingMax(session.day, leadIdx, STATE.exercises?.[session.day]?.[leadIdx]) || 0;
+        const leadEx = STATE.exercises?.[session.day]?.[leadIdx];
+        const rawCurrentWM = getWorkingMax(session.day, leadIdx, leadEx) || 0;
+        const currentWM = leadEx ? (reconciledLeadTrainingMax(session.day, leadIdx, leadEx, rawCurrentWM) || rawCurrentWM) : rawCurrentWM;
         const targetReps = JUG_TM_PCTS.REALIZATION?.reps || STATE.exercises[session.day]?.[leadIdx]?.repMin || 1;
         const newWM = recalcWorkingMax(session.day, leadIdx, amrapReps, amrapWeight, { currentTM: currentWM, targetReps, rpe: amrapRpe });
         if (newWM > 0 && (!currentWM || newWM >= currentWM)) {
-          setWorkingMax(session.day, leadIdx, newWM, STATE.exercises?.[session.day]?.[leadIdx]);
+          setWorkingMax(session.day, leadIdx, newWM, leadEx);
           saveState();
           const oneRmDisplay = Math.round(estimateOneRm(amrapWeight, amrapReps));
           setTimeout(() => toast(`🏆 NEW TM: ${newWM}kg (1RM ≈ ${oneRmDisplay}kg × 90%) — next cycle weights updated`), 2000);

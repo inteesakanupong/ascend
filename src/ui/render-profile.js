@@ -3,6 +3,19 @@
 function renderTrainingMax() {
   const wrap = document.getElementById("stats-training-max");
   if (!wrap) return;
+  const calibrateBtn = document.getElementById("btn-auto-calibrate-tm");
+  if (calibrateBtn && !calibrateBtn.dataset.wired) {
+    calibrateBtn.dataset.wired = "1";
+    calibrateBtn.addEventListener("click", () => {
+      const changes = typeof autoCalibrateTrainingMaxes === "function"
+        ? autoCalibrateTrainingMaxes({ force: true })
+        : [];
+      saveState();
+      renderTrainingMax();
+      if (typeof renderLift === "function") renderLift();
+      toast(changes.length ? `CALIBRATED ${changes.length} TRAINING MAX${changes.length === 1 ? "" : "ES"}` : "TRAINING MAXES ALREADY CALIBRATED");
+    });
+  }
 
   const DAY_COLORS = { PUSH: "var(--push)", PULL: "var(--pull)", ARMS: "var(--arms)", LEGS: "var(--legs)" };
 
