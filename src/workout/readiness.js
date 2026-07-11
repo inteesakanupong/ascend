@@ -10,12 +10,16 @@ function trainingAdherenceSignal(date) {
   const last = sessions[0] || null;
   if (last) {
     const gap = daysBetween(last.date, date);
-    if (gap >= 4) {
+    const plannedRestDays = (STATE.dailyLogs || []).filter(d => d.restDay && d.date > last.date && d.date < date).length;
+    const effectiveGap = Math.max(0, gap - plannedRestDays);
+    if (effectiveGap >= 4) {
       penalty += 0.5;
-      factors.push(`No workout for ${gap} days ↓`);
-    } else if (gap >= 3) {
+      factors.push(`No workout for ${gap} days down`);
+    } else if (effectiveGap >= 3) {
       penalty += 0.25;
       factors.push(`Missed training day (${gap}d gap)`);
+    } else if (plannedRestDays > 0) {
+      factors.push(`${plannedRestDays} planned rest day${plannedRestDays > 1 ? "s" : ""}`);
     }
   }
 
@@ -23,7 +27,7 @@ function trainingAdherenceSignal(date) {
   if (recentIncomplete) {
     const pct = Math.round(sessionCompletionRatio(recentIncomplete) * 100);
     penalty += pct < 60 ? 0.75 : 0.5;
-    factors.push(`${recentIncomplete.day} incomplete (${pct}% sets) ↓`);
+    factors.push(`${recentIncomplete.day} incomplete (${pct}% sets) down`);
   }
 
   return { penalty, factors, lastSession: last };
@@ -33,32 +37,37 @@ function calculateReadiness(date) {
   const log = getDailyLog(date);
   if (!log) return { score: null, factors: [], adjustment: 0 };
 
-  let score = 3; // baseline
+  let score = 3;
   const factors = [];
 
-  // Recovery rating (1-10) — primary signal
   if (log.recovery != null) {
-    if (log.recovery >= 8)      { score += 1.5; factors.push(`Recovery ${log.recovery}/10 ↑`); }
-    else if (log.recovery >= 6) { score += 0.5; factors.push(`Recovery ${log.recovery}/10`);   }
-    else if (log.recovery <= 3) { score -= 1.5; factors.push(`Recovery ${log.recovery}/10 ↓`); }
-    else if (log.recovery <= 5) { score -= 0.5; factors.push(`Recovery ${log.recovery}/10 ↓`); }
+    if (log.recovery >= 8)      { score += 1.5; factors.push(`Recovery ${log.recovery}/10 up`); }
+    else if (log.recovery >= 6) { score += 0.5; factors.push(`Recovery ${log.recovery}/10`); }
+    else if (log.recovery <= 3) { score -= 1.5; factors.push(`Recovery ${log.recovery}/10 down`); }
+    else if (log.recovery <= 5) { score -= 0.5; factors.push(`Recovery ${log.recovery}/10 down`); }
   }
 
-  // Sleep habit hit
-  if (log.habits?.sleep)      { score += 0.5; factors.push("Slept well ↑"); }
-  else if (log.habits && log.habits.sleep === false) { score -= 0.5; factors.push("Poor sleep ↓"); }
+  if (log.restDay) {
+    score += 0.25;
+    factors.push("Rest day logged");
+  }
 
-  // Protein hit (recovery proxy)
-  if (log.habits?.protein)    { score += 0.25; }
+  if (log.sleepOk === true)       { score += 0.5; factors.push("Slept well up"); }
+  else if (log.sleepOk === false) { score -= 0.5; factors.push("Poor sleep down"); }
 
-  // 3-day weight trend (rapid drop = under-recovered)
+  const proteinTarget = STATE.cut?.proteinFloor || 160;
+  if (log.protein != null && log.protein >= proteinTarget) score += 0.25;
+
   const recent = [...STATE.dailyLogs]
     .filter(d => d.weight != null && d.date <= date)
-    .sort((a,b) => b.date.localeCompare(a.date))
+    .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 4);
   if (recent.length >= 4) {
     const drop3d = recent[3].weight - recent[0].weight;
-    if (drop3d > 0.7) { score -= 0.5; factors.push(`Rapid weight drop (-${drop3d.toFixed(1)}kg/3d)`); }
+    if (drop3d > 0.7) {
+      score -= 0.5;
+      factors.push(`Rapid weight drop (-${drop3d.toFixed(1)}kg/3d)`);
+    }
   }
 
   const adherence = trainingAdherenceSignal(date);
@@ -67,15 +76,12 @@ function calculateReadiness(date) {
     factors.push(...adherence.factors);
   }
 
-  // Clamp 1-5
   score = Math.max(1, Math.min(5, Math.round(score * 2) / 2));
 
-  // Translate to intensity adjustment %
   let adjustment = 0;
-  if (score <= 1.5)      adjustment = -0.10;  // -10%
-  else if (score <= 2.5) adjustment = -0.05;  // -5%
-  else if (score >= 4.5) adjustment = +0.025; // +2.5% push
-  // 3-4 = no adjustment (default progression)
+  if (score <= 1.5)      adjustment = -0.10;
+  else if (score <= 2.5) adjustment = -0.05;
+  else if (score >= 4.5) adjustment = +0.025;
 
   return { score, factors, adjustment };
 }

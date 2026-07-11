@@ -1223,6 +1223,78 @@ function renderLift() {
 
 // Compute session fatigue score: how tired is the athlete right now?
 // Returns 0-10. Used to gate extra set suggestions.
+function liftSetEntry(exIdx, setNum) {
+  if (setNum <= 2) return { type: "main", set: LIFT_DRAFT?.sets?.[exIdx] || null };
+  const si = setNum - 3;
+  return { type: "extra", set: LIFT_EXTRA_SETS?.[exIdx]?.sets?.[si] || null, si };
+}
+
+function liftSetValue(exIdx, setNum, field) {
+  const entry = liftSetEntry(exIdx, setNum);
+  if (!entry.set) return null;
+  if (entry.type === "main") return entry.set[`s${setNum}${field}`] ?? null;
+  if (field === "w") return entry.set.weight ?? null;
+  if (field === "r") return entry.set.reps ?? null;
+  return null;
+}
+
+function liftSetDone(exIdx, setNum) {
+  if (setNum <= 2) return !!LIFT_SET_DONE?.[exIdx]?.[`s${setNum}`];
+  const si = setNum - 3;
+  return !!LIFT_EXTRA_SETS?.[exIdx]?.sets?.[si]?.done;
+}
+
+function liftSetRpe(exIdx, setNum) {
+  if (setNum <= 2) return LIFT_SET_RPE?.[exIdx]?.[`s${setNum}`] ?? null;
+  const si = setNum - 3;
+  return LIFT_EXTRA_SETS?.[exIdx]?.sets?.[si]?.rpe ?? null;
+}
+
+function setLiftSetPrescription(exIdx, setNum, updates = {}) {
+  if (setNum <= 2) {
+    if (!LIFT_DRAFT?.sets?.[exIdx]) return false;
+    if (updates.weight != null) LIFT_DRAFT.sets[exIdx][`s${setNum}w`] = Math.max(0, updates.weight);
+    if (updates.reps != null) LIFT_DRAFT.sets[exIdx][`s${setNum}r`] = Math.max(1, updates.reps);
+    return true;
+  }
+  const si = setNum - 3;
+  const extra = LIFT_EXTRA_SETS?.[exIdx]?.sets?.[si];
+  if (!extra) return false;
+  if (updates.weight != null) extra.weight = Math.max(0, updates.weight);
+  if (updates.reps != null) extra.reps = Math.max(1, updates.reps);
+  return true;
+}
+
+function nextPlannedSetNumber(exIdx, setNum) {
+  const nextSet = setNum + 1;
+  if (nextSet <= 2) return nextSet;
+  const si = nextSet - 3;
+  return LIFT_EXTRA_SETS?.[exIdx]?.sets?.[si] ? nextSet : null;
+}
+
+function propagatePrescriptionToLaterSets(exIdx, fromSet, previous = {}) {
+  const weight = liftSetValue(exIdx, fromSet, "w");
+  const reps = liftSetValue(exIdx, fromSet, "r");
+  if (weight == null && reps == null) return;
+  for (let setNum = fromSet + 1; ; setNum++) {
+    const entry = liftSetEntry(exIdx, setNum);
+    if (!entry.set || liftSetDone(exIdx, setNum)) break;
+    const curW = liftSetValue(exIdx, setNum, "w");
+    const curR = liftSetValue(exIdx, setNum, "r");
+    const weightStillInherited = previous.weight == null || curW == null || curW === previous.weight;
+    const repsStillInherited = previous.reps == null || curR == null || curR === previous.reps;
+    if (!weightStillInherited || !repsStillInherited) break;
+    setLiftSetPrescription(exIdx, setNum, { weight, reps });
+    if (setNum > 2) {
+      const si = setNum - 3;
+      const wInp = document.querySelector(`input[data-ex="${exIdx}"][data-extraset="${si}"][data-extrafield="weight"]`);
+      const rInp = document.querySelector(`input[data-ex="${exIdx}"][data-extraset="${si}"][data-extrafield="reps"]`);
+      if (wInp) wInp.value = liftSetValue(exIdx, setNum, "w") ?? "";
+      if (rInp) rInp.value = liftSetValue(exIdx, setNum, "r") ?? "";
+    }
+  }
+}
+
 function sessionFatigueScore(upToExIdx) {
   let score = 0;
   for (let i = 0; i < upToExIdx; i++) {
@@ -1249,12 +1321,9 @@ function remainingExercises(exIdx) {
 // Returns { verdict, newWeight, newReps, label, color }
 function bromleyWeightSuggestion(exIdx, setNum) {
   const ex = activeExerciseForSlot(LIFT_DAY, exIdx) || STATE.exercises[LIFT_DAY][exIdx];
-  const setKey = `s${setNum}`;
-  const wField = `s${setNum}w`;
-  const rField = `s${setNum}r`;
-  const rpe  = LIFT_SET_RPE[exIdx]?.[setKey];
-  const reps = LIFT_DRAFT.sets[exIdx]?.[rField];
-  const weight = LIFT_DRAFT.sets[exIdx]?.[wField];
+  const rpe  = liftSetRpe(exIdx, setNum);
+  const reps = liftSetValue(exIdx, setNum, "r");
+  const weight = liftSetValue(exIdx, setNum, "w");
   const inc = incrementFor(ex);
   const wave = juggernautWave(0, LIFT_DAY);
 
@@ -1291,8 +1360,10 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   const missedReps   = reps < ex.repMin;
   const hitTopRange  = reps >= ex.repMax;
   const inRange      = reps >= ex.repMin && reps <= ex.repMax;
-  const isLastSet    = setNum === 2;
-  const nextLabel    = isLastSet ? "next session" : "Set 2";
+  const nextSetNum   = nextPlannedSetNumber(exIdx, setNum);
+  const hasNextSet   = nextSetNum != null;
+  const isLastSet    = !hasNextSet;
+  const nextLabel    = hasNextSet ? `Set ${nextSetNum}` : "next session";
   const firstSet = LIFT_DRAFT.sets[exIdx] || {};
   const firstSetRpe = LIFT_SET_RPE[exIdx]?.s1 ?? null;
   const isHeavierSecondSetTrial = setNum === 2
@@ -1396,6 +1467,14 @@ function bromleyWeightSuggestion(exIdx, setNum) {
   }
   // RPE ≤6 at Set 1 (in range) → push harder at Set 2
   // But only during Intensification or Realization — not Accumulation (stay submaximal)
+  if (rpe <= 6 && hitTopRange && hasNextSet && wave.name !== "DELOAD" && (wave.name !== "ACCUMULATION" || rpe <= 5)) {
+    return {
+      verdict: "push", newWeight: weight + inc, newReps: reps,
+      label: `RPE ${rpe} - Push +${inc}kg at Set ${nextSetNum}`,
+      text: `Set ${setNum} hit the top of the range at RPE ${rpe}. Add ${inc}kg for Set ${nextSetNum}.`,
+      color: "good"
+    };
+  }
   const todayWave = juggernautWave(0, LIFT_DAY);
   const canPushAccumulation = todayWave.name === "ACCUMULATION" && rpe <= 5; // only push if very easy in accumulation
   const canPushNormal = rpe <= 6 && inRange && setNum === 1 && todayWave.name !== "ACCUMULATION";
@@ -1425,28 +1504,44 @@ function bromleySuggestionHasAction(sugg) {
 
 function applyBromleySuggestionAutomatically(exIdx, setNum, sugg, opts = {}) {
   if (!bromleySuggestionHasAction(sugg)) return false;
-  const nextSet = setNum + 1;
-  if (nextSet > 2) {
+  const nextSet = nextPlannedSetNumber(exIdx, setNum);
+  if (!nextSet) {
     LIFT_DISMISSED_BANNERS.add(`${exIdx}-${setNum}`);
     return true;
   }
-  if (LIFT_SET_DONE[exIdx]?.[`s${nextSet}`]) return false;
+  if (liftSetDone(exIdx, nextSet)) return false;
 
-  if (sugg.newWeight != null) {
-    LIFT_DRAFT.sets[exIdx][`s${nextSet}w`] = Math.max(0, sugg.newWeight);
-    const wInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}w"]`);
-    if (wInp) wInp.value = LIFT_DRAFT.sets[exIdx][`s${nextSet}w`];
+  const previous = {
+    weight: liftSetValue(exIdx, nextSet, "w"),
+    reps: liftSetValue(exIdx, nextSet, "r"),
+  };
+  setLiftSetPrescription(exIdx, nextSet, { weight: sugg.newWeight, reps: sugg.newReps });
+  if (nextSet <= 2) {
+    if (sugg.newWeight != null) {
+      const wInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}w"]`);
+      if (wInp) wInp.value = liftSetValue(exIdx, nextSet, "w");
+    }
+    if (sugg.newReps != null) {
+      const rInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}r"]`);
+      if (rInp) rInp.value = liftSetValue(exIdx, nextSet, "r");
+    }
+  } else {
+    const si = nextSet - 3;
+    if (sugg.newWeight != null) {
+      const wInp = document.querySelector(`input[data-ex="${exIdx}"][data-extraset="${si}"][data-extrafield="weight"]`);
+      if (wInp) wInp.value = liftSetValue(exIdx, nextSet, "w");
+    }
+    if (sugg.newReps != null) {
+      const rInp = document.querySelector(`input[data-ex="${exIdx}"][data-extraset="${si}"][data-extrafield="reps"]`);
+      if (rInp) rInp.value = liftSetValue(exIdx, nextSet, "r");
+    }
   }
-  if (sugg.newReps != null) {
-    LIFT_DRAFT.sets[exIdx][`s${nextSet}r`] = Math.max(1, sugg.newReps);
-    const rInp = document.querySelector(`input[data-ex="${exIdx}"][data-field="s${nextSet}r"]`);
-    if (rInp) rInp.value = LIFT_DRAFT.sets[exIdx][`s${nextSet}r`];
-  }
+  propagatePrescriptionToLaterSets(exIdx, nextSet, previous);
 
   LIFT_DISMISSED_BANNERS.add(`${exIdx}-${setNum}`);
   if (opts.toast) {
-    const w = LIFT_DRAFT.sets[exIdx][`s${nextSet}w`];
-    const r = LIFT_DRAFT.sets[exIdx][`s${nextSet}r`];
+    const w = liftSetValue(exIdx, nextSet, "w");
+    const r = liftSetValue(exIdx, nextSet, "r");
     toast(`SET ${nextSet} AUTO-UPDATED: ${fmtWeight(w)}kg x ${r}`);
   }
   return true;
@@ -2218,6 +2313,22 @@ function renderLiftExercises() {
       const rpeBtns = [6,7,8,9,10].map(n =>
         `<button class="rpe-btn${curRpe === n ? " active" : ""}" data-ex="${idx}" data-extraset="${si}" data-rpe="${n}">${n}</button>`
       ).join("");
+      let bromleyHtml = "";
+      if (isDone && curRpe != null && !LIFT_DISMISSED_BANNERS.has(`${idx}-${setNum}`)) {
+        const sugg = bromleyWeightSuggestion(idx, setNum);
+        if (sugg) {
+          const autoApplied = applyBromleySuggestionAutomatically(idx, setNum, sugg);
+          if (autoApplied || !shouldShowBromleyInfo(sugg)) {
+            bromleyHtml = "";
+          } else {
+            bromleyHtml = `
+              <div class="bromley-banner ${sugg.color}" data-bb="${idx}-${setNum}">
+                <div class="bb-label">${sugg.label}</div>
+                <div class="bb-text">${escapeHtml(sugg.text)}</div>
+              </div>`;
+          }
+        }
+      }
       return `
         <div class="set-block ${isDone ? 'set-done' : ''}" data-extra-block="${idx}-${si}" style="border-top-style: dashed; border-top-color: var(--good);">
           <div class="set-input-row">
@@ -2238,6 +2349,7 @@ function renderLiftExercises() {
             </button>
           </div>
           <div class="set-flow-hint" data-extra-rpe-hint="${idx}-${si}">${curRpe ? escapeHtml(RPE_HINTS[curRpe]) : ""}</div>
+          ${bromleyHtml}
         </div>`;
     }).join("");
   }
@@ -2503,6 +2615,7 @@ function renderLiftExercises() {
       });
       const hint = btn.closest(".set-block")?.querySelector(".set-flow-hint");
       if (hint) hint.textContent = cur ? RPE_HINTS[cur] : "";
+      _refreshBromleyBanner(idx, si + 3);
     });
   });
 
@@ -2570,6 +2683,7 @@ function renderLiftExercises() {
       if (isDone) {
         const setNum = si + 3;
         RestTimer.start({ ex: STATE.exercises[LIFT_DAY][idx], exIdx: idx, setNum, day: LIFT_DAY });
+        _refreshBromleyBanner(idx, setNum);
         // Check if more extra sets should be suggested
         _refreshExtraSetSugg(idx);
         guideToNextSet(block);
@@ -2732,13 +2846,16 @@ function renderLiftExercises() {
 
 // ── Targeted exercise card helpers ──────────────────────────────────────────
 function _refreshBromleyBanner(exIdx, setNum) {
-  const block = document.querySelector(`.set-block[data-set-block="${exIdx}-${setNum}"]`);
+  const extraIdx = setNum - 3;
+  const block = setNum <= 2
+    ? document.querySelector(`.set-block[data-set-block="${exIdx}-${setNum}"]`)
+    : document.querySelector(`.set-block[data-extra-block="${exIdx}-${extraIdx}"]`);
   if (!block) return;
   // Remove existing banner
   block.querySelectorAll(".bromley-banner").forEach(b => b.remove());
   // Show new one if applicable
-  const isDone = LIFT_SET_DONE[exIdx]?.[`s${setNum}`];
-  const curRpe = LIFT_SET_RPE[exIdx]?.[`s${setNum}`];
+  const isDone = liftSetDone(exIdx, setNum);
+  const curRpe = liftSetRpe(exIdx, setNum);
   if (!isDone || curRpe == null) return;
   if (LIFT_DISMISSED_BANNERS.has(`${exIdx}-${setNum}`)) return;
   const sugg = bromleyWeightSuggestion(exIdx, setNum);

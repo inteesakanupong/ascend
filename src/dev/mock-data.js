@@ -240,7 +240,7 @@
         fat: Math.round(kcal * 0.27 / 9),
         steps,
         recovery,
-        habits: { sleep, protein },
+        sleepOk: sleep,
         waterMl: sleep ? 3200 : 2300,
         meals: [],
         bodyFatPercent: 20.5,

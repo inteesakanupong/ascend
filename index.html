@@ -240,7 +240,9 @@ self.addEventListener("fetch", e => {
         <button id="btn-diet-transition-dismiss" style="margin-top:8px; padding:6px 12px; background:var(--bg-elev-2); border:1px solid var(--line); border-radius:7px; color:var(--ink-dim); font-family:var(--f-mono); font-size:10px; font-weight:700; letter-spacing:0.1em; cursor:pointer;">GOT IT</button>
       </div>
 
+      <div id="today-rest-day-banner" style="display:none; margin-top:10px; padding:9px 12px; border-radius:8px; border-left:3px solid var(--good); background:var(--bg-elev-2); font-size:11px; line-height:1.45;"></div>
       <button class="btn primary full" style="margin-top:14px;" id="btn-start-session">START SESSION →</button>
+      <button class="btn ghost full sm" style="margin-top:8px;" id="btn-log-rest-day">LOG REST DAY</button>
     </div>
 
     <!-- Macro strip — only shown when meals logged today -->
@@ -280,14 +282,11 @@ self.addEventListener("fetch", e => {
       <div id="today-verdict-wrap" style="margin-top:12px;"></div>
     </div>
 
-    <!-- Habits today -->
+    <!-- Daily activity -->
     <div class="card">
       <div class="card-head">
-        <div class="card-label">Today's Habits</div>
-        <div class="card-meta" id="today-habit-summary">—</div>
-      </div>
-      <div class="habit-row" id="today-habits">
-        <!-- filled by JS -->
+        <div class="card-label">Daily Activity</div>
+        <div class="card-meta" id="today-activity-summary">—</div>
       </div>
       <div class="row-spread" style="margin-top:12px; padding: 10px 12px; background: var(--bg-elev-2); border-radius: 8px;">
         <div>
@@ -568,9 +567,6 @@ self.addEventListener("fetch", e => {
         </div>
       </div>
 
-      <div class="card-label" style="margin-top:18px; margin-bottom:6px;">Habits</div>
-      <div class="habit-row" id="weigh-habits"></div>
-
       <div class="input" style="margin-top:14px;">
         <label>Notes</label>
         <textarea id="weigh-notes" rows="2" placeholder="optional"></textarea>
@@ -724,15 +720,6 @@ self.addEventListener("fetch", e => {
         <div class="card-meta" id="stats-calibration-meta">DETERMINISTIC</div>
       </div>
       <div id="stats-lifter-analysis"></div>
-    </div>
-
-    <!-- Habit consistency -->
-    <div class="card">
-      <div class="card-head">
-        <div class="card-label">Habits — Last 14 Days</div>
-        <div class="card-meta" id="stats-habit-meta">—</div>
-      </div>
-      <div id="stats-habits"></div>
     </div>
 
     <!-- MRV Exercise Recommendations -->
@@ -2592,7 +2579,7 @@ const DEFAULT_STATE = {
       "weight": 86.8,
       "kcal": null,
       "protein": null,
-      "habits": { "run": false, "protein": false, "water": false, "sleep": false },
+      "sleepOk": false,
       "notes": null,
       "steps": null,
       "meals": [],
@@ -2604,7 +2591,7 @@ const DEFAULT_STATE = {
       "weight": 86.8,
       "kcal": null,
       "protein": 180,
-      "habits": { "run": true, "protein": true, "water": true, "sleep": true },
+      "sleepOk": true,
       "notes": null,
       "steps": null,
       "meals": [],
@@ -2616,7 +2603,7 @@ const DEFAULT_STATE = {
       "weight": 88,
       "kcal": null,
       "protein": 190,
-      "habits": { "run": true, "protein": true, "water": true, "sleep": true },
+      "sleepOk": true,
       "notes": null,
       "steps": 6560,
       "meals": [],
@@ -2628,7 +2615,7 @@ const DEFAULT_STATE = {
       "weight": 87.1,
       "kcal": null,
       "protein": null,
-      "habits": { "run": false, "protein": false, "water": false, "sleep": false },
+      "sleepOk": false,
       "notes": null,
       "steps": null,
       "meals": [],
@@ -2642,7 +2629,7 @@ const DEFAULT_STATE = {
       "protein": 183,
       "steps": 18000,
       "waterMl": 1000,
-      "habits": { "run": true, "protein": true, "water": false, "sleep": true },
+      "sleepOk": true,
       "notes": null,
       "meals": []
     },
@@ -2654,7 +2641,7 @@ const DEFAULT_STATE = {
       "protein": 31,
       "steps": null,
       "waterMl": null,
-      "habits": { "run": true, "protein": true, "water": true, "sleep": true },
+      "sleepOk": true,
       "notes": null,
       "meals": []
     }
@@ -2750,13 +2737,6 @@ const DEFAULT_STATE = {
 };
 
 
-
-const HABIT_DEFS = [
-  { key: "run",     glyph: "🚶", name: "10k Steps" },
-  { key: "protein", glyph: "🥩", name: "Protein" },
-  { key: "water",   glyph: "💧", name: "Water" },
-  { key: "sleep",   glyph: "😴", name: "Sleep 7h+" },
-];
 
 const DAY_ORDER = ["PUSH", "PULL", "ARMS", "LEGS"];
 
@@ -3307,7 +3287,9 @@ function phaseKcalAdjusted(p) {
   let autoAdj = 0;
   if (logged.length >= 8) {
     const diag = weightDiagnostic();
-    if (diag.verdict === "WARN") {
+    if (diag.verdict === "BAD" && diag.rate != null && diag.rate < 0) {
+      autoAdj = -150;
+    } else if (diag.verdict === "WARN") {
       const { fastThreshold, slowThreshold } = STATE.cut;
       if (diag.rate != null && diag.rate > fastThreshold) {
         autoAdj = 125;
@@ -3324,6 +3306,7 @@ function phaseKcalAutoAdj() {
   const logged = STATE.dailyLogs.filter(d => typeof d.weight === "number");
   if (logged.length < 8) return { adj: 0, reason: null };
   const diag = weightDiagnostic();
+  if (diag.verdict === "BAD" && diag.rate != null && diag.rate < 0) return { adj: -150, reason: "weight trending up" };
   if (diag.verdict !== "WARN" || diag.rate == null) return { adj: 0, reason: null };
   const { fastThreshold, slowThreshold } = STATE.cut;
   if (diag.rate > fastThreshold) return { adj: 125, reason: "losing too fast" };
@@ -3331,15 +3314,27 @@ function phaseKcalAutoAdj() {
   return { adj: 0, reason: null };
 }
 
+function isRestDay(date) {
+  return !!getDailyLog(date)?.restDay;
+}
+
 function nutritionTargetsForDate(date) {
   const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, date) + 1);
   const phase = currentPhase(dayNum);
-  const kcal = phaseKcalAdjusted(phase);
+  const baseKcal = phaseKcalAdjusted(phase);
+  const restDay = isRestDay(date);
+  const restAdj = restDay ? (STATE.cut.mode === "bulk" ? -100 : -150) : 0;
+  const bw = STATE.profile.bodyweight || 80;
+  const sexFloor = STATE.profile.sex === "female" ? 1200 : 1500;
+  const leanFloor = Math.round(bw * 22);
+  const kcal = baseKcal ? Math.max(sexFloor, leanFloor, baseKcal + restAdj) : baseKcal;
   return {
     phase,
+    restDay,
+    baseKcal,
     kcal,
     protein: Math.max(STATE.cut.proteinFloor || 160, Math.round((STATE.athleteProfile?.leanMassKg || STATE.profile.bodyweight || 80) * 1.8)),
-    carbs: kcal ? Math.round(kcal * 0.37 / 4) : 190,
+    carbs: kcal ? Math.round(kcal * (restDay ? 0.30 : 0.37) / 4) : 190,
     fat: kcal ? Math.max(Math.round((STATE.profile.bodyweight || 80) * 0.6), Math.round(kcal * 0.22 / 9)) : 65,
   };
 }
@@ -3630,10 +3625,11 @@ function currentStreak() {
   const active = new Set();
   STATE.sessions.forEach(s => active.add(s.date));
   STATE.dailyLogs.forEach(d => {
-    // Count a daily log if anything was logged: weight, kcal, protein, run, or any habit
+    // Count a daily log if anything meaningful was logged.
     const hasContent =
       d.weight != null || d.kcal != null || d.protein != null || d.steps != null ||
-      (d.habits && Object.values(d.habits).some(Boolean));
+      d.waterMl != null || d.recovery != null || d.restDay || d.sleepOk != null ||
+      (Array.isArray(d.meals) && d.meals.length > 0);
     if (hasContent) active.add(d.date);
   });
 
@@ -3694,6 +3690,32 @@ function latestWeighIn() {
   const logs = STATE.dailyLogs.filter(d => typeof d.weight === "number").sort((a, b) => a.date.localeCompare(b.date));
   return logs[logs.length - 1] || null;
 }
+function dietAdherenceDiagnostic(days = 7) {
+  const logs = [...STATE.dailyLogs]
+    .filter(d => d.kcal != null)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, days);
+  if (!logs.length) return { loggedDays: 0, avgKcal: null, avgTarget: null, overBy: null, overDays: 0 };
+  let totalKcal = 0, totalTarget = 0, overDays = 0;
+  logs.forEach(d => {
+    const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, d.date) + 1);
+    const phase = currentPhase(dayNum);
+    const base = phaseKcal(phase) || 0;
+    const target = isRestDay(d.date) ? Math.max(base - 150, 0) : base;
+    totalKcal += d.kcal;
+    totalTarget += target;
+    if (target && d.kcal > target + 100) overDays++;
+  });
+  const avgKcal = Math.round(totalKcal / logs.length);
+  const avgTarget = totalTarget ? Math.round(totalTarget / logs.length) : null;
+  return {
+    loggedDays: logs.length,
+    avgKcal,
+    avgTarget,
+    overBy: avgTarget != null ? avgKcal - avgTarget : null,
+    overDays,
+  };
+}
 function weightDiagnostic() {
   const logged = STATE.dailyLogs.filter(d => typeof d.weight === "number").sort((a, b) => a.date.localeCompare(b.date));
   if (logged.length < 8) {
@@ -3719,7 +3741,11 @@ function weightDiagnostic() {
   } else if (logged.length > 14 && rate < slowThreshold) {
     verdict = "WARN"; text = "Stalled — cut 100 kcal or add run distance.";
   } else if (rate < 0) {
-    verdict = "BAD"; text = "Weight went up — check logging accuracy.";
+    const diet = dietAdherenceDiagnostic(7);
+    verdict = "BAD";
+    text = diet.loggedDays >= 3 && diet.overBy != null && diet.overBy > 100
+      ? `Weight is rising and calories averaged ${diet.overBy} kcal over target. Return to target today, pre-log meals, and keep protein at the floor.`
+      : "Weight is rising. Log calories daily for the next 7 days, hit protein, and use the adjusted target until the trend turns.";
   }
   return { verdict, text, rate, avg, lost };
 }
@@ -4038,7 +4064,7 @@ window.ascendExportAiPacket = exportAiReviewPacket;
 document.getElementById("weigh-date").addEventListener("change", (e) => {
   const date = e.target.value;
   if (!date) return;
-  const log = getDailyLog(date) || { date, habits: {} };
+  const log = getDailyLog(date) || { date };
   // Repopulate all fields without full re-render (avoids resetting the date input itself)
   $("#weigh-weight").value  = log.weight ?? "";
   const bfEl = document.getElementById("weigh-bodyfat");
@@ -4061,13 +4087,9 @@ document.getElementById("weigh-date").addEventListener("change", (e) => {
   const dayNum = Math.max(1, daysBetween(start, date) + 1);
   const phase = currentPhase(dayNum);
   const phaseEl = document.getElementById("weigh-phase");
-  if (phaseEl) phaseEl.innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> · ${phaseKcalAdjusted(phase).toLocaleString()} KCAL TARGET`;
-  // Reload habits
-  const hRow = $("#weigh-habits");
-  if (hRow) {
-    hRow.querySelectorAll(".habit").forEach(el => {
-      el.classList.toggle("checked", !!(log.habits && log.habits[el.dataset.habit]));
-    });
+  if (phaseEl) {
+    const targets = nutritionTargetsForDate(date);
+    phaseEl.innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> · ${targets.kcal.toLocaleString()} KCAL TARGET${targets.restDay ? " · REST" : ""}`;
   }
   // Reload meal log for this date
   if (typeof renderMealLog === "function") renderMealLog(date);
@@ -4095,17 +4117,6 @@ $("#btn-save-weigh").addEventListener("click", () => {
   // Recovery is logged on TODAY page — preserve whatever was saved there
   const recovery = existing?.recovery ?? null;
   const notes   = $("#weigh-notes").value || null;
-  const habits = {};
-  $("#weigh-habits").querySelectorAll(".habit").forEach(el => {
-    habits[el.dataset.habit] = el.classList.contains("checked");
-  });
-  // Preserve sleep habit from TODAY morning log if already set
-  if (existing?.habits?.sleep != null) habits.sleep = existing.habits.sleep;
-  // Auto-tick the steps habit when user meets their goal
-  const stepGoal = STATE.profile.stepGoal || 10000;
-  if (steps != null && steps >= stepGoal) habits.run = true;
-  if (waterMl != null && waterMl >= 2000) habits.water = true;  // 2L = water habit done
-
   // Preserve existing meals — they are logged separately via the food scanner
   // Recalculate kcal/protein from meals if meals exist, otherwise use manual entry
   const existingMeals = existing?.meals || [];
@@ -4116,7 +4127,7 @@ $("#btn-save-weigh").addEventListener("click", () => {
   const finalProtein = existingMeals.length > 0 ? Math.round(mealsProtein) : protein;
 
   const lean = leanMassKg(weight, bodyFatPercent);
-  upsertDailyLog({ date, weight, bodyFatPercent, leanMassKg: lean, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, habits, notes, meals: existingMeals });
+  upsertDailyLog({ date, weight, bodyFatPercent, leanMassKg: lean, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, notes, meals: existingMeals });
   if (weight != null) STATE.profile.bodyweight = weight;
   if (bodyFatPercent != null) STATE.profile.bodyFatPct = bodyFatPercent;
   STATE.healthSignals = {
@@ -6406,7 +6417,7 @@ const Wizard = (() => {
         </div>
       `;
     } else {
-      wrap.innerHTML = `<div class="muted" style="font-size:13px; padding: 12px; background: var(--bg-elev-1); border-radius: 10px; border: 1px solid var(--line);">No weight target. We'll just track lifts and habits.</div>`;
+      wrap.innerHTML = `<div class="muted" style="font-size:13px; padding: 12px; background: var(--bg-elev-1); border-radius: 10px; border: 1px solid var(--line);">No weight target. We'll track lifts, weigh-ins, and nutrition logs.</div>`;
     }
   }
 
@@ -6477,7 +6488,7 @@ function rpDietAnalytics() {
   const last7logs = logs.filter(d => d.date <= today).slice(0, 7);
   const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, today) + 1);
   const phase  = currentPhase(dayNum);
-  const targetKcal = phaseKcalAdjusted(phase);
+  const targetKcal = nutritionTargetsForDate(today).kcal;
 
   // Compute weekly averages for kcal and protein
   const avgKcal7 = last7logs.filter(d=>d.kcal!=null).length
@@ -6488,7 +6499,8 @@ function rpDietAnalytics() {
   last7logs.forEach(d => {
     if (d.kcal == null) return;
     days++;
-    const deficit = targetKcal - d.kcal;
+    const dayTargetKcal = nutritionTargetsForDate(d.date).kcal || targetKcal;
+    const deficit = dayTargetKcal - d.kcal;
     // Calories: full 50pts if within ±100 of target, scaled otherwise
     if (Math.abs(deficit) <= 100) calScore += 50;
     else if (Math.abs(deficit) <= 200) calScore += 35;
@@ -7451,7 +7463,7 @@ const Coach = (() => {
     const dayNum = Math.max(1, daysBetween(p.programStart, today) + 1);
     const phase = currentPhase(dayNum);
     const pName = phaseName(phase);
-    const targetKcal = phaseKcalAdjusted(phase);
+    const targetKcal = nutritionTargetsForDate(today).kcal;
     return `
 ATHLETE PROFILE:
 - Name: ${p.name}, Age: ${p.age}, Sex: ${p.sex}
@@ -7603,7 +7615,7 @@ Output: 4 sentences, plain text, no headers. Each sentence must be complete — 
 
     const cut = STATE.cut;
     const phase = currentPhase(Math.max(1, daysBetween(STATE.profile.programStart, date) + 1));
-    const targetKcal = phaseKcalAdjusted(phase);
+    const targetKcal = nutritionTargetsForDate(date).kcal;
     const meals = (log.meals || []).map(m => `${m.name}: ${m.kcal}kcal, ${m.protein}g P, ${m.carbs}g C, ${m.fat}g F`).join("\n") || "No meals logged.";
     const rp = rpDietAnalytics();
 
@@ -7666,7 +7678,7 @@ Sentence 4: One specific actionable tip for tomorrow (exact food or quantity).`;
     const cut = STATE.cut;
     const dayNum = Math.max(1, daysBetween(STATE.profile.programStart, todayISO()) + 1);
     const phase = currentPhase(dayNum);
-    const targetKcal = phaseKcalAdjusted(phase);
+    const targetKcal = nutritionTargetsForDate(todayISO()).kcal;
 
     const rp = rpDietAnalytics();
 

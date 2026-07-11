@@ -171,24 +171,6 @@ function renderStats() {
     }).join("");
   }
 
-  // Habits
-  const last14 = [...STATE.dailyLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
-  const denom = last14.length;
-  $("#stats-habit-meta").textContent = `${denom}/14 DAYS LOGGED`;
-  $("#stats-habits").innerHTML = HABIT_DEFS.map(h => {
-    const num = last14.filter(d => d.habits && d.habits[h.key]).length;
-    const pct = denom === 0 ? 0 : Math.round((num / denom) * 100);
-    return `
-      <div class="habit-progress">
-        <div>
-          <div class="name">${h.glyph} ${h.name}</div>
-          <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
-        </div>
-        <div class="pct">${pct}%</div>
-      </div>
-    `;
-  }).join("");
-
   // Lift PRs — best top set per exercise across all sessions
   const lifts = [];
   DAY_ORDER.forEach(day => {

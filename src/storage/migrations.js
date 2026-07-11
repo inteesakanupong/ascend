@@ -135,6 +135,8 @@ function migrateState(s) {
     delete migrated.runKm;
     if (!Array.isArray(migrated.meals)) migrated.meals = [];
     if (migrated.waterMl === undefined) migrated.waterMl = null;
+    if (migrated.restDay === undefined) migrated.restDay = false;
+    if (migrated.sleepOk === undefined) migrated.sleepOk = migrated.habits?.sleep ?? null;
     if (migrated.bodyFatPercent === undefined) migrated.bodyFatPercent = migrated.bodyFatPct ?? null;
     if (migrated.leanMassKg === undefined) migrated.leanMassKg = leanMassKg(migrated.weight, migrated.bodyFatPercent);
     return migrated;

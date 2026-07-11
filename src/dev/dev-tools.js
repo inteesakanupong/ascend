@@ -259,7 +259,7 @@
         day: "PUSH",
         result: withTemporaryState(s => {
           s.cut.mode = "maintain";
-          s.dailyLogs = s.dailyLogs.map(d => ({ ...d, recovery: 7, habits: { sleep: true, protein: true } }));
+          s.dailyLogs = s.dailyLogs.map(d => ({ ...d, recovery: 7, sleepOk: true }));
           let pushSeen = 0;
           s.sessions = s.sessions.filter(sess => {
             if (sess.date >= isoDaysAgoLocal(14)) return false;

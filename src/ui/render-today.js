@@ -48,7 +48,6 @@ function renderToday() {
   const morningInp    = document.getElementById("today-morning-weight");
   const recSlider     = document.getElementById("today-recovery-slider");
   const recValEl      = document.getElementById("today-recovery-val");
-  const sleepCheck    = document.getElementById("today-sleep-habit");
   const todayLog      = getDailyLog(today);
 
   const loggedParts = [];
@@ -58,7 +57,8 @@ function renderToday() {
     if (recSlider) recSlider.value = todayLog.recovery;
     if (recValEl)  recValEl.textContent = `${todayLog.recovery} - ${todayLog.recovery >= 7 ? "Good" : todayLog.recovery <= 3 ? "Poor" : "OK"}`;
   }
-  if (todayLog?.habits?.sleep) loggedParts.push("slept 7h+");
+  if (todayLog?.sleepOk) loggedParts.push("slept 7h+");
+  if (todayLog?.restDay) loggedParts.push("rest day");
 
   if (morningStatus) {
     if (loggedParts.length) {
@@ -155,7 +155,8 @@ function renderToday() {
     $("#today-delta").innerHTML = "";
   }
   // Phase tag
-  $("#today-phase-meta").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> - ${phaseKcalAdjusted(phase)} KCAL`;
+  const phaseTargets = nutritionTargetsForDate(today);
+  $("#today-phase-meta").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> - ${phaseTargets.kcal} KCAL${phaseTargets.restDay ? " REST" : ""}`;
 
   // Verdict pill
   const wrap = $("#today-verdict-wrap");
@@ -169,28 +170,11 @@ function renderToday() {
     wrap.innerHTML = `<span class="verdict start">${diag.text}</span>`;
   }
 
-  // Habits today
-  const log = getDailyLog(today) || { habits: {} };
-  const hRow = $("#today-habits");
-  hRow.innerHTML = HABIT_DEFS.map(h => `
-    <div class="habit ${log.habits && log.habits[h.key] ? 'checked' : ''}" data-habit="${h.key}" style="position:relative;">
-      <div class="glyph">${h.glyph}</div>
-      <div class="name">${h.name}</div>
-    </div>
-  `).join("");
-  hRow.querySelectorAll(".habit").forEach(el => {
-    el.addEventListener("click", () => {
-      const key = el.dataset.habit;
-      const cur = getDailyLog(today) || { date: today, habits: {} };
-      cur.habits = cur.habits || {};
-      cur.habits[key] = !cur.habits[key];
-      upsertDailyLog(cur);
-      saveState();
-      renderToday();
-    });
-  });
-  const checked = HABIT_DEFS.filter(h => log.habits && log.habits[h.key]).length;
-  $("#today-habit-summary").textContent = `${checked} / 4 DONE`;
+  const log = getDailyLog(today) || {};
+  const activitySummary = document.getElementById("today-activity-summary");
+  if (activitySummary) {
+    activitySummary.textContent = log.restDay ? "REST DAY" : (log.weight != null || log.kcal != null || log.recovery != null ? "LOGGED" : "OPEN");
+  }
 
   // Streak
   const streak = currentStreak();
@@ -215,19 +199,17 @@ function renderToday() {
         const log = getDailyLog(iso);
         const dayLabel = formatDate(iso).slice(0, 6);
         const hasSession = STATE.sessions.some(s => s.date === iso);
-        const habits = log?.habits || {};
-        const done = HABIT_DEFS.filter(h => habits[h.key]).map(h => h.glyph).join("");
         const wt = log?.weight ? `${log.weight}kg` : "";
+        const status = log?.restDay ? "rest" : hasSession ? "session" : log ? "log" : "";
         return `<div style="display:flex;justify-content:space-between;padding:6px 14px;${i%2===0?'background:var(--bg-elev-1)':''};">
           <span style="font-family:var(--f-mono);font-size:11px;color:var(--ink-mid);">${dayLabel}</span>
-          <span style="font-size:11px;">${wt} ${hasSession ? 'session' : ''} ${done || '<span style="color:var(--ink-faint);">-</span>'}</span>
+          <span style="font-size:11px;">${wt} ${status || '<span style="color:var(--ink-faint);">-</span>'}</span>
         </div>`;
       }).join("");
       $("#sheet-body").innerHTML = `
         <h3>Last 7 Days</h3>
-        <div class="muted" style="font-size:11px;margin-bottom:12px;letter-spacing:0.08em;">STREAK - HABITS - SESSIONS</div>
+        <div class="muted" style="font-size:11px;margin-bottom:12px;letter-spacing:0.08em;">STREAK - LOGS - SESSIONS</div>
         <div style="border-radius:10px;overflow:hidden;border:1px solid var(--line);">${rows}</div>
-        <div class="muted" style="font-size:10px;margin-top:10px;text-align:center;">session - steps - protein - water - sleep</div>
       `;
       openSheet();
     });
@@ -248,16 +230,27 @@ function renderToday() {
     if (startBtn) startBtn.textContent = "LOG ANOTHER SESSION ->";
   } else {
     if (doneDom) doneDom.style.display = "none";
-    if (startBtn) startBtn.textContent = "START SESSION ->";
+    if (startBtn) startBtn.textContent = log.restDay ? "START ANYWAY ->" : "START SESSION ->";
   }
+
+  const restBanner = document.getElementById("today-rest-day-banner");
+  const restBtn = document.getElementById("btn-log-rest-day");
+  const todayTargets = nutritionTargetsForDate(today);
+  if (restBanner) {
+    restBanner.style.display = log.restDay ? "" : "none";
+    restBanner.textContent = log.restDay
+      ? `Rest day logged. Nutrition target adjusted to ${todayTargets.kcal} kcal with protein held at ${todayTargets.protein}g.`
+      : "";
+  }
+  if (restBtn) restBtn.textContent = log.restDay ? "REST DAY LOGGED" : "LOG REST DAY";
 
   // Macro strip - show if kcal/protein logged today
   const macroCard = document.getElementById("today-macro-card");
   const macroBars = document.getElementById("today-macro-bars");
   const macroMeta = document.getElementById("today-macro-meta");
-  const kcalTarget    = phaseKcalAdjusted(phase);
-  const proteinTarget = STATE.cut.proteinFloor || 160;
   const targets       = nutritionTargetsForDate(today);
+  const kcalTarget    = targets.kcal || phaseKcalAdjusted(phase);
+  const proteinTarget = targets.protein || STATE.cut.proteinFloor || 160;
   const carbTarget    = targets.carbs || (kcalTarget ? Math.round(kcalTarget * 0.37 / 4) : 190);
   const fatTarget     = targets.fat || (STATE.cut.p1Kcal ? Math.round(STATE.cut.p1Kcal * 0.28 / 9) : 65);
   if (macroCard && (log.kcal || log.protein || (log.meals && log.meals.length > 0))) {
@@ -305,6 +298,17 @@ $("#btn-start-session").addEventListener("click", () => {
   const day = nextSessionDay();
   goTab("lift");
   setTimeout(() => selectLiftDay(day), 50);
+});
+
+document.getElementById("btn-log-rest-day")?.addEventListener("click", () => {
+  const today = todayISO();
+  const cur = getDailyLog(today) || { date: today };
+  cur.restDay = true;
+  cur.restDayLoggedAt = new Date().toISOString();
+  upsertDailyLog(cur);
+  saveState();
+  renderToday();
+  toast("REST DAY LOGGED");
 });
 
 // Morning log - weight + recovery + sleep
@@ -376,8 +380,7 @@ document.getElementById("btn-log-morning").addEventListener("click", () => {
     STATE.profile.bodyweight = w;
   }
   if (recovery) cur.recovery = recovery;
-  if (!cur.habits) cur.habits = {};
-  cur.habits.sleep = slept;
+  cur.sleepOk = slept;
 
   upsertDailyLog(cur);
   saveState();
