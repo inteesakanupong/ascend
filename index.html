@@ -255,6 +255,23 @@ self.addEventListener("fetch", e => {
     </div>
 
     <!-- Weight snapshot -->
+    <div class="card" id="today-adaptive-card">
+      <div class="card-head">
+        <div class="card-label">Adaptive Cut</div>
+        <div class="card-meta" id="today-adaptive-badge">ACTIVE</div>
+      </div>
+      <div class="stat-row" style="margin-top:4px;">
+        <div class="stat"><div class="stat-label">Today</div><div class="stat-value tnum" id="today-adaptive-kcal">-</div></div>
+        <div class="stat"><div class="stat-label">7-day budget</div><div class="stat-value tnum" id="today-adaptive-week">-</div></div>
+        <div class="stat"><div class="stat-label">Checkpoint</div><div class="stat-value tnum" id="today-adaptive-goal">-</div></div>
+      </div>
+      <div id="today-adaptive-body" style="font-size:12px;line-height:1.55;color:var(--ink-mid);margin-top:12px;"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn primary sm" style="flex:1;" id="btn-adaptive-review">REVIEW NOW</button>
+        <button class="btn ghost sm" style="flex:1;" id="btn-adaptive-goal">ADJUST GOAL</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-head">
         <div class="card-label">Weight</div>
@@ -516,7 +533,7 @@ self.addEventListener("fetch", e => {
     <div class="masthead">
       <div class="eyebrow">DAILY LOG</div>
       <div class="title">WEIGH<span class="accent">.</span></div>
-      <div class="meta">WEIGHT · MACROS · HABITS</div>
+      <div class="meta">WEIGHT · MACROS · ADAPTIVE PLAN</div>
     </div>
 
     <div class="card">
@@ -571,6 +588,11 @@ self.addEventListener("fetch", e => {
         <label>Notes</label>
         <textarea id="weigh-notes" rows="2" placeholder="optional"></textarea>
       </div>
+
+      <label style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;background:var(--bg-elev-2);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+        <input type="checkbox" id="weigh-food-complete" style="width:20px;height:20px;accent-color:var(--accent);" />
+        <span><strong style="font-size:12px;">Food log is complete</strong><span class="muted" style="display:block;font-size:10px;margin-top:2px;">Required before calories can auto-adjust</span></span>
+      </label>
 
       <button class="btn primary full" style="margin-top:14px;" id="btn-save-weigh">SAVE TODAY</button>
     </div>
@@ -1245,6 +1267,7 @@ self.addEventListener("fetch", e => {
 <script src="src/workout/volume.js"></script>
 <script src="src/workout/readiness.js"></script>
 <script src="src/workout/targeted-warmup-engine.js"></script>
+<script src="src/nutrition/adaptive-calories.js"></script>
 
 <!-- Phase 9.5: storage, migrations, session persistence -->
 <script src="src/storage/storage.js"></script>
@@ -3002,11 +3025,15 @@ function syncCalibrationProfiles() {
   STATE.athleteProfile.trainingExperience = mapExperience(STATE.athleteProfile.trainingExperience || STATE.profile.experienceLevel);
   STATE.athleteProfile.recoveryProfile = STATE.athleteProfile.recoveryProfile || recoveryProfileFromInputs(STATE.profile);
   const targets = nutritionTargetsForDate(todayISO());
-  STATE.dietProfile.calorieTarget = targets.kcal ?? STATE.dietProfile.calorieTarget;
+  STATE.dietProfile.calorieTarget = STATE.nutritionCoach?.enabled
+    ? STATE.nutritionCoach.currentKcal
+    : (targets.kcal ?? STATE.dietProfile.calorieTarget);
   STATE.dietProfile.proteinTarget = targets.protein ?? STATE.dietProfile.proteinTarget;
   STATE.dietProfile.carbTarget = targets.carbs ?? STATE.dietProfile.carbTarget;
   STATE.dietProfile.fatTarget = targets.fat ?? STATE.dietProfile.fatTarget;
-  STATE.dietProfile.weeklyWeightChangeTarget = STATE.cut.mode === "cut"
+  STATE.dietProfile.weeklyWeightChangeTarget = STATE.nutritionCoach?.enabled
+    ? -(STATE.nutritionCoach.weeklyLossTargetKg || 0.6)
+    : STATE.cut.mode === "cut"
     ? -(Math.round(((STATE.cut.fastThreshold || 1.0) + (STATE.cut.slowThreshold || 0.5)) / 2 * 10) / 10)
     : STATE.cut.mode === "bulk" ? 0.25 : 0;
   return targets;
@@ -3221,6 +3248,15 @@ function applyNewDietProgram(input = {}) {
   STATE.cut.dbWeeks = STATE.cut.dbWeeks || 1.5;
   STATE.cut.p2Target = mode === "cut" ? Number((STATE.cut.p1Target - 2).toFixed(1)) : STATE.cut.p1Target;
   STATE.cut.p2Weeks = STATE.cut.p2Weeks || 4;
+  if (mode === "cut" && typeof activateAdaptiveNutritionPlan === "function") {
+    activateAdaptiveNutritionPlan({
+      checkpointWeight: Math.max(STATE.cut.p1Target, Math.round(bw - 7)),
+      finalGoalWeight: STATE.cut.p1Target,
+      currentKcal: STATE.cut.p1Kcal,
+    });
+  } else if (STATE.nutritionCoach) {
+    STATE.nutritionCoach.enabled = false;
+  }
 }
 
 // ── Equipment detection + smart increments (v15) ──────────────────────────
@@ -3265,6 +3301,7 @@ function phaseName(p) {
   return { P1: "PHASE 1 — CUT", DB: "DIET BREAK", P2: "PHASE 2 — CUT", M: "MAINTENANCE" }[p];
 }
 function phaseKcal(p) {
+  if (STATE.nutritionCoach?.enabled && STATE.nutritionCoach.currentKcal) return STATE.nutritionCoach.currentKcal;
   return { P1: STATE.cut.p1Kcal, DB: STATE.cut.dbKcal, P2: STATE.cut.p2Kcal, M: STATE.cut.dbKcal }[p];
 }
 
@@ -3282,6 +3319,9 @@ function phaseKcalAdjusted(p) {
   const bw = currentBW || STATE.profile.bodyweight || 80;
   const sexFloor = STATE.profile.sex === "female" ? 1200 : 1500;
   const leanFloor = Math.round(bw * 22);
+  if (STATE.nutritionCoach?.enabled) {
+    return Math.max(sexFloor, leanFloor, Math.round(base + deloadBonus));
+  }
   const driftAdjusted = Math.round(base - Math.min(tdeeAdj, 350) + deloadBonus);
   const logged = STATE.dailyLogs.filter(d => typeof d.weight === "number");
   let autoAdj = 0;
@@ -3324,7 +3364,7 @@ function nutritionTargetsForDate(date) {
   const baseKcal = phaseKcalAdjusted(phase);
   const restDay = isRestDay(date);
   const restAdj = restDay ? (STATE.cut.mode === "bulk" ? -100 : -150) : 0;
-  const bw = STATE.profile.bodyweight || 80;
+  const bw = latestWeighIn()?.weight || STATE.profile.bodyweight || 80;
   const sexFloor = STATE.profile.sex === "female" ? 1200 : 1500;
   const leanFloor = Math.round(bw * 22);
   const kcal = baseKcal ? Math.max(sexFloor, leanFloor, baseKcal + restAdj) : baseKcal;
@@ -4082,6 +4122,8 @@ document.getElementById("weigh-date").addEventListener("change", (e) => {
     recDisplay.style.color = recVal == null ? "var(--ink-dim)" : recVal >= 7 ? "var(--good)" : recVal <= 3 ? "var(--bad)" : "var(--accent)";
   }
   $("#weigh-notes").value   = log.notes ?? "";
+  const completeEl = document.getElementById("weigh-food-complete");
+  if (completeEl) completeEl.checked = log.foodLogComplete === true;
   // Update phase tag
   const start = STATE.profile.programStart;
   const dayNum = Math.max(1, daysBetween(start, date) + 1);
@@ -4117,6 +4159,7 @@ $("#btn-save-weigh").addEventListener("click", () => {
   // Recovery is logged on TODAY page — preserve whatever was saved there
   const recovery = existing?.recovery ?? null;
   const notes   = $("#weigh-notes").value || null;
+  const foodLogComplete = document.getElementById("weigh-food-complete")?.checked === true;
   // Preserve existing meals — they are logged separately via the food scanner
   // Recalculate kcal/protein from meals if meals exist, otherwise use manual entry
   const existingMeals = existing?.meals || [];
@@ -4127,7 +4170,7 @@ $("#btn-save-weigh").addEventListener("click", () => {
   const finalProtein = existingMeals.length > 0 ? Math.round(mealsProtein) : protein;
 
   const lean = leanMassKg(weight, bodyFatPercent);
-  upsertDailyLog({ date, weight, bodyFatPercent, leanMassKg: lean, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, notes, meals: existingMeals });
+  upsertDailyLog({ date, weight, bodyFatPercent, leanMassKg: lean, kcal: finalKcal, protein: finalProtein, steps, waterMl, recovery, notes, meals: existingMeals, foodLogComplete });
   if (weight != null) STATE.profile.bodyweight = weight;
   if (bodyFatPercent != null) STATE.profile.bodyFatPct = bodyFatPercent;
   STATE.healthSignals = {
@@ -4140,6 +4183,7 @@ $("#btn-save-weigh").addEventListener("click", () => {
     leanMassKg: lean,
   };
   syncCalibrationProfiles();
+  evaluateAdaptiveNutrition({ date });
   saveState();
   toast("LOGGED");
   renderRecentWeighIns();
@@ -6383,6 +6427,7 @@ const Wizard = (() => {
     if (skipBtn) skipBtn.addEventListener("click", () => {
       // Skip with whatever defaults are currently in STATE
       STATE.onboarded = true;
+      STATE = migrateNutritionCoachState(STATE);
       saveState();
       close();
       toast("WELCOME · LOG WHEN READY");

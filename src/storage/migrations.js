@@ -141,6 +141,7 @@ function migrateState(s) {
     if (migrated.leanMassKg === undefined) migrated.leanMassKg = leanMassKg(migrated.weight, migrated.bodyFatPercent);
     return migrated;
   });
+  if (typeof migrateNutritionCoachState === "function") s = migrateNutritionCoachState(s);
   if (!s.repRangeCounters)        s.repRangeCounters = {};
   if (!s.exerciseMuscleActivations) s.exerciseMuscleActivations = {};
   if (!s.pendingProgramChanges)   s.pendingProgramChanges = {};
