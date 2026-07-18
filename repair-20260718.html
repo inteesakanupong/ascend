@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#f5f4f0" />
+<title>Repair Ascend</title>
+<style>
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:20px; box-sizing:border-box; background:#f5f4f0; color:#111110; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  main { width:min(380px,100%); border:1px solid #dddcd7; background:#fff; padding:22px; box-sizing:border-box; }
+  h1 { margin:0 0 8px; font-size:24px; }
+  p { margin:0; color:#5a5a55; font-size:14px; line-height:1.5; }
+  #status { margin-top:14px; color:#b42318; font-weight:700; font-size:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Repairing Ascend</h1>
+  <p>This removes stale app files only. Your workouts, weigh-ins, meals, and settings remain saved on this device.</p>
+  <div id="status">CLEARING OLD CACHE...</div>
+</main>
+<script>
+(async function repairAscend() {
+  const status = document.getElementById("status");
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter(key => key.startsWith("ascend-")).map(key => caches.delete(key)));
+    }
+    status.textContent = "CACHE CLEARED - REOPENING APP...";
+  } catch (err) {
+    status.textContent = "REOPENING APP...";
+  }
+  setTimeout(() => location.replace("./?repair=20260718.2"), 500);
+})();
+</script>
+</body>
+</html>

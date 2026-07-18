@@ -43,80 +43,18 @@
 // ── SERVICE WORKER (inline via blob) ───────────────────────────────────────
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
-  const swCode = `
-const CACHE = "ascend-2026-07-18.1";
-
-self.addEventListener("install", e => {
-  // Delete all old caches
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() =>
-      caches.open(CACHE).then(c => {
-        const base = self.location.href.replace(/\/[^/]+$/, "/");
-        return c.addAll([
-          base + "index.html",
-          base + "styles/tokens.css",
-          base + "styles/base.css",
-          base + "styles/components.css",
-          base + "styles/pages.css",
-          base + "styles/workout.css",
-          base + "recovery.html",
-          base + "src/data/jtm-constants.js",
-          base + "src/data/warmup-data.js",
-          base + "src/data/exercise-db.js",
-          base + "src/data/exercise-metadata.js",
-          base + "src/data/volume-landmarks.js",
-          base + "src/utils/helpers.js",
-          base + "src/utils/math.js",
-          base + "src/workout/jtm.js",
-          base + "src/workout/progression.js",
-          base + "src/workout/set-classification.js",
-          base + "src/workout/volume.js",
-          base + "src/workout/readiness.js",
-          base + "src/workout/targeted-warmup-engine.js",
-          base + "src/nutrition/adaptive-calories.js",
-          base + "src/storage/storage.js",
-          base + "src/storage/migrations.js",
-          base + "src/storage/exercise-memory.js",
-          base + "src/storage/session-persistence.js",
-          base + "src/ui/navigation.js",
-          base + "src/ui/render-today.js",
-          base + "src/ui/render-lift.js",
-          base + "src/ui/render-weigh.js",
-          base + "src/ui/render-stats.js",
-          base + "src/ui/render-profile.js",
-        ]);
-      })
-        .catch(() => {})
-    )
-  );
-  self.skipWaiting();
-});
-self.addEventListener("activate", e => {
-  e.waitUntil(clients.claim());
-});
-self.addEventListener("fetch", e => {
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(e.request, copy));
-          return response;
-        })
-        .catch(() => caches.match(e.request).then(r => r || caches.match(new URL("index.html", e.request.url).href)))
-    );
-    return;
-  }
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-});
-  `.trim();
-
-  const blob = new Blob([swCode], { type: "text/javascript" });
-  const url  = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(url, { scope: "/" })
-    .catch(() => {}); // silently ignore if file:// SW is blocked
+  window.addEventListener("load", async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(key => key.startsWith("ascend-")).map(key => caches.delete(key)));
+      }
+    } catch (err) {
+      console.warn("Ascend cache retirement failed", err);
+    }
+  });
 }
 </script>
 
