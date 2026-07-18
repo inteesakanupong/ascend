@@ -2,5 +2,8 @@
 .wrangler
 Ascend
 docs
+Resources
+tests
+ascend-clean-import.json
 ppal_training_reference_database.json
 ppal_training_reference_notes.md

@@ -158,6 +158,26 @@ function renderToday() {
   const phaseTargets = nutritionTargetsForDate(today);
   $("#today-phase-meta").innerHTML = `<span class="phase-tag phase-${phase.toLowerCase()}">${phase}</span> - ${phaseTargets.kcal} KCAL${phaseTargets.restDay ? " REST" : ""}`;
 
+  const adaptivePlanBefore = STATE.nutritionCoach?.enabled
+    ? JSON.stringify({ decision: STATE.nutritionCoach.lastDecision, recovery: STATE.nutritionCoach.recovery, review: STATE.nutritionCoach.lastReviewDate })
+    : null;
+  const adaptive = typeof evaluateAdaptiveNutrition === "function" ? evaluateAdaptiveNutrition({ date: today }) : null;
+  const adaptivePlanAfter = STATE.nutritionCoach?.enabled
+    ? JSON.stringify({ decision: STATE.nutritionCoach.lastDecision, recovery: STATE.nutritionCoach.recovery, review: STATE.nutritionCoach.lastReviewDate })
+    : null;
+  if (adaptivePlanBefore !== adaptivePlanAfter) saveState();
+  const adaptiveCard = document.getElementById("today-adaptive-card");
+  if (adaptiveCard) adaptiveCard.style.display = adaptive?.enabled ? "" : "none";
+  if (adaptive?.enabled) {
+    const badge = document.getElementById("today-adaptive-badge");
+    badge.textContent = adaptive.recoveryActive ? "7-DAY RECOVERY" : "ACTIVE";
+    badge.style.color = adaptive.recoveryActive ? "var(--bad)" : "var(--good)";
+    document.getElementById("today-adaptive-kcal").innerHTML = `${phaseTargets.kcal}<span class="unit">kcal</span>`;
+    document.getElementById("today-adaptive-week").innerHTML = `${adaptive.weeklyBudget.toLocaleString()}<span class="unit">kcal</span>`;
+    document.getElementById("today-adaptive-goal").innerHTML = `${adaptive.plan.checkpointWeight}<span class="unit">kg</span>`;
+    document.getElementById("today-adaptive-body").textContent = adaptive.plan.lastDecision || "Complete five food logs and six weigh-ins to unlock the weekly review.";
+  }
+
   // Verdict pill
   const wrap = $("#today-verdict-wrap");
   if (diag.verdict === "OK") {
@@ -309,6 +329,17 @@ document.getElementById("btn-log-rest-day")?.addEventListener("click", () => {
   saveState();
   renderToday();
   toast("REST DAY LOGGED");
+});
+
+document.getElementById("btn-adaptive-review")?.addEventListener("click", () => {
+  const status = evaluateAdaptiveNutrition({ force: true, date: todayISO() });
+  saveState();
+  renderToday();
+  toast(status.recoveryActive ? "RECOVERY MODE ACTIVE" : "NUTRITION REVIEWED");
+});
+
+document.getElementById("btn-adaptive-goal")?.addEventListener("click", () => {
+  openAdaptiveGoalSheet();
 });
 
 // Morning log - weight + recovery + sleep

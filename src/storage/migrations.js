@@ -85,12 +85,12 @@ function migrateState(s) {
   // Guard top-level objects that older backups may be missing entirely
   if (!s.cut)     s.cut     = {};
   if (!s.profile) s.profile = {};
-  if (!s.exercises) s.exercises = { PUSH: [], PULL: [], ARMS: [], LEGS: [] };
-  if (!s.sessions)  s.sessions  = [];
-  if (!s.dailyLogs) s.dailyLogs = [];
+  if (!s.exercises || typeof s.exercises !== "object") s.exercises = { PUSH: [], PULL: [], ARMS: [], LEGS: [] };
+  if (!Array.isArray(s.sessions))  s.sessions  = [];
+  if (!Array.isArray(s.dailyLogs)) s.dailyLogs = [];
   if (!s.timer)        s.timer        = { compoundSec: 180, midSec: 120, isolationSec: 90, sound: true };
-  if (!s.measurements)  s.measurements  = [];
-  if (!s.customFoods)   s.customFoods   = [];
+  if (!Array.isArray(s.measurements))  s.measurements  = [];
+  if (!Array.isArray(s.customFoods))   s.customFoods   = [];
   if (s.onboarded === undefined) s.onboarded = (s.sessions?.length > 0 || s.dailyLogs?.length > 0);
   if (!s.cut.mode)     s.cut.mode     = "cut";
   if (s.profile.name === undefined)          s.profile.name = "";
@@ -141,6 +141,20 @@ function migrateState(s) {
     if (migrated.leanMassKg === undefined) migrated.leanMassKg = leanMassKg(migrated.weight, migrated.bodyFatPercent);
     return migrated;
   });
+  if (typeof migrateNutritionCoachState === "function") {
+    try {
+      s = migrateNutritionCoachState(s);
+    } catch (error) {
+      console.error("Adaptive nutrition migration disabled for this startup", error);
+      s.nutritionCoach = {
+        version: 1,
+        enabled: false,
+        recovery: { active: false, startedAt: null, reason: null },
+        reviews: [],
+        lastDecision: "Adaptive plan needs to be restarted from Adjust Goal.",
+      };
+    }
+  }
   if (!s.repRangeCounters)        s.repRangeCounters = {};
   if (!s.exerciseMuscleActivations) s.exerciseMuscleActivations = {};
   if (!s.pendingProgramChanges)   s.pendingProgramChanges = {};

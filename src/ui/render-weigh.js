@@ -13,6 +13,8 @@ function renderWeigh() {
   $("#weigh-kcal").value    = meals.length > 0 ? mealsKcal    : (log.kcal    ?? "");
   $("#weigh-protein").value = meals.length > 0 ? Math.round(mealsProtein) : (log.protein ?? "");
   $("#weigh-notes").value   = log.notes ?? "";
+  const completeEl = document.getElementById("weigh-food-complete");
+  if (completeEl) completeEl.checked = log.foodLogComplete === true;
   $("#weigh-steps").value   = log.steps ?? "";
   $("#weigh-water").value   = log.waterMl ?? "";
   const stepGoalEl = document.getElementById("weigh-step-goal-label");
@@ -60,7 +62,16 @@ function renderWeigh() {
   const autoBadge = document.getElementById("weight-auto-badge");
   const autoBody = document.getElementById("weight-auto-body");
   const autoRate = document.getElementById("weight-auto-rate");
+  const adaptive = typeof adaptiveNutritionStatus === "function" ? adaptiveNutritionStatus(today) : null;
   const diag = weightDiagnostic();
+  if (adaptive?.enabled && autoCard) {
+    autoCard.style.display = "";
+    autoBadge.textContent = adaptive.recoveryActive ? "RECOVERY" : "ADAPTIVE";
+    autoBadge.style.color = adaptive.recoveryActive ? "var(--bad)" : "var(--good)";
+    autoBody.textContent = adaptive.plan.lastDecision || "Log food completely and weigh in consistently to unlock the next weekly review.";
+    autoRate.textContent = `${adaptive.completeDays}/5 complete food logs - ${adaptive.weighIns}/6 weigh-ins - ${adaptive.rate == null ? "rate pending" : `${adaptive.rate >= 0 ? "down" : "up"} ${Math.abs(adaptive.rate).toFixed(2)} kg/week`}`;
+    return;
+  }
   if (autoCard && diag.rate != null) {
     autoCard.style.display = "";
     const rate = diag.rate;
