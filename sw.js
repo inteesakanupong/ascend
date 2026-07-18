@@ -1,4 +1,4 @@
-const RELEASE = "20260718.3";
+const RELEASE = "20260718.6";
 const CACHE_NAME = `ascend-${RELEASE}`;
 const VERSION = `?v=${RELEASE}`;
 const APP_SHELL = [
@@ -19,6 +19,7 @@ const APP_SHELL = [
   `./src/workout/progression.js${VERSION}`,
   `./src/workout/set-classification.js${VERSION}`,
   `./src/workout/volume.js${VERSION}`,
+  `./src/activity/running.js${VERSION}`,
   `./src/workout/readiness.js${VERSION}`,
   `./src/workout/targeted-warmup-engine.js${VERSION}`,
   `./src/nutrition/adaptive-calories.js${VERSION}`,
@@ -27,6 +28,7 @@ const APP_SHELL = [
   `./src/storage/exercise-memory.js${VERSION}`,
   `./src/storage/session-persistence.js${VERSION}`,
   `./src/ui/navigation.js${VERSION}`,
+  `./src/ui/render-running.js${VERSION}`,
   `./src/ui/render-today.js${VERSION}`,
   `./src/ui/render-lift.js${VERSION}`,
   `./src/ui/render-weigh.js${VERSION}`,

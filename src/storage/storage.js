@@ -50,6 +50,7 @@ function freshDefaultState() {
   s.onboarded = false;
   s.sessions = [];
   s.dailyLogs = [];
+  s.runSessions = [];
   s.measurements = [];
   s.customFoods = [];
   s.customExercises = [];

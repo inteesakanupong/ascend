@@ -76,6 +76,14 @@ function calculateReadiness(date) {
     factors.push(...adherence.factors);
   }
 
+  if (typeof runningRecoverySignal === "function") {
+    const running = runningRecoverySignal(date);
+    if (running.penalty) {
+      score -= running.penalty;
+      factors.push(...running.factors);
+    }
+  }
+
   score = Math.max(1, Math.min(5, Math.round(score * 2) / 2));
 
   let adjustment = 0;

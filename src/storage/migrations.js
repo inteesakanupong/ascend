@@ -88,6 +88,7 @@ function migrateState(s) {
   if (!s.exercises || typeof s.exercises !== "object") s.exercises = { PUSH: [], PULL: [], ARMS: [], LEGS: [] };
   if (!Array.isArray(s.sessions))  s.sessions  = [];
   if (!Array.isArray(s.dailyLogs)) s.dailyLogs = [];
+  if (!Array.isArray(s.runSessions)) s.runSessions = [];
   if (!s.timer)        s.timer        = { compoundSec: 180, midSec: 120, isolationSec: 90, sound: true };
   if (!Array.isArray(s.measurements))  s.measurements  = [];
   if (!Array.isArray(s.customFoods))   s.customFoods   = [];
@@ -141,6 +142,9 @@ function migrateState(s) {
     if (migrated.leanMassKg === undefined) migrated.leanMassKg = leanMassKg(migrated.weight, migrated.bodyFatPercent);
     return migrated;
   });
+  s.runSessions = s.runSessions
+    .map(run => typeof normalizeRunSession === "function" ? normalizeRunSession(run) : run)
+    .filter(run => run && run.date && Number(run.distanceKm) >= 0 && Number(run.durationSec) >= 0);
   if (typeof migrateNutritionCoachState === "function") {
     try {
       s = migrateNutritionCoachState(s);

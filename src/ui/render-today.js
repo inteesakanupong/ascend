@@ -17,6 +17,7 @@ function renderToday() {
   $("#today-eyebrow").textContent = `${phaseName(phase)} - WEEK ${weekNum} - DAY ${dayNum}`;
   // Phase 6: Inject weekly dashboard card
   renderTodayWeeklyDashboard();
+  if (typeof renderTodayRunning === "function") renderTodayRunning();
   $("#today-date").textContent = formatDate(today);
 
   // Readiness score
@@ -191,9 +192,10 @@ function renderToday() {
   }
 
   const log = getDailyLog(today) || {};
+  const todayRuns = typeof runsForDate === "function" ? runsForDate(today) : [];
   const activitySummary = document.getElementById("today-activity-summary");
   if (activitySummary) {
-    activitySummary.textContent = log.restDay ? "REST DAY" : (log.weight != null || log.kcal != null || log.recovery != null ? "LOGGED" : "OPEN");
+    activitySummary.textContent = log.restDay ? "REST DAY" : todayRuns.length ? `${todayRuns.length} RUN${todayRuns.length === 1 ? "" : "S"}` : (log.weight != null || log.kcal != null || log.recovery != null ? "LOGGED" : "OPEN");
   }
 
   // Streak
@@ -219,8 +221,9 @@ function renderToday() {
         const log = getDailyLog(iso);
         const dayLabel = formatDate(iso).slice(0, 6);
         const hasSession = STATE.sessions.some(s => s.date === iso);
+        const hasRun = typeof runsForDate === "function" && runsForDate(iso).length > 0;
         const wt = log?.weight ? `${log.weight}kg` : "";
-        const status = log?.restDay ? "rest" : hasSession ? "session" : log ? "log" : "";
+        const status = log?.restDay ? "rest" : hasSession && hasRun ? "lift + run" : hasSession ? "session" : hasRun ? "run" : log ? "log" : "";
         return `<div style="display:flex;justify-content:space-between;padding:6px 14px;${i%2===0?'background:var(--bg-elev-1)':''};">
           <span style="font-family:var(--f-mono);font-size:11px;color:var(--ink-mid);">${dayLabel}</span>
           <span style="font-size:11px;">${wt} ${status || '<span style="color:var(--ink-faint);">-</span>'}</span>
@@ -322,6 +325,10 @@ $("#btn-start-session").addEventListener("click", () => {
 
 document.getElementById("btn-log-rest-day")?.addEventListener("click", () => {
   const today = todayISO();
+  if (typeof runsForDate === "function" && runsForDate(today).length) {
+    toast("A RUN IS LOGGED TODAY");
+    return;
+  }
   const cur = getDailyLog(today) || { date: today };
   cur.restDay = true;
   cur.restDayLoggedAt = new Date().toISOString();
@@ -441,4 +448,3 @@ document.getElementById("btn-log-morning").addEventListener("click", () => {
   renderToday();
   toast(`MORNING LOGGED`);
 });
-

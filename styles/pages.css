@@ -420,7 +420,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   font-family: var(--f-display); font-weight: 800;
   font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase;
 }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .cal-dow {
   text-align: center; font-family: var(--f-mono); font-size: 9px;
   font-weight: 700; letter-spacing: 0.1em; color: var(--ink-dim); padding-bottom: 6px;
@@ -441,6 +441,7 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
 .cal-cell.pull  { background: var(--pull); }
 .cal-cell.arms  { background: var(--arms); }
 .cal-cell.legs  { background: var(--legs); }
+.cal-cell.run   { background: var(--accent); }
 .cal-cell.multi {
   background: linear-gradient(135deg, var(--push) 50%, var(--legs) 50%);
 }
@@ -1113,4 +1114,3 @@ svg.chart .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1;
   color: var(--ink-mid);
   font-weight: 600;
 }
-

@@ -80,6 +80,7 @@ function renderStats() {
   safeRender("stats.liftGraphPills", () => LiftGraph.renderExercisePills());
   safeRender("stats.liftGraph", () => LiftGraph.drawGraph());
   safeRender("stats.lifterAnalysis", () => renderLifterAnalysis());
+  safeRender("stats.running", () => renderRunningStats());
 
   // Weight chart
   const logs = STATE.dailyLogs.filter(d => typeof d.weight === "number")
