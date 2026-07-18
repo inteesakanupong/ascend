@@ -215,7 +215,9 @@ function adaptiveNutritionStatus(date = todayISO()) {
   const overDays14 = complete14.filter(d => d.kcal > (target || 0) + 150).length;
   const onPlan = d => {
     const proteinOk = d.protein != null && d.protein >= (STATE.cut.proteinFloor || 160);
-    const runAdjustment = typeof runFuelingAdjustmentForDate === "function"
+    const runAdjustment = typeof activityFuelingAdjustmentForDate === "function"
+      ? activityFuelingAdjustmentForDate(d.date).adjustment
+      : typeof runFuelingAdjustmentForDate === "function"
       ? runFuelingAdjustmentForDate(d.date).adjustment
       : 0;
     const dayTarget = Math.max(nutritionCalorieFloor(STATE, d.weight || STATE.profile.bodyweight), target - (isRestDay(d.date) ? 150 : 0) + runAdjustment);
@@ -231,7 +233,9 @@ function adaptiveNutritionStatus(date = todayISO()) {
   const currentWeight = latestWeighIn()?.weight || STATE.profile.bodyweight;
   const weeklyBudget = Array.from({ length: 7 }, (_, i) => {
     const day = nutritionDateOffset(date, i);
-    const runAdjustment = typeof runFuelingAdjustmentForDate === "function"
+    const runAdjustment = typeof activityFuelingAdjustmentForDate === "function"
+      ? activityFuelingAdjustmentForDate(day).adjustment
+      : typeof runFuelingAdjustmentForDate === "function"
       ? runFuelingAdjustmentForDate(day).adjustment
       : 0;
     return Math.max(nutritionCalorieFloor(STATE, currentWeight), target - (isRestDay(day) ? 150 : 0) + runAdjustment);

@@ -86,12 +86,11 @@ function runsForDate(date, state = STATE) {
     .sort((a, b) => String(a.startTime || "").localeCompare(String(b.startTime || "")));
 }
 
-function runFuelingAdjustmentForDate(date, state = STATE) {
-  const runs = runsForDate(date, state);
+function runFuelingAdjustmentForRuns(runs, state = STATE, weightOverride = null) {
   if (!runs.length) return { adjustment: 0, expenditure: 0, reason: null };
-  const weight = typeof latestWeighIn === "function"
+  const weight = weightOverride || (typeof latestWeighIn === "function"
     ? (latestWeighIn()?.weight || state?.profile?.bodyweight || 80)
-    : (state?.profile?.bodyweight || 80);
+    : (state?.profile?.bodyweight || 80));
   const mode = state?.cut?.mode || "cut";
   const share = mode === "bulk" ? 0.60 : mode === "maintain" ? 0.50 : 0.35;
   let expenditure = 0;
@@ -110,6 +109,10 @@ function runFuelingAdjustmentForDate(date, state = STATE) {
     expenditure,
     reason: adjustment ? "Partial fueling for demanding running; estimated burn is not fully eaten back." : "Short easy running stays inside the normal activity target.",
   };
+}
+
+function runFuelingAdjustmentForDate(date, state = STATE) {
+  return runFuelingAdjustmentForRuns(runsForDate(date, state), state);
 }
 
 function runningLoadSummary(endDate, state = STATE) {

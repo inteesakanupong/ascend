@@ -17,6 +17,7 @@ function renderToday() {
   $("#today-eyebrow").textContent = `${phaseName(phase)} - WEEK ${weekNum} - DAY ${dayNum}`;
   // Phase 6: Inject weekly dashboard card
   renderTodayWeeklyDashboard();
+  if (typeof renderWeeklyPlanner === "function") renderWeeklyPlanner();
   if (typeof renderTodayRunning === "function") renderTodayRunning();
   $("#today-date").textContent = formatDate(today);
 
@@ -123,7 +124,7 @@ function renderToday() {
     }
   }
 
-  const nextDay = nextSessionDay();
+  const nextDay = (typeof plannedLiftDayForDate === "function" && plannedLiftDayForDate(today)) || nextSessionDay();
   const chip = $("#today-chip"); const chipText = $("#today-chip-text");
   chip.className = `day-chip ${nextDay.toLowerCase()}`;
   chipText.textContent = nextDay;
@@ -318,7 +319,7 @@ function renderToday() {
 
 // Start session button jumps to lift tab pre-filled.
 $("#btn-start-session").addEventListener("click", () => {
-  const day = nextSessionDay();
+  const day = (typeof plannedLiftDayForDate === "function" && plannedLiftDayForDate(todayISO())) || nextSessionDay();
   goTab("lift");
   setTimeout(() => selectLiftDay(day), 50);
 });
@@ -330,6 +331,9 @@ document.getElementById("btn-log-rest-day")?.addEventListener("click", () => {
     return;
   }
   const cur = getDailyLog(today) || { date: today };
+  if (typeof updatePlannerItem === "function" && plannerItemForDate(today)?.status === "planned") {
+    updatePlannerItem(today, "skip");
+  }
   cur.restDay = true;
   cur.restDayLoggedAt = new Date().toISOString();
   upsertDailyLog(cur);

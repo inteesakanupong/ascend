@@ -51,6 +51,7 @@ function freshDefaultState() {
   s.sessions = [];
   s.dailyLogs = [];
   s.runSessions = [];
+  s.weeklyPlanner = { version: 1, enabled: true, status: "draft", preferences: {}, items: [], revision: 0 };
   s.measurements = [];
   s.customFoods = [];
   s.customExercises = [];

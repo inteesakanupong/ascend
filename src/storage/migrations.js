@@ -145,6 +145,14 @@ function migrateState(s) {
   s.runSessions = s.runSessions
     .map(run => typeof normalizeRunSession === "function" ? normalizeRunSession(run) : run)
     .filter(run => run && run.date && Number(run.distanceKm) >= 0 && Number(run.durationSec) >= 0);
+  if (typeof normalizeWeeklyPlannerState === "function") {
+    try {
+      normalizeWeeklyPlannerState(s);
+    } catch (error) {
+      console.error("Weekly planner migration disabled for this startup", error);
+      s.weeklyPlanner = { version: 1, enabled: false, status: "draft", preferences: {}, items: [], revision: 0 };
+    }
+  }
   if (typeof migrateNutritionCoachState === "function") {
     try {
       s = migrateNutritionCoachState(s);
