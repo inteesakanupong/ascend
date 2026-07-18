@@ -44,7 +44,7 @@
 // Cache name includes the version — changes on every deploy, busting the cache.
 if ("serviceWorker" in navigator) {
   const swCode = `
-const CACHE = "ascend-2026-06-03.2";
+const CACHE = "ascend-2026-07-18.1";
 
 self.addEventListener("install", e => {
   // Delete all old caches
@@ -75,6 +75,7 @@ self.addEventListener("install", e => {
           base + "src/workout/volume.js",
           base + "src/workout/readiness.js",
           base + "src/workout/targeted-warmup-engine.js",
+          base + "src/nutrition/adaptive-calories.js",
           base + "src/storage/storage.js",
           base + "src/storage/migrations.js",
           base + "src/storage/exercise-memory.js",
@@ -96,9 +97,19 @@ self.addEventListener("activate", e => {
   e.waitUntil(clients.claim());
 });
 self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => r))
-  );
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(e.request).then(r => r || caches.match(new URL("index.html", e.request.url).href)))
+    );
+    return;
+  }
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
   `.trim();
 

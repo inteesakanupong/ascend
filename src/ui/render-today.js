@@ -168,14 +168,20 @@ function renderToday() {
   if (adaptivePlanBefore !== adaptivePlanAfter) saveState();
   const adaptiveCard = document.getElementById("today-adaptive-card");
   if (adaptiveCard) adaptiveCard.style.display = adaptive?.enabled ? "" : "none";
-  if (adaptive?.enabled) {
+  if (adaptive?.enabled && adaptiveCard) {
     const badge = document.getElementById("today-adaptive-badge");
-    badge.textContent = adaptive.recoveryActive ? "7-DAY RECOVERY" : "ACTIVE";
-    badge.style.color = adaptive.recoveryActive ? "var(--bad)" : "var(--good)";
-    document.getElementById("today-adaptive-kcal").innerHTML = `${phaseTargets.kcal}<span class="unit">kcal</span>`;
-    document.getElementById("today-adaptive-week").innerHTML = `${adaptive.weeklyBudget.toLocaleString()}<span class="unit">kcal</span>`;
-    document.getElementById("today-adaptive-goal").innerHTML = `${adaptive.plan.checkpointWeight}<span class="unit">kg</span>`;
-    document.getElementById("today-adaptive-body").textContent = adaptive.plan.lastDecision || "Complete five food logs and six weigh-ins to unlock the weekly review.";
+    const kcalEl = document.getElementById("today-adaptive-kcal");
+    const weekEl = document.getElementById("today-adaptive-week");
+    const goalEl = document.getElementById("today-adaptive-goal");
+    const bodyEl = document.getElementById("today-adaptive-body");
+    if (badge) {
+      badge.textContent = adaptive.recoveryActive ? "7-DAY RECOVERY" : "ACTIVE";
+      badge.style.color = adaptive.recoveryActive ? "var(--bad)" : "var(--good)";
+    }
+    if (kcalEl) kcalEl.innerHTML = `${phaseTargets.kcal}<span class="unit">kcal</span>`;
+    if (weekEl) weekEl.innerHTML = `${adaptive.weeklyBudget.toLocaleString()}<span class="unit">kcal</span>`;
+    if (goalEl) goalEl.innerHTML = `${adaptive.plan.checkpointWeight}<span class="unit">kg</span>`;
+    if (bodyEl) bodyEl.textContent = adaptive.plan.lastDecision || "Complete five food logs and six weigh-ins to unlock the weekly review.";
   }
 
   // Verdict pill
